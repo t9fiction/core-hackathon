@@ -2,6 +2,8 @@ import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import {
   arbitrum,
   base,
+  coreTestnet2,
+  coreDao,
   mainnet,
   optimism,
   polygon,
@@ -10,9 +12,12 @@ import {
 
 export const config = getDefaultConfig({
   appName: 'RainbowKit App',
-  projectId: 'YOUR_PROJECT_ID',
+  projectId: 'b733907b13ef59931a5ab9c55db6f28c',
   chains: [
     mainnet,
+    coreDao,
+    coreTestnet2,
+    sepolia,
     polygon,
     optimism,
     arbitrum,
