@@ -1,9 +1,9 @@
 // Contract addresses on Sepolia
 export const CONTRACTS = {
-  // Currently only PumpFunToken is deployed
+  // PumpFunToken template - individual tokens are deployed by factory
   PUMPFUN_TOKEN: '0xa22b23f1349f1429912916cD707139d9F379D5Ec',
-  // Factory would be deployed separately
-  PUMPFUN_FACTORY: '', // To be deployed
+  // Factory deployed on Sepolia
+  PUMPFUN_FACTORY: '0x1867E3073d7a7889e485feadeb1d1df0236E460E',
 } as const;
 
 // Supply tiers for token creation
