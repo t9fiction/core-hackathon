@@ -9,6 +9,8 @@ interface IUniswapV3Pool {
     function tickSpacing() external view returns (int24);
     function maxLiquidityPerTick() external view returns (uint128);
     
+    function initialize(uint160 sqrtPriceX96) external;
+    
     function slot0()
         external
         view

@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/ISwapRouter.sol";
 import "./interfaces/INonfungiblePositionManager.sol";
+import "./interfaces/IUniswapV3Factory.sol";
+import "./interfaces/IUniswapV3Pool.sol";
 
 /**
  * @title PumpFunDEXManager
@@ -79,6 +81,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     // State Variables
     ISwapRouter public immutable swapRouter;
     INonfungiblePositionManager public immutable positionManager;
+    IUniswapV3Factory public immutable uniswapV3Factory;
     address public immutable WETH;
     
     mapping(address => PoolInfo) public tokenPools;
@@ -90,12 +93,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     uint256 public constant MIN_LIQUIDITY_ETH = 0.1 ether;
     
     
-    constructor(address _swapRouter, address _positionManager, address _weth) Ownable(msg.sender) {
-        if (_swapRouter == address(0) || _positionManager == address(0) || _weth == address(0)) {
+    constructor(address _swapRouter, address _positionManager, address _uniswapV3Factory, address _weth) Ownable(msg.sender) {
+        if (_swapRouter == address(0) || _positionManager == address(0) || _uniswapV3Factory == address(0) || _weth == address(0)) {
             revert InvalidTokenAddress();
         }
         swapRouter = ISwapRouter(_swapRouter);
         positionManager = INonfungiblePositionManager(_positionManager);
+        uniswapV3Factory = IUniswapV3Factory(_uniswapV3Factory);
         WETH = _weth;
     }
     
@@ -108,7 +112,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev Create initial liquidity pool for a token
+     * @dev Create initial liquidity pool for a token (based on working sample)
      */
     function createLiquidityPool(
         address token0,
@@ -117,10 +121,21 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint256 amount0Desired,
         uint256 amount1Desired
     ) external payable nonReentrant {
-        require(fee < 10000, "Invalid fee"); // example constraint
         if (!authorizedTokens[token0]) revert UnauthorizedToken();
         if (amount0Desired == 0 || amount1Desired == 0) revert InvalidAmount();
         if (tokenPools[token0].isActive) revert PairAlreadyExists();
+        
+        // Check if pool already exists
+        address poolAddress = uniswapV3Factory.getPool(token0, token1, fee);
+        
+        // Create pool if it doesn't exist
+        if (poolAddress == address(0)) {
+            poolAddress = uniswapV3Factory.createPool(token0, token1, fee);
+            
+            // Initialize pool with 1:1 price ratio (can be adjusted)
+            uint160 sqrtPriceX96 = _encodeSqrtRatioX96(1, 1);
+            IUniswapV3Pool(poolAddress).initialize(sqrtPriceX96);
+        }
         
         // Transfer tokens from sender
         IERC20(token0).transferFrom(msg.sender, address(this), amount0Desired);
@@ -130,23 +145,42 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         IERC20(token0).approve(address(positionManager), amount0Desired);
         IERC20(token1).approve(address(positionManager), amount1Desired);
         
-        // Mint new position
-        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
-            token0: token0,
-            token1: token1,
-            fee: fee,
-            tickLower: -887272,
-            tickUpper: 887272,
-            amount0Desired: amount0Desired,
-            amount1Desired: amount1Desired,
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: address(this),
-            deadline: block.timestamp + 300
-        });
+        uint256 tokenId;
+        uint128 liquidity;
+        uint256 amount0;
+        uint256 amount1;
         
-        (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) = 
-            positionManager.mint(params);
+        {
+            // Get pool state
+            IUniswapV3Pool pool = IUniswapV3Pool(poolAddress);
+            
+            // Retrieve pool state
+            uint160 sqrtPriceX96;
+            int24 tick;
+            (sqrtPriceX96, tick, , , , , ) = pool.slot0();
+
+            // Calculate tick spacing
+            int24 tickSpacing = _getTickSpacing(fee);
+            int24 tickLower = ((tick - tickSpacing * 2) / tickSpacing) * tickSpacing;
+            int24 tickUpper = ((tick + tickSpacing * 2) / tickSpacing) * tickSpacing;
+        
+            // Mint new position using calculated ticks
+            INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
+                token0: token0,
+                token1: token1,
+                fee: fee,
+                tickLower: tickLower,
+                tickUpper: tickUpper,
+                amount0Desired: amount0Desired,
+                amount1Desired: amount1Desired,
+                amount0Min: 0,
+                amount1Min: 0,
+                recipient: address(this),
+                deadline: block.timestamp + 300
+            });
+
+            (tokenId, liquidity, amount0, amount1) = positionManager.mint(params);
+        }
         
         // Store pool information
         tokenPools[token0] = PoolInfo({
@@ -332,6 +366,48 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      */
     function withdrawToken(address token, uint256 amount) external onlyOwner {
         IERC20(token).transfer(owner(), amount);
+    }
+    
+    /**
+     * @dev Get pool address for a token pair
+     */
+    function getPoolAddress(address token0, address token1, uint24 fee) external view returns (address) {
+        return uniswapV3Factory.getPool(token0, token1, fee);
+    }
+    
+    /**
+     * @dev Internal function to encode sqrt ratio
+     */
+    function _encodeSqrtRatioX96(uint256 amount1, uint256 amount0) internal pure returns (uint160) {
+        uint256 numerator1 = amount1;
+        uint256 numerator2 = amount0;
+        uint256 ratio = (numerator1 * 2**96) / numerator2;
+        return uint160(_sqrt(ratio * 2**96));
+    }
+    
+    /**
+     * @dev Internal function to calculate square root
+     */
+    function _sqrt(uint256 x) internal pure returns (uint256) {
+        if (x == 0) return 0;
+        uint256 z = (x + 1) / 2;
+        uint256 y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+        return y;
+    }
+    
+    /**
+     * @dev Get tick spacing for fee tier
+     */
+    function _getTickSpacing(uint24 fee) internal pure returns (int24) {
+        if (fee == 100) return 1;          // 0.01%
+        if (fee == 500) return 10;         // 0.05%
+        if (fee == 3000) return 60;        // 0.3%
+        if (fee == 10000) return 200;      // 1%
+        return 60; // Default to 0.3% spacing
     }
     
     // Receive function to accept ETH

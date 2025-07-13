@@ -215,8 +215,14 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard {
         // For V3, we need WETH as the paired token
         address wethToken = dexManager.WETH();
 
-        // Forward the call to DEX manager
-        dexManager.createLiquidityPool(tokenAddress, wethToken, fee, tokenAmount, msg.value);
+        // Ensure proper token ordering for Uniswap V3
+        address token0 = tokenAddress < wethToken ? tokenAddress : wethToken;
+        address token1 = tokenAddress < wethToken ? wethToken : tokenAddress;
+        uint256 amount0Desired = tokenAddress < wethToken ? tokenAmount : msg.value;
+        uint256 amount1Desired = tokenAddress < wethToken ? msg.value : tokenAmount;
+
+        // Forward the call to DEX manager with proper token ordering
+        dexManager.createLiquidityPool{value: msg.value}(token0, token1, fee, amount0Desired, amount1Desired);
 
         // Get the token stats from DEX manager
         (,, uint256 volume24h, uint256 liquidity, bool isActive) = dexManager.getTokenStats(tokenAddress);
