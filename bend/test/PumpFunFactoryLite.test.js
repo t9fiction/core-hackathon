@@ -1,6 +1,6 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
-const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
+import {expect} from "chai"
+import {ethers} from "hardhat"
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 describe("PumpFunFactoryLite", function () {
   let PumpFunFactoryLite, factory;

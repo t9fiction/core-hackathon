@@ -109,6 +109,13 @@ async function main() {
         console.log("❌ DEXManager configuration mismatch!");
       }
 
+      // Set factory address in DEXManager
+      console.log("🔧 Setting factory address in DEXManager...");
+      const dexManager = await ethers.getContractAt("PumpFunDEXManager", deployedContracts.PumpFunDEXManager);
+      const setFactoryTx = await dexManager.setFactory(deployedContracts.PumpFunFactoryLite);
+      await setFactoryTx.wait();
+      console.log("✅ Factory address set in DEXManager!");
+
     } catch (error) {
       console.error("❌ Failed to set DEXManager:", error.message);
       console.error("   You may need to set this manually later");

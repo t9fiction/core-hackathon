@@ -25,6 +25,12 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     error UnauthorizedToken();
     error LiquidityLocked();
     
+    // Modifiers
+    modifier onlyFactory() {
+        require(msg.sender == factory, "Caller is not the factory");
+        _;
+    }
+
     // Events
     event LiquidityPoolCreated(
         address indexed token0,
@@ -62,6 +68,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint256 timestamp
     );
     
+    
     // Structs
     struct PoolInfo {
         uint256 tokenId;
@@ -83,6 +90,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     INonfungiblePositionManager public immutable positionManager;
     IUniswapV3Factory public immutable uniswapV3Factory;
     address public immutable WETH;
+    address public factory;
     
     mapping(address => PoolInfo) public tokenPools;
     mapping(address => PriceInfo) public tokenPrices;
@@ -104,9 +112,25 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev Authorize a PumpFun token for DEX operations
+     * @dev Set the factory contract address (only owner)
+     */
+    function setFactory(address _factory) external onlyOwner {
+        require(_factory != address(0), "Invalid factory address");
+        factory = _factory;
+    }
+    
+    /**
+     * @dev Authorize a PumpFun token for DEX operations (owner only)
      */
     function authorizeToken(address token) external onlyOwner {
+        if (token == address(0)) revert InvalidTokenAddress();
+        authorizedTokens[token] = true;
+    }
+    
+    /**
+     * @dev Authorize a PumpFun token for DEX operations (factory only)
+     */
+    function authorizeTokenFromFactory(address token) external onlyFactory {
         if (token == address(0)) revert InvalidTokenAddress();
         authorizedTokens[token] = true;
     }
@@ -127,6 +151,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         
         // Check if pool already exists
         address poolAddress = uniswapV3Factory.getPool(token0, token1, fee);
+        bool poolExists = poolAddress != address(0);
         
         // Create pool if it doesn't exist
         if (poolAddress == address(0)) {

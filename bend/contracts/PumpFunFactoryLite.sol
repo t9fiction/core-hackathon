@@ -210,7 +210,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard {
         IERC20(tokenAddress).approve(address(dexManager), tokenAmount);
 
         // Authorize token in DEX manager
-        dexManager.authorizeToken(tokenAddress);
+        dexManager.authorizeTokenFromFactory(tokenAddress);
 
         // For V3, we need WETH as the paired token
         address wethToken = dexManager.WETH();

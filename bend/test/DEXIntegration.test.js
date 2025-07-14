@@ -32,6 +32,8 @@ describe("DEX Integration Tests", function () {
     
     // Configure factory
     await factory.setDEXManager(dexManager.target);
+
+    await dexManager.setFactory(factory.target)
   });
 
   describe("Factory DEX Integration", function () {
