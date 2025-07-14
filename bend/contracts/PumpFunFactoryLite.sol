@@ -192,7 +192,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Create DEX liquidity pool for a token
+     * @dev Create DEX liquidity pool for a token (with ETH support)
      */
     function createDEXPool(address tokenAddress, uint256 tokenAmount, uint24 fee) external payable nonReentrant {
         if (!isDeployedToken[tokenAddress]) revert InvalidTokenAddress();
@@ -212,21 +212,13 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard {
         // Authorize token in DEX manager
         dexManager.authorizeTokenFromFactory(tokenAddress);
 
-        // For V3, we need WETH as the paired token
-        address wethToken = dexManager.WETH();
-
-        // Ensure proper token ordering for Uniswap V3
-        address token0 = tokenAddress < wethToken ? tokenAddress : wethToken;
-        address token1 = tokenAddress < wethToken ? wethToken : tokenAddress;
-        uint256 amount0Desired = tokenAddress < wethToken ? tokenAmount : msg.value;
-        uint256 amount1Desired = tokenAddress < wethToken ? msg.value : tokenAmount;
-
-        // Forward the call to DEX manager with proper token ordering
-        dexManager.createLiquidityPool{value: msg.value}(token0, token1, fee, amount0Desired, amount1Desired);
+        // Use the new ETH-compatible function that handles WETH conversion automatically
+        dexManager.createLiquidityPoolWithETH{value: msg.value}(tokenAddress, fee, tokenAmount);
 
         // Get the token stats from DEX manager
         (,, uint256 volume24h, uint256 liquidity, bool isActive) = dexManager.getTokenStats(tokenAddress);
         if (isActive) {
+            address wethToken = dexManager.WETH();
             emit DEXPoolCreated(tokenAddress, wethToken, tokenAmount, msg.value);
         }
     }

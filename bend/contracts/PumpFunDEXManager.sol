@@ -8,6 +8,7 @@ import "./interfaces/ISwapRouter.sol";
 import "./interfaces/INonfungiblePositionManager.sol";
 import "./interfaces/IUniswapV3Factory.sol";
 import "./interfaces/IUniswapV3Pool.sol";
+import "./interfaces/IWETH.sol";
 
 /**
  * @title PumpFunDEXManager
@@ -136,6 +137,35 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     }
     
     /**
+     * @dev Create initial liquidity pool for a token with ETH (automatically converts ETH to WETH)
+     */
+    function createLiquidityPoolWithETH(
+        address token,
+        uint24 fee,
+        uint256 tokenAmount
+    ) external payable nonReentrant {
+        if (!authorizedTokens[token]) revert UnauthorizedToken();
+        if (tokenAmount == 0) revert InvalidAmount();
+        if (msg.value == 0) revert InvalidAmount();
+        if (tokenPools[token].isActive) revert PairAlreadyExists();
+        
+        // Convert ETH to WETH
+        IWETH(WETH).deposit{value: msg.value}();
+        
+        // Transfer tokens from sender
+        IERC20(token).transferFrom(msg.sender, address(this), tokenAmount);
+        
+        // Determine token ordering (Uniswap V3 requires token0 < token1)
+        address token0 = token < WETH ? token : WETH;
+        address token1 = token < WETH ? WETH : token;
+        uint256 amount0Desired = token < WETH ? tokenAmount : msg.value;
+        uint256 amount1Desired = token < WETH ? msg.value : tokenAmount;
+        
+        // Create the liquidity pool
+        _createLiquidityPool(token0, token1, fee, amount0Desired, amount1Desired, token);
+    }
+    
+    /**
      * @dev Create initial liquidity pool for a token (based on working sample)
      */
     function createLiquidityPool(
@@ -145,13 +175,42 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint256 amount0Desired,
         uint256 amount1Desired
     ) external payable nonReentrant {
+        // Handle ETH conversion if one of the tokens is WETH and ETH is sent
+        if (token1 == WETH && msg.value > 0) {
+            // Convert ETH to WETH
+            IWETH(WETH).deposit{value: msg.value}();
+            amount1Desired = msg.value;
+        }
+        
         if (!authorizedTokens[token0]) revert UnauthorizedToken();
         if (amount0Desired == 0 || amount1Desired == 0) revert InvalidAmount();
         if (tokenPools[token0].isActive) revert PairAlreadyExists();
         
+        // Transfer tokens from sender (only for non-ETH tokens)
+        if (token0 != WETH || msg.value == 0) {
+            IERC20(token0).transferFrom(msg.sender, address(this), amount0Desired);
+        }
+        if (token1 != WETH || msg.value == 0) {
+            IERC20(token1).transferFrom(msg.sender, address(this), amount1Desired);
+        }
+        
+        // Create the liquidity pool
+        _createLiquidityPool(token0, token1, fee, amount0Desired, amount1Desired, token0);
+    }
+    
+    /**
+     * @dev Internal function to create liquidity pool
+     */
+    function _createLiquidityPool(
+        address token0,
+        address token1,
+        uint24 fee,
+        uint256 amount0Desired,
+        uint256 amount1Desired,
+        address trackingToken
+    ) internal {
         // Check if pool already exists
         address poolAddress = uniswapV3Factory.getPool(token0, token1, fee);
-        bool poolExists = poolAddress != address(0);
         
         // Create pool if it doesn't exist
         if (poolAddress == address(0)) {
@@ -161,10 +220,6 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             uint160 sqrtPriceX96 = _encodeSqrtRatioX96(1, 1);
             IUniswapV3Pool(poolAddress).initialize(sqrtPriceX96);
         }
-        
-        // Transfer tokens from sender
-        IERC20(token0).transferFrom(msg.sender, address(this), amount0Desired);
-        IERC20(token1).transferFrom(msg.sender, address(this), amount1Desired);
         
         // Approve position manager to spend tokens
         IERC20(token0).approve(address(positionManager), amount0Desired);
@@ -207,8 +262,8 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             (tokenId, liquidity, amount0, amount1) = positionManager.mint(params);
         }
         
-        // Store pool information
-        tokenPools[token0] = PoolInfo({
+        // Store pool information (use the tracking token, not necessarily token0)
+        tokenPools[trackingToken] = PoolInfo({
             tokenId: tokenId,
             liquidity: liquidity,
             lockExpiry: block.timestamp + 30 days,
@@ -216,7 +271,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             createdAt: block.timestamp
         });
         
-        _updateTokenPrice(token0);
+        _updateTokenPrice(trackingToken);
         emit LiquidityPoolCreated(token0, token1, fee, amount0, amount1, liquidity);
     }
     
