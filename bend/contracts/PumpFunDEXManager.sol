@@ -160,13 +160,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint24 fee,
         uint256 amount0Desired,
         uint256 amount1Desired
-    ) external payable nonReentrant {
-        // Handle ETH conversion if one of the tokens is WETH and ETH is sent
-        // if (token1 == WETH && msg.value > 0) {
-        //     // Convert ETH to WETH
-        //     IWETH(WETH).deposit{value: msg.value}();
-        //     amount1Desired = msg.value;
-        // }
+    ) external nonReentrant {
         if (token0 == address(0) || token1 == address(0)) revert InvalidTokenAddress();
         if (!authorizedTokens[token0]) revert UnauthorizedToken();
         if (!authorizedTokens[token1]) revert UnauthorizedToken();
@@ -174,12 +168,8 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         if (tokenPools[token0].isActive) revert PairAlreadyExists();
 
         // Transfer tokens from sender (only for non-ETH tokens)
-        if (token0 != WETH || msg.value == 0) {
-            IERC20(token0).transferFrom(msg.sender, address(this), amount0Desired);
-        }
-        if (token1 != WETH || msg.value == 0) {
-            IERC20(token1).transferFrom(msg.sender, address(this), amount1Desired);
-        }
+        IERC20(token0).transferFrom(msg.sender, address(this), amount0Desired);
+        IERC20(token1).transferFrom(msg.sender, address(this), amount1Desired);
 
         // 🔁 Correct token ordering
         address _token0 = token0 < token1 ? token0 : token1;
