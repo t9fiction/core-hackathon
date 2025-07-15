@@ -6,12 +6,13 @@ import "./PumpFunDEXManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /**
  * @title PumpFunFactoryLite
  * @dev Lightweight Factory for deploying sustainable meme tokens with core anti-rug pull measures
  */
-contract PumpFunFactoryLite is Ownable, ReentrancyGuard {
+contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     // Custom Errors
     error InsufficientEtherFee(uint256 sent, uint256 required);
     error InvalidTokenAddress();
@@ -302,6 +303,15 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard {
         token.emergencyPause();
 
         emit AntiRugPullTriggered(tokenAddress, tokenInfo[tokenAddress].creator, reason);
+    }
+
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external pure override returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     /**
