@@ -26,12 +26,12 @@ if (!API_URL_sepolia) {
 if (!ETHERSCAN_API_KEY) {
   throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
 }
-if (!API_URL_basesepolia) {
-  throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
-}
-if (!BASESCAN_API_KEY) {
-  throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
-}
+// if (!API_URL_basesepolia) {
+//   throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
+// }
+// if (!BASESCAN_API_KEY) {
+//   throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
+// }
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -53,20 +53,20 @@ const config: HardhatUserConfig = {
       url: API_URL_sepolia,
       accounts: [PRIVATE_KEY!],
     },
-    baseSepolia: {
-      url: API_URL_basesepolia,
-      accounts: [PRIVATE_KEY!],
-    },
-    base: {
-      url: API_URL_base,
-      accounts: [PRIVATE_KEY!],
-    },
+    // baseSepolia: {
+    //   url: API_URL_basesepolia,
+    //   accounts: [PRIVATE_KEY!],
+    // },
+    // base: {
+    //   url: API_URL_base,
+    //   accounts: [PRIVATE_KEY!],
+    // },
   },
   etherscan: {
     apiKey: {
       sepolia: ETHERSCAN_API_KEY as string,
-      base: BASESCAN_API_KEY as string,
-      baseSepolia: BASESCAN_API_KEY as string,
+      // base: BASESCAN_API_KEY as string,
+      // baseSepolia: BASESCAN_API_KEY as string,
     },
   },
 };

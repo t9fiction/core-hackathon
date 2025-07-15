@@ -176,13 +176,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint256 amount1Desired
     ) external payable nonReentrant {
         // Handle ETH conversion if one of the tokens is WETH and ETH is sent
-        if (token1 == WETH && msg.value > 0) {
-            // Convert ETH to WETH
-            IWETH(WETH).deposit{value: msg.value}();
-            amount1Desired = msg.value;
-        }
+        // if (token1 == WETH && msg.value > 0) {
+        //     // Convert ETH to WETH
+        //     IWETH(WETH).deposit{value: msg.value}();
+        //     amount1Desired = msg.value;
+        // }
         
-        if (!authorizedTokens[token0]) revert UnauthorizedToken();
+        // if (!authorizedTokens[token0]) revert UnauthorizedToken();
         if (amount0Desired == 0 || amount1Desired == 0) revert InvalidAmount();
         if (tokenPools[token0].isActive) revert PairAlreadyExists();
         
