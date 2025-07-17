@@ -16,14 +16,14 @@ import "./interfaces/IWETH.sol";
  */
 contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     // Custom Errors
-    error InvalidTokenAddress();
-    error InvalidAmount();
-    error InsufficientLiquidity();
-    error PairAlreadyExists();
-    error SlippageExceeded();
-    error DeadlineExpired();
-    error UnauthorizedToken();
-    error LiquidityLocked();
+    error PumpFunDEXManager__InvalidTokenAddress();
+    error PumpFunDEXManager__InvalidAmount();
+    error PumpFunDEXManager__InsufficientLiquidity();
+    error PumpFunDEXManager__PairAlreadyExists();
+    error PumpFunDEXManager__SlippageExceeded();
+    error PumpFunDEXManager__DeadlineExpired();
+    error PumpFunDEXManager__UnauthorizedToken();
+    error PumpFunDEXManager__LiquidityLocked();
 
     // Modifiers
     modifier onlyFactory() {
@@ -94,7 +94,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             _swapRouter == address(0) || _positionManager == address(0) || _uniswapV3Factory == address(0)
                 || _weth == address(0)
         ) {
-            revert InvalidTokenAddress();
+            revert PumpFunDEXManager__InvalidTokenAddress();
         }
         swapRouter = ISwapRouter(_swapRouter);
         positionManager = INonfungiblePositionManager(_positionManager);
@@ -114,7 +114,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @dev Authorize a PumpFun token for DEX operations (owner only)
      */
     function authorizeToken(address token) external onlyOwner {
-        if (token == address(0)) revert InvalidTokenAddress();
+        if (token == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
         authorizedTokens[token] = true;
     }
 
@@ -122,7 +122,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @dev Authorize a PumpFun token for DEX operations (factory only)
      */
     function authorizeTokenFromFactory(address token) external onlyFactory {
-        if (token == address(0)) revert InvalidTokenAddress();
+        if (token == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
         authorizedTokens[token] = true;
     }
 
@@ -130,10 +130,10 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @dev Create initial liquidity pool for a token with ETH - requires both ETH and token amounts
      */
     function createLiquidityPoolWithETH(address token, uint24 fee, uint256 tokenAmount) external payable nonReentrant {
-        if (!authorizedTokens[token]) revert UnauthorizedToken();
-        if (tokenPools[token].isActive) revert PairAlreadyExists();
-        if (msg.value == 0) revert InvalidAmount();
-        if (tokenAmount == 0) revert InvalidAmount();
+        if (!authorizedTokens[token]) revert PumpFunDEXManager__UnauthorizedToken();
+        if (tokenPools[token].isActive) revert PumpFunDEXManager__PairAlreadyExists();
+        if (msg.value == 0) revert PumpFunDEXManager__InvalidAmount();
+        if (tokenAmount == 0) revert PumpFunDEXManager__InvalidAmount();
 
         uint256 ethAmount = msg.value;
 
@@ -157,10 +157,10 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint256 amountA,
         uint256 amountB
     ) external nonReentrant {
-        if (tokenA == address(0) || tokenB == address(0)) revert InvalidTokenAddress();
-        if (!authorizedTokens[tokenA] && !authorizedTokens[tokenB]) revert UnauthorizedToken();
-        if (tokenPools[tokenA].isActive || tokenPools[tokenB].isActive) revert PairAlreadyExists();
-        if (amountA == 0 || amountB == 0) revert InvalidAmount();
+        if (tokenA == address(0) || tokenB == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
+        if (!authorizedTokens[tokenA] && !authorizedTokens[tokenB]) revert PumpFunDEXManager__UnauthorizedToken();
+        if (tokenPools[tokenA].isActive || tokenPools[tokenB].isActive) revert PumpFunDEXManager__PairAlreadyExists();
+        if (amountA == 0 || amountB == 0) revert PumpFunDEXManager__InvalidAmount();
 
         // Transfer tokens from sender
         IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
@@ -293,8 +293,8 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         payable
         nonReentrant
     {
-        if (!tokenPools[token0].isActive) revert PairAlreadyExists();
-        if (tokenAmount0 == 0 || tokenAmount1 == 0) revert InvalidAmount();
+        if (!tokenPools[token0].isActive) revert PumpFunDEXManager__PairAlreadyExists();
+        if (tokenAmount0 == 0 || tokenAmount1 == 0) revert PumpFunDEXManager__InvalidAmount();
 
         // Transfer tokens from sender
         IERC20(token0).transferFrom(msg.sender, address(this), tokenAmount0);
@@ -330,8 +330,8 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         payable
         nonReentrant
     {
-        if (!authorizedTokens[tokenOut]) revert UnauthorizedToken();
-        if (msg.value == 0) revert InvalidAmount();
+        if (!authorizedTokens[tokenOut]) revert PumpFunDEXManager__UnauthorizedToken();
+        if (msg.value == 0) revert PumpFunDEXManager__InvalidAmount();
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: WETH,
@@ -359,8 +359,8 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         external
         nonReentrant
     {
-        if (!authorizedTokens[tokenIn]) revert UnauthorizedToken();
-        if (amountIn == 0) revert InvalidAmount();
+        if (!authorizedTokens[tokenIn]) revert PumpFunDEXManager__UnauthorizedToken();
+        if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
 
         // Transfer tokens from user
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);

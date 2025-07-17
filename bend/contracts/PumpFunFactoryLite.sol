@@ -14,17 +14,17 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
  */
 contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     // Custom Errors
-    error InsufficientEtherFee(uint256 sent, uint256 required);
-    error InvalidTokenAddress();
-    error InvalidParameters();
-    error NoEtherToWithdraw();
-    error TransferFailed();
-    error InvalidFeeAmount(uint256 fee);
-    error EmptyStringParameter();
-    error TotalSupplyTooLow();
-    error TotalSupplyTooHigh(uint256 supply, uint256 maxSupply);
-    error InsufficientLiquidityLockPeriod(uint256 provided, uint256 required);
-    error InvalidLiquidityAmount();
+    error PumpFunFactoryLite__InsufficientEtherFee(uint256 sent, uint256 required);
+    error PumpFunFactoryLite__InvalidTokenAddress();
+    error PumpFunFactoryLite__InvalidParameters();
+    error PumpFunFactoryLite__NoEtherToWithdraw();
+    error PumpFunFactoryLite__TransferFailed();
+    error PumpFunFactoryLite__InvalidFeeAmount(uint256 fee);
+    error PumpFunFactoryLite__EmptyStringParameter();
+    error PumpFunFactoryLite__TotalSupplyTooLow();
+    error PumpFunFactoryLite__TotalSupplyTooHigh(uint256 supply, uint256 maxSupply);
+    error PumpFunFactoryLite__InsufficientLiquidityLockPeriod(uint256 provided, uint256 required);
+    error PumpFunFactoryLite__InvalidLiquidityAmount();
 
     // Events
     event TokenDeployed(
@@ -113,7 +113,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      */
     function setDefaultLiquidityPercentage(uint256 _percentage) external onlyOwner {
         if (_percentage > 100) {
-            revert InvalidParameters();
+            revert PumpFunFactoryLite__InvalidParameters();
         }
         defaultLiquidityPercentage = _percentage;
     }
@@ -133,7 +133,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         // Calculate required fee based on supply tier
         uint256 requiredFee = _calculateRequiredFee(totalSupply);
         if (msg.value < requiredFee) {
-            revert InsufficientEtherFee(msg.value, requiredFee);
+            revert PumpFunFactoryLite__InsufficientEtherFee(msg.value, requiredFee);
         }
         if (msg.value > requiredFee) {
             payable(msg.sender).transfer(msg.value - requiredFee);
@@ -165,12 +165,12 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      * @dev Add liquidity and lock it to prevent rug pulls
      */
     function addAndLockLiquidity(address tokenAddress, uint256 tokenAmount) external payable nonReentrant {
-        if (!isDeployedToken[tokenAddress]) revert InvalidTokenAddress();
-        if (msg.value == 0) revert InvalidLiquidityAmount();
-        if (tokenAmount == 0) revert InvalidLiquidityAmount();
+        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__InvalidTokenAddress();
+        if (msg.value == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
+        if (tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
 
         TokenInfo storage info = tokenInfo[tokenAddress];
-        if (info.creator != msg.sender) revert InvalidParameters();
+        if (info.creator != msg.sender) revert PumpFunFactoryLite__InvalidParameters();
 
         // Transfer tokens from creator
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokenAmount);
@@ -196,13 +196,13 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      * @dev Create DEX liquidity pool for a token (with ETH support)
      */
     function createDEXPool(address tokenAddress, uint256 tokenAmount, uint24 fee) external payable nonReentrant {
-        if (!isDeployedToken[tokenAddress]) revert InvalidTokenAddress();
-        if (address(dexManager) == address(0)) revert InvalidParameters();
-        if (msg.value == 0) revert InvalidLiquidityAmount();
-        if (tokenAmount == 0) revert InvalidLiquidityAmount();
+        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__InvalidTokenAddress();
+        if (address(dexManager) == address(0)) revert PumpFunFactoryLite__InvalidParameters();
+        if (msg.value == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
+        if (tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
 
         TokenInfo storage info = tokenInfo[tokenAddress];
-        if (info.creator != msg.sender) revert InvalidParameters();
+        if (info.creator != msg.sender) revert PumpFunFactoryLite__InvalidParameters();
 
         // Transfer tokens from creator
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokenAmount);
@@ -217,7 +217,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         dexManager.createLiquidityPoolWithETH{value: msg.value}(tokenAddress, fee, tokenAmount);
 
         // Get the token stats from DEX manager
-        (,, uint256 volume24h, uint256 liquidity, bool isActive) = dexManager.getTokenStats(tokenAddress);
+        (,,,, bool isActive) = dexManager.getTokenStats(tokenAddress);
         if (isActive) {
             address wethToken = dexManager.WETH();
             emit DEXPoolCreated(tokenAddress, wethToken, tokenAmount, msg.value);
@@ -233,14 +233,14 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         uint256 totalSupply,
         uint256 liquidityLockPeriodDays
     ) internal pure {
-        if (bytes(name).length == 0) revert EmptyStringParameter();
-        if (bytes(symbol).length == 0) revert EmptyStringParameter();
-        if (totalSupply < MIN_TOTAL_SUPPLY) revert TotalSupplyTooLow();
+        if (bytes(name).length == 0) revert PumpFunFactoryLite__EmptyStringParameter();
+        if (bytes(symbol).length == 0) revert PumpFunFactoryLite__EmptyStringParameter();
+        if (totalSupply < MIN_TOTAL_SUPPLY) revert PumpFunFactoryLite__TotalSupplyTooLow();
         if (totalSupply > ULTIMATE_MAX_SUPPLY) {
-            revert TotalSupplyTooHigh(totalSupply, ULTIMATE_MAX_SUPPLY);
+            revert PumpFunFactoryLite__TotalSupplyTooHigh(totalSupply, ULTIMATE_MAX_SUPPLY);
         }
         if (liquidityLockPeriodDays < MIN_LIQUIDITY_LOCK_PERIOD_DAYS) {
-            revert InsufficientLiquidityLockPeriod(liquidityLockPeriodDays, MIN_LIQUIDITY_LOCK_PERIOD_DAYS);
+            revert PumpFunFactoryLite__InsufficientLiquidityLockPeriod(liquidityLockPeriodDays, MIN_LIQUIDITY_LOCK_PERIOD_DAYS);
         }
     }
 
@@ -287,7 +287,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      * @dev Update deployment fee
      */
     function setEtherFee(uint256 newFee) external onlyOwner {
-        if (newFee > MAX_FEE) revert InvalidFeeAmount(newFee);
+        if (newFee > MAX_FEE) revert PumpFunFactoryLite__InvalidFeeAmount(newFee);
         uint256 oldFee = etherFee;
         etherFee = newFee;
         emit EtherFeeUpdated(oldFee, newFee);
@@ -297,7 +297,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      * @dev Emergency function to trigger anti-rug pull measures
      */
     function triggerAntiRugPull(address tokenAddress, string memory reason) external onlyOwner {
-        if (!isDeployedToken[tokenAddress]) revert InvalidTokenAddress();
+        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__InvalidTokenAddress();
 
         PumpFunToken token = PumpFunToken(tokenAddress);
         token.emergencyPause();
@@ -320,10 +320,10 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     function withdrawFees() external onlyOwner nonReentrant {
         uint256 balance = address(this).balance;
 
-        if (balance == 0) revert NoEtherToWithdraw();
+        if (balance == 0) revert PumpFunFactoryLite__NoEtherToWithdraw();
 
         (bool success,) = payable(owner()).call{value: balance}("");
-        if (!success) revert TransferFailed();
+        if (!success) revert PumpFunFactoryLite__TransferFailed();
 
         emit EtherWithdrawn(owner(), balance);
     }
