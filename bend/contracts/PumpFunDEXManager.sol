@@ -127,69 +127,79 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Create initial liquidity pool for a token with ETH (automatically converts ETH to WETH)
+     * @dev Create initial liquidity pool for a token with ETH - requires both ETH and token amounts
      */
     function createLiquidityPoolWithETH(address token, uint24 fee, uint256 tokenAmount) external payable nonReentrant {
         if (!authorizedTokens[token]) revert UnauthorizedToken();
-        if (tokenAmount == 0) revert InvalidAmount();
-        if (msg.value == 0) revert InvalidAmount();
         if (tokenPools[token].isActive) revert PairAlreadyExists();
+        if (msg.value == 0) revert InvalidAmount();
+        if (tokenAmount == 0) revert InvalidAmount();
+
+        uint256 ethAmount = msg.value;
 
         // Convert ETH to WETH
-        IWETH(WETH).deposit{value: msg.value}();
+        IWETH(WETH).deposit{value: ethAmount}();
 
         // Transfer tokens from sender
         IERC20(token).transferFrom(msg.sender, address(this), tokenAmount);
 
-        // Determine token ordering (Uniswap V3 requires token0 < token1)
-        address token0 = token < WETH ? token : WETH;
-        address token1 = token < WETH ? WETH : token;
-        uint256 amount0Desired = token < WETH ? tokenAmount : msg.value;
-        uint256 amount1Desired = token < WETH ? msg.value : tokenAmount;
-
-        // Create the liquidity pool
-        _createLiquidityPool(token0, token1, fee, amount0Desired, amount1Desired, token);
+        // Create the liquidity pool with proper token-amount mapping
+        _createLiquidityPoolWithProperMapping(token, WETH, fee, tokenAmount, ethAmount, token);
     }
 
     /**
-     * @dev Create initial liquidity pool for a token (based on working sample)
+     * @dev Create initial liquidity pool for a token - requires both token amounts
      */
     function createLiquidityPool(
-        address token0,
-        address token1,
+        address tokenA,
+        address tokenB,
         uint24 fee,
-        uint256 amount0Desired,
-        uint256 amount1Desired
+        uint256 amountA,
+        uint256 amountB
     ) external nonReentrant {
-        if (token0 == address(0) || token1 == address(0)) revert InvalidTokenAddress();
-        if (!authorizedTokens[token0]) revert UnauthorizedToken();
-        if (!authorizedTokens[token1]) revert UnauthorizedToken();
-        if (amount0Desired == 0 || amount1Desired == 0) revert InvalidAmount();
-        if (tokenPools[token0].isActive) revert PairAlreadyExists();
+        if (tokenA == address(0) || tokenB == address(0)) revert InvalidTokenAddress();
+        if (!authorizedTokens[tokenA] && !authorizedTokens[tokenB]) revert UnauthorizedToken();
+        if (tokenPools[tokenA].isActive || tokenPools[tokenB].isActive) revert PairAlreadyExists();
+        if (amountA == 0 || amountB == 0) revert InvalidAmount();
 
-        // Transfer tokens from sender (only for non-ETH tokens)
-        IERC20(token0).transferFrom(msg.sender, address(this), amount0Desired);
-        IERC20(token1).transferFrom(msg.sender, address(this), amount1Desired);
+        // Transfer tokens from sender
+        IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
+        IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
 
-        // 🔁 Correct token ordering
-        address _token0 = token0 < token1 ? token0 : token1;
-        address _token1 = token0 < token1 ? token1 : token0;
-
-        // Create the liquidity pool
-        _createLiquidityPool(_token0, _token1, fee, amount0Desired, amount1Desired, _token0);
+        // Create the liquidity pool with proper token-amount mapping
+        address trackingToken = authorizedTokens[tokenA] ? tokenA : tokenB;
+        _createLiquidityPoolWithProperMapping(tokenA, tokenB, fee, amountA, amountB, trackingToken);
     }
 
     /**
-     * @dev Internal function to create liquidity pool
+     * @dev Internal function to create liquidity pool with proper token-amount mapping
      */
-    function _createLiquidityPool(
-        address token0,
-        address token1,
+    function _createLiquidityPoolWithProperMapping(
+        address tokenA,
+        address tokenB,
         uint24 fee,
-        uint256 amount0Desired,
-        uint256 amount1Desired,
+        uint256 amountA,
+        uint256 amountB,
         address trackingToken
     ) internal {
+        // Determine Uniswap V3 token ordering
+        address token0 = tokenA < tokenB ? tokenA : tokenB;
+        address token1 = tokenA < tokenB ? tokenB : tokenA;
+        
+        // Map amounts to the correctly ordered tokens
+        uint256 amount0Desired;
+        uint256 amount1Desired;
+        
+        if (tokenA < tokenB) {
+            // tokenA is token0, tokenB is token1
+            amount0Desired = amountA;
+            amount1Desired = amountB;
+        } else {
+            // tokenB is token0, tokenA is token1
+            amount0Desired = amountB;
+            amount1Desired = amountA;
+        }
+
         // Check if pool already exists
         address poolAddress = uniswapV3Factory.getPool(token0, token1, fee);
 
@@ -197,8 +207,8 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         if (poolAddress == address(0)) {
             poolAddress = uniswapV3Factory.createPool(token0, token1, fee);
 
-            // Initialize pool with 1:1 price ratio (can be adjusted)
-            uint160 sqrtPriceX96 = _encodeSqrtRatioX96(1, 1);
+            // Calculate initial price based on token amounts
+            uint160 sqrtPriceX96 = _encodeSqrtRatioX96(amount1Desired, amount0Desired);
             IUniswapV3Pool(poolAddress).initialize(sqrtPriceX96);
         }
 
@@ -243,7 +253,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             (tokenId, liquidity, amount0, amount1) = positionManager.mint(params);
         }
 
-        // Store pool information (use the tracking token, not necessarily token0)
+        // Store pool information using the tracking token
         tokenPools[trackingToken] = PoolInfo({
             tokenId: tokenId,
             liquidity: liquidity,
