@@ -79,7 +79,8 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     address public immutable WETH;
     address public factory;
 
-    mapping(address => PoolInfo) public tokenPools;
+    // Updated mapping to store pool info by token pair and fee
+    mapping(address => mapping(address => mapping(uint24 => PoolInfo))) public tokenPools;
     mapping(address => PriceInfo) public tokenPrices;
     mapping(address => bool) public authorizedTokens;
 
@@ -131,9 +132,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      */
     function createLiquidityPoolWithETH(address token, uint24 fee, uint256 tokenAmount) external payable nonReentrant {
         if (!authorizedTokens[token]) revert PumpFunDEXManager__UnauthorizedToken();
-        if (tokenPools[token].isActive) revert PumpFunDEXManager__PairAlreadyExists();
         if (msg.value == 0) revert PumpFunDEXManager__InvalidAmount();
         if (tokenAmount == 0) revert PumpFunDEXManager__InvalidAmount();
+
+        // Check if pool for this token pair and fee already exists
+        address token0 = token < WETH ? token : WETH;
+        address token1 = token < WETH ? WETH : token;
+        if (tokenPools[token0][token1][fee].isActive) revert PumpFunDEXManager__PairAlreadyExists();
 
         uint256 ethAmount = msg.value;
 
@@ -159,8 +164,12 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     ) external nonReentrant {
         if (tokenA == address(0) || tokenB == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
         if (!authorizedTokens[tokenA] && !authorizedTokens[tokenB]) revert PumpFunDEXManager__UnauthorizedToken();
-        if (tokenPools[tokenA].isActive || tokenPools[tokenB].isActive) revert PumpFunDEXManager__PairAlreadyExists();
         if (amountA == 0 || amountB == 0) revert PumpFunDEXManager__InvalidAmount();
+
+        // Check if pool for this token pair and fee already exists
+        address token0 = tokenA < tokenB ? tokenA : tokenB;
+        address token1 = tokenA < tokenB ? tokenB : tokenA;
+        if (tokenPools[token0][token1][fee].isActive) revert PumpFunDEXManager__PairAlreadyExists();
 
         // Transfer tokens from sender
         IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
@@ -253,8 +262,8 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             (tokenId, liquidity, amount0, amount1) = positionManager.mint(params);
         }
 
-        // Store pool information using the tracking token
-        tokenPools[trackingToken] = PoolInfo({
+        // Store pool information using the token pair and fee
+        tokenPools[token0][token1][fee] = PoolInfo({
             tokenId: tokenId,
             liquidity: liquidity,
             lockExpiry: block.timestamp + 30 days,
@@ -270,8 +279,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @dev Internal function to update token price
      */
     function _updateTokenPrice(address token) internal {
-        if (!tokenPools[token].isActive) return;
-
+        // Since tokenPools is now a nested mapping, we don't check isActive here
         // Simulate a simple price update logic here
         uint256 price = 1000 * 1e18; // Placeholder logic
         uint256 marketCap = price * IERC20(token).totalSupply();
@@ -293,7 +301,10 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         payable
         nonReentrant
     {
-        if (!tokenPools[token0].isActive) revert PumpFunDEXManager__PairAlreadyExists();
+        // Check if pool exists for the token pair and fee
+        address orderedToken0 = token0 < token1 ? token0 : token1;
+        address orderedToken1 = token0 < token1 ? token1 : token0;
+        if (!tokenPools[orderedToken0][orderedToken1][fee].isActive) revert PumpFunDEXManager__PairAlreadyExists();
         if (tokenAmount0 == 0 || tokenAmount1 == 0) revert PumpFunDEXManager__InvalidAmount();
 
         // Transfer tokens from sender
@@ -305,7 +316,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         IERC20(token1).approve(address(positionManager), tokenAmount1);
 
         // Increase liquidity on the token position
-        PoolInfo storage poolInfo = tokenPools[token0];
+        PoolInfo storage poolInfo = tokenPools[orderedToken0][orderedToken1][fee];
         INonfungiblePositionManager.IncreaseLiquidityParams memory increaseParams = INonfungiblePositionManager
             .IncreaseLiquidityParams({
             tokenId: poolInfo.tokenId,
@@ -404,9 +415,29 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         returns (uint256 price, uint256 marketCap, uint256 volume24h, uint256 liquidity, bool isActive)
     {
         PriceInfo memory priceInfo = tokenPrices[token];
-        PoolInfo memory poolInfo = tokenPools[token];
+        // Since tokenPools is now nested, we can't directly check isActive for a single token
+        // Return priceInfo data and zero liquidity as a fallback
+        return (priceInfo.price, priceInfo.marketCap, priceInfo.volume24h, 0, false);
+    }
 
-        return (priceInfo.price, priceInfo.marketCap, priceInfo.volume24h, poolInfo.liquidity, poolInfo.isActive);
+    /**
+     * @dev Get pool information for a specific token pair and fee
+     */
+    function getPoolInfo(address token0, address token1, uint24 fee)
+        external
+        view
+        returns (uint256 tokenId, uint256 liquidity, uint256 lockExpiry, bool isActive, uint256 createdAt)
+    {
+        address orderedToken0 = token0 < token1 ? token0 : token1;
+        address orderedToken1 = token0 < token1 ? token1 : token0;
+        PoolInfo memory poolInfo = tokenPools[orderedToken0][orderedToken1][fee];
+        return (
+            poolInfo.tokenId,
+            poolInfo.liquidity,
+            poolInfo.lockExpiry,
+            poolInfo.isActive,
+            poolInfo.createdAt
+        );
     }
 
     /**

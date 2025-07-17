@@ -15,7 +15,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     // Custom Errors
     error PumpFunFactoryLite__InsufficientEtherFee(uint256 sent, uint256 required);
-    error PumpFunFactoryLite__InvalidTokenAddress();
     error PumpFunFactoryLite__InvalidParameters();
     error PumpFunFactoryLite__NoEtherToWithdraw();
     error PumpFunFactoryLite__TransferFailed();
@@ -25,6 +24,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     error PumpFunFactoryLite__TotalSupplyTooHigh(uint256 supply, uint256 maxSupply);
     error PumpFunFactoryLite__InsufficientLiquidityLockPeriod(uint256 provided, uint256 required);
     error PumpFunFactoryLite__InvalidLiquidityAmount();
+    error PumpFunFactoryLite__TokenNotDeployedByFactory();
 
     // Events
     event TokenDeployed(
@@ -165,7 +165,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      * @dev Add liquidity and lock it to prevent rug pulls
      */
     function addAndLockLiquidity(address tokenAddress, uint256 tokenAmount) external payable nonReentrant {
-        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__InvalidTokenAddress();
+        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
         if (msg.value == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
         if (tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
 
@@ -196,7 +196,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      * @dev Create DEX liquidity pool for a token (with ETH support)
      */
     function createDEXPool(address tokenAddress, uint256 tokenAmount, uint24 fee) external payable nonReentrant {
-        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__InvalidTokenAddress();
+        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
         if (address(dexManager) == address(0)) revert PumpFunFactoryLite__InvalidParameters();
         if (msg.value == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
         if (tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
@@ -297,7 +297,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      * @dev Emergency function to trigger anti-rug pull measures
      */
     function triggerAntiRugPull(address tokenAddress, string memory reason) external onlyOwner {
-        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__InvalidTokenAddress();
+        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
 
         PumpFunToken token = PumpFunToken(tokenAddress);
         token.emergencyPause();
