@@ -8,10 +8,17 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-/**
- * @title PumpFunFactoryLite
- * @dev Lightweight Factory for deploying sustainable meme tokens with core anti-rug pull measures
- */
+interface IPumpFunGovernance {
+    function createProposal(
+        address token,
+        string memory description,
+        uint256 proposalType,
+        uint256 proposedValue,
+        address[] memory recipients,
+        uint256[] memory amounts
+    ) external returns (uint256);
+}
+
 contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     // Custom Errors
     error PumpFunFactoryLite__InsufficientEtherFee(uint256 sent, uint256 required);
@@ -25,6 +32,8 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     error PumpFunFactoryLite__InsufficientLiquidityLockPeriod(uint256 provided, uint256 required);
     error PumpFunFactoryLite__InvalidLiquidityAmount();
     error PumpFunFactoryLite__TokenNotDeployedByFactory();
+    error PumpFunFactoryLite__InvalidGovernanceAddress();
+    error PumpFunFactoryLite__InvalidAirdropAddress();
 
     // Events
     event TokenDeployed(
@@ -41,6 +50,9 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     event AntiRugPullTriggered(address indexed token, address indexed violator, string reason);
     event DEXPoolCreated(address indexed token, address indexed pair, uint256 tokenAmount, uint256 ethAmount);
     event DEXManagerUpdated(address indexed oldManager, address indexed newManager);
+    event GovernanceManagerUpdated(address indexed oldManager, address indexed newManager);
+    event TokensGovernanceUpdated(address[] tokens, address indexed newGovernance);
+    event AirdropManagerUpdated(address indexed oldManager, address indexed newManager);
 
     // Structs
     struct TokenInfo {
@@ -67,17 +79,21 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     bool public autoCreatePools = true;
     uint256 public defaultLiquidityPercentage = 80; // 80% of liquidity allocation goes to DEX
 
-    // Tiered max supply limits for different token types
-    uint256 public constant STANDARD_MAX_SUPPLY = 100000000; // 100M tokens (recommended)
-    uint256 public constant PREMIUM_MAX_SUPPLY = 500000000; // 500M tokens (higher fee)
-    uint256 public constant ULTIMATE_MAX_SUPPLY = 1000000000; // 1B tokens (highest fee)
+    // Governance and Airdrop Integration
+    address public governanceManager;
+    address public airdropContract;
+
+    // Tiered max supply limits
+    uint256 public constant STANDARD_MAX_SUPPLY = 100000000; // 100M tokens
+    uint256 public constant PREMIUM_MAX_SUPPLY = 500000000; // 500M tokens
+    uint256 public constant ULTIMATE_MAX_SUPPLY = 1000000000; // 1B tokens
 
     uint256 public constant MIN_LIQUIDITY_LOCK_PERIOD_DAYS = 30; // Minimum lock period in days
 
-    // Fee multipliers based on supply tier
-    uint256 public constant STANDARD_FEE_MULTIPLIER = 1; // 1x base fee
-    uint256 public constant PREMIUM_FEE_MULTIPLIER = 3; // 3x base fee
-    uint256 public constant ULTIMATE_FEE_MULTIPLIER = 10; // 10x base fee
+    // Fee multipliers
+    uint256 public constant STANDARD_FEE_MULTIPLIER = 1;
+    uint256 public constant PREMIUM_FEE_MULTIPLIER = 3;
+    uint256 public constant ULTIMATE_FEE_MULTIPLIER = 10;
 
     // Mappings
     mapping(address => address[]) public creatorTokens;
@@ -102,6 +118,39 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /**
+     * @dev Set the governance manager contract
+     */
+    function setGovernanceManager(address _governanceManager) external onlyOwner {
+        if (_governanceManager == address(0)) revert PumpFunFactoryLite__InvalidGovernanceAddress();
+        address oldManager = governanceManager;
+        governanceManager = _governanceManager;
+        emit GovernanceManagerUpdated(oldManager, _governanceManager);
+    }
+
+    /**
+     * @dev Set the airdrop contract
+     */
+    function setAirdropManager(address _airdropContract) external onlyOwner {
+        if (_airdropContract == address(0)) revert PumpFunFactoryLite__InvalidAirdropAddress();
+        address oldManager = airdropContract;
+        airdropContract = _airdropContract;
+        emit AirdropManagerUpdated(oldManager, _airdropContract);
+    }
+
+    /**
+     * @dev Update governance contract for existing tokens
+     */
+    function updateGovernanceForTokens(address[] calldata tokenAddresses) external onlyOwner {
+        if (governanceManager == address(0)) revert PumpFunFactoryLite__InvalidGovernanceAddress();
+        for (uint256 i = 0; i < tokenAddresses.length; i++) {
+            address tokenAddress = tokenAddresses[i];
+            if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
+            PumpFunToken(tokenAddress).setGovernanceContract(governanceManager);
+        }
+        emit TokensGovernanceUpdated(tokenAddresses, governanceManager);
+    }
+
+    /**
      * @dev Toggle automatic pool creation
      */
     function setAutoCreatePools(bool _autoCreate) external onlyOwner {
@@ -112,38 +161,32 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      * @dev Set default liquidity percentage for DEX
      */
     function setDefaultLiquidityPercentage(uint256 _percentage) external onlyOwner {
-        if (_percentage > 100) {
-            revert PumpFunFactoryLite__InvalidParameters();
-        }
+        if (_percentage > 100) revert PumpFunFactoryLite__InvalidParameters();
         defaultLiquidityPercentage = _percentage;
     }
 
     /**
-     * @dev Deploy a new sustainable meme token with enhanced features
-     * @param liquidityLockPeriodDays - Lock period in days (minimum 30 days)
+     * @dev Deploy a new sustainable meme token
      */
     function deployToken(string memory name, string memory symbol, uint256 totalSupply, uint256 liquidityLockPeriodDays)
         external
         payable
         nonReentrant
+        returns (address tokenAddress)
     {
-        // Input validation
         _validateTokenParameters(name, symbol, totalSupply, liquidityLockPeriodDays);
-
-        // Calculate required fee based on supply tier
         uint256 requiredFee = _calculateRequiredFee(totalSupply);
-        if (msg.value < requiredFee) {
-            revert PumpFunFactoryLite__InsufficientEtherFee(msg.value, requiredFee);
-        }
-        if (msg.value > requiredFee) {
-            payable(msg.sender).transfer(msg.value - requiredFee);
+        if (msg.value < requiredFee) revert PumpFunFactoryLite__InsufficientEtherFee(msg.value, requiredFee);
+        if (msg.value > requiredFee) payable(msg.sender).transfer(msg.value - requiredFee);
+
+        // Pass both creator (msg.sender) and factory (address(this))
+        PumpFunToken token = new PumpFunToken(name, symbol, totalSupply, msg.sender, address(this));
+        tokenAddress = address(token);
+
+        if (governanceManager != address(0)) {
+            PumpFunToken(tokenAddress).setGovernanceContract(governanceManager);
         }
 
-        // Deploy new token
-        PumpFunToken token = new PumpFunToken(name, symbol, totalSupply, msg.sender);
-        address tokenAddress = address(token);
-
-        // Store token information
         tokenInfo[tokenAddress] = TokenInfo({
             tokenAddress: tokenAddress,
             creator: msg.sender,
@@ -151,7 +194,6 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
             liquidityLockPeriodDays: liquidityLockPeriodDays
         });
 
-        // Update tracking
         creatorTokens[msg.sender].push(tokenAddress);
         isDeployedToken[tokenAddress] = true;
         allDeployedTokens.push(tokenAddress);
@@ -159,26 +201,24 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         totalFeesCollected += msg.value;
 
         emit TokenDeployed(name, symbol, tokenAddress, totalSupply, msg.sender, liquidityLockPeriodDays);
+        return tokenAddress;
     }
 
     /**
-     * @dev Add liquidity and lock it to prevent rug pulls
+     * @dev Add liquidity and lock it
      */
     function addAndLockLiquidity(address tokenAddress, uint256 tokenAmount) external payable nonReentrant {
         if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
-        if (msg.value == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
-        if (tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
-
+        if (msg.value == 0 || tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
         TokenInfo storage info = tokenInfo[tokenAddress];
         if (info.creator != msg.sender) revert PumpFunFactoryLite__InvalidParameters();
+        if (IERC20(tokenAddress).balanceOf(tokenAddress) < tokenAmount) {
+            revert PumpFunFactoryLite__InvalidLiquidityAmount();
+        }
 
-        // Transfer tokens from creator
-        IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokenAmount);
+        IERC20(tokenAddress).transferFrom(tokenAddress, address(this), tokenAmount);
 
-        // Convert days to seconds for token contract
         uint256 lockPeriodSeconds = info.liquidityLockPeriodDays * 1 days;
-
-        // Store liquidity information
         liquidityInfo[tokenAddress] = LiquidityInfo({
             ethAmount: msg.value,
             tokenAmount: tokenAmount,
@@ -186,37 +226,25 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
             isLocked: true
         });
 
-        // Lock the liquidity in the token contract
         PumpFunToken(tokenAddress).lockLiquidity(tokenAddress, tokenAmount, lockPeriodSeconds);
-
         emit LiquidityAdded(tokenAddress, msg.sender, msg.value, tokenAmount);
     }
 
-    /**
-     * @dev Create DEX liquidity pool for a token (with ETH support)
-     */
     function createDEXPool(address tokenAddress, uint256 tokenAmount, uint24 fee) external payable nonReentrant {
         if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
         if (address(dexManager) == address(0)) revert PumpFunFactoryLite__InvalidParameters();
-        if (msg.value == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
-        if (tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
-
+        if (msg.value == 0 || tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
         TokenInfo storage info = tokenInfo[tokenAddress];
         if (info.creator != msg.sender) revert PumpFunFactoryLite__InvalidParameters();
+        if (IERC20(tokenAddress).balanceOf(tokenAddress) < tokenAmount) {
+            revert PumpFunFactoryLite__InvalidLiquidityAmount();
+        }
 
-        // Transfer tokens from creator
-        IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokenAmount);
-
-        // Approve DEX manager to spend tokens
+        IERC20(tokenAddress).transferFrom(tokenAddress, address(this), tokenAmount);
         IERC20(tokenAddress).approve(address(dexManager), tokenAmount);
-
-        // Authorize token in DEX manager
         dexManager.authorizeTokenFromFactory(tokenAddress);
-
-        // Use the new ETH-compatible function that handles WETH conversion automatically
         dexManager.createLiquidityPoolWithETH{value: msg.value}(tokenAddress, fee, tokenAmount);
 
-        // Get the token stats from DEX manager
         (,,,, bool isActive) = dexManager.getTokenStats(tokenAddress);
         if (isActive) {
             address wethToken = dexManager.WETH();
@@ -233,32 +261,29 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         uint256 totalSupply,
         uint256 liquidityLockPeriodDays
     ) internal pure {
-        if (bytes(name).length == 0) revert PumpFunFactoryLite__EmptyStringParameter();
-        if (bytes(symbol).length == 0) revert PumpFunFactoryLite__EmptyStringParameter();
+        if (bytes(name).length == 0 || bytes(symbol).length == 0) revert PumpFunFactoryLite__EmptyStringParameter();
         if (totalSupply < MIN_TOTAL_SUPPLY) revert PumpFunFactoryLite__TotalSupplyTooLow();
         if (totalSupply > ULTIMATE_MAX_SUPPLY) {
             revert PumpFunFactoryLite__TotalSupplyTooHigh(totalSupply, ULTIMATE_MAX_SUPPLY);
         }
         if (liquidityLockPeriodDays < MIN_LIQUIDITY_LOCK_PERIOD_DAYS) {
-            revert PumpFunFactoryLite__InsufficientLiquidityLockPeriod(liquidityLockPeriodDays, MIN_LIQUIDITY_LOCK_PERIOD_DAYS);
+            revert PumpFunFactoryLite__InsufficientLiquidityLockPeriod(
+                liquidityLockPeriodDays, MIN_LIQUIDITY_LOCK_PERIOD_DAYS
+            );
         }
     }
 
     /**
-     * @dev Calculate required fee based on supply tier
+     * @dev Calculate required fee
      */
     function _calculateRequiredFee(uint256 totalSupply) internal view returns (uint256) {
-        if (totalSupply <= STANDARD_MAX_SUPPLY) {
-            return etherFee * STANDARD_FEE_MULTIPLIER;
-        } else if (totalSupply <= PREMIUM_MAX_SUPPLY) {
-            return etherFee * PREMIUM_FEE_MULTIPLIER;
-        } else {
-            return etherFee * ULTIMATE_FEE_MULTIPLIER;
-        }
+        if (totalSupply <= STANDARD_MAX_SUPPLY) return etherFee * STANDARD_FEE_MULTIPLIER;
+        else if (totalSupply <= PREMIUM_MAX_SUPPLY) return etherFee * PREMIUM_FEE_MULTIPLIER;
+        else return etherFee * ULTIMATE_FEE_MULTIPLIER;
     }
 
     /**
-     * @dev Get supply tier for a given total supply
+     * @dev Get supply tier
      */
     function getSupplyTier(uint256 totalSupply)
         external
@@ -275,13 +300,11 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /**
-     * @dev Get required fee for a given supply
+     * @dev Get required fee
      */
     function getRequiredFee(uint256 totalSupply) external view returns (uint256) {
         return _calculateRequiredFee(totalSupply);
     }
-
-    // Admin Functions
 
     /**
      * @dev Update deployment fee
@@ -294,23 +317,20 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /**
-     * @dev Emergency function to trigger anti-rug pull measures
+     * @dev Trigger anti-rug pull measures
      */
     function triggerAntiRugPull(address tokenAddress, string memory reason) external onlyOwner {
         if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
-
-        PumpFunToken token = PumpFunToken(tokenAddress);
-        token.emergencyPause();
-
+        PumpFunToken(tokenAddress).emergencyPause();
         emit AntiRugPullTriggered(tokenAddress, tokenInfo[tokenAddress].creator, reason);
     }
 
-    function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
-    ) external pure override returns (bytes4) {
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
         return IERC721Receiver.onERC721Received.selector;
     }
 
@@ -319,16 +339,11 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
      */
     function withdrawFees() external onlyOwner nonReentrant {
         uint256 balance = address(this).balance;
-
         if (balance == 0) revert PumpFunFactoryLite__NoEtherToWithdraw();
-
         (bool success,) = payable(owner()).call{value: balance}("");
         if (!success) revert PumpFunFactoryLite__TransferFailed();
-
         emit EtherWithdrawn(owner(), balance);
     }
-
-    // View Functions
 
     /**
      * @dev Get token information
@@ -354,7 +369,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /**
-     * @dev Get all tokens created by a creator
+     * @dev Get tokens by creator
      */
     function getTokensByCreator(address creator) external view returns (address[] memory) {
         return creatorTokens[creator];
@@ -367,12 +382,13 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         return allDeployedTokens;
     }
 
-    // Receive function to accept ETH
-    receive() external payable {
-        // Allow contract to receive ETH for liquidity
+    /**
+     * @dev Get airdrop contract address
+     */
+    function getAirdropContract() external view returns (address) {
+        return airdropContract;
     }
 
-    fallback() external payable {
-        // Allow contract to receive ETH
-    }
+    receive() external payable {}
+    fallback() external payable {}
 }
