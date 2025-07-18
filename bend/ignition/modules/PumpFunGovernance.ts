@@ -6,9 +6,9 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 const GovernanceModule = buildModule("PumpFunGovernance", (m) => {
 
-  const factory = m.contract("PumpFunGovernance");
+  const governance = m.contract("PumpFunGovernance");
 
-  return { factory };
+  return { governance };
 });
 
 export default GovernanceModule;
