@@ -13,25 +13,25 @@ interface IPumpFunFactoryLite {
 }
 
 contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGuard {
-    error ZeroAddress();
-    error ZeroAmount();
-    error InsufficientBalance(uint256 available, uint256 requested);
-    error TransferLocked(address holder, uint256 amount, uint256 unlockTime);
-    error ExceedsMaxTransferAmount(uint256 amount, uint256 maxAmount);
-    error ExceedsMaxHolding(uint256 amount, uint256 maxHolding);
-    error InvalidLockDuration(uint256 duration);
-    error TokensAlreadyLocked(address holder);
-    error NoLockedTokens(address holder);
-    error LockNotExpired(uint256 unlockTime);
-    error InvalidMintAmount(uint256 amount);
-    error MintingPaused();
-    error BurningPaused();
-    error InvalidName();
-    error InvalidSymbol();
-    error OnlyFactory();
-    error OnlyGovernance();
-    error InvalidAirdropArrays();
-    error InvalidAirdropContract();
+    error PumpFunToken__ZeroAddress();
+    error PumpFunToken__ZeroAmount();
+    error PumpFunToken__InsufficientBalance(uint256 available, uint256 requested);
+    error PumpFunToken__TransferLocked(address holder, uint256 amount, uint256 unlockTime);
+    error PumpFunToken__ExceedsMaxTransferAmount(uint256 amount, uint256 maxAmount);
+    error PumpFunToken__ExceedsMaxHolding(uint256 amount, uint256 maxHolding);
+    error PumpFunToken__InvalidLockDuration(uint256 duration);
+    error PumpFunToken__TokensAlreadyLocked(address holder);
+    error PumpFunToken__NoLockedTokens(address holder);
+    error PumpFunToken__LockNotExpired(uint256 unlockTime);
+    error PumpFunToken__InvalidMintAmount(uint256 amount);
+    error PumpFunToken__MintingPaused();
+    error PumpFunToken__BurningPaused();
+    error PumpFunToken__InvalidName();
+    error PumpFunToken__InvalidSymbol();
+    error PumpFunToken__OnlyFactory();
+    error PumpFunToken__OnlyGovernance();
+    error PumpFunToken__InvalidAirdropArrays();
+    error PumpFunToken__InvalidAirdropContract();
 
     event TokensLocked(address indexed holder, uint256 amount, uint256 unlockTime);
     event TokensUnlocked(address indexed holder, uint256 amount);
@@ -82,14 +82,14 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
         address _creator,
         address _factory
     ) ERC20(name, symbol) Ownable(_creator) {
-        if (bytes(name).length == 0) revert InvalidName();
-        if (bytes(symbol).length == 0) revert InvalidSymbol();
-        if (_initialSupply == 0) revert ZeroAmount();
-        if (_creator == address(0) || _factory == address(0)) revert ZeroAddress();
+        if (bytes(name).length == 0) revert PumpFunToken__InvalidName();
+        if (bytes(symbol).length == 0) revert PumpFunToken__InvalidSymbol();
+        if (_initialSupply == 0) revert PumpFunToken__ZeroAmount();
+        if (_creator == address(0) || _factory == address(0)) revert PumpFunToken__ZeroAddress();
 
         factory = _factory;
         airdropContract = IPumpFunFactoryLite(_factory).getAirdropContract();
-        if (airdropContract == address(0)) revert InvalidAirdropContract();
+        if (airdropContract == address(0)) revert PumpFunToken__InvalidAirdropContract();
 
         MAX_SUPPLY = _initialSupply * 10**decimals();
 
@@ -114,9 +114,9 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
     }
 
     function approveContractSpender(address spender, uint256 amount) external onlyOwner {
-        if (spender == address(0)) revert ZeroAddress();
-        if (amount == 0) revert ZeroAmount();
-        if (balanceOf(address(this)) < amount) revert InsufficientBalance(balanceOf(address(this)), amount);
+        if (spender == address(0)) revert PumpFunToken__ZeroAddress();
+        if (amount == 0) revert PumpFunToken__ZeroAmount();
+        if (balanceOf(address(this)) < amount) revert PumpFunToken__InsufficientBalance(balanceOf(address(this)), amount);
         _approve(address(this), spender, amount);
         emit ContractApprovedSpender(spender, amount);
     }
@@ -124,15 +124,15 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
     // Supply Locking Functions
 
     function lockTokens(uint256 amount, uint256 duration) external {
-        if (amount == 0) revert ZeroAmount();
+        if (amount == 0) revert PumpFunToken__ZeroAmount();
         if (duration < MIN_LOCK_DURATION || duration > MAX_LOCK_DURATION) {
-            revert InvalidLockDuration(duration);
+            revert PumpFunToken__InvalidLockDuration(duration);
         }
         if (lockedTokens[msg.sender].isLocked) {
-            revert TokensAlreadyLocked(msg.sender);
+            revert PumpFunToken__TokensAlreadyLocked(msg.sender);
         }
         if (balanceOf(msg.sender) < amount) {
-            revert InsufficientBalance(balanceOf(msg.sender), amount);
+            revert PumpFunToken__InsufficientBalance(balanceOf(msg.sender), amount);
         }
 
         uint256 unlockTime = block.timestamp + duration;
@@ -147,9 +147,9 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
 
     function unlockTokens() external {
         LockInfo storage lockInfo = lockedTokens[msg.sender];
-        if (!lockInfo.isLocked) revert NoLockedTokens(msg.sender);
+        if (!lockInfo.isLocked) revert PumpFunToken__NoLockedTokens(msg.sender);
         if (block.timestamp < lockInfo.unlockTime) {
-            revert LockNotExpired(lockInfo.unlockTime);
+            revert PumpFunToken__LockNotExpired(lockInfo.unlockTime);
         }
 
         uint256 amount = lockInfo.amount;
@@ -159,9 +159,9 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
     }
 
     function lockLiquidity(address lpToken, uint256 amount, uint256 duration) external onlyOwner {
-        if (lpToken == address(0)) revert ZeroAddress();
-        if (amount == 0) revert ZeroAmount();
-        if (duration < MIN_LOCK_DURATION) revert InvalidLockDuration(duration);
+        if (lpToken == address(0)) revert PumpFunToken__ZeroAddress();
+        if (amount == 0) revert PumpFunToken__ZeroAmount();
+        if (duration < MIN_LOCK_DURATION) revert PumpFunToken__InvalidLockDuration(duration);
 
         IERC20(lpToken).transferFrom(msg.sender, address(this), amount);
 
@@ -178,17 +178,17 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
     // Airdrop Functions
 
     function transferAirdrop(address[] calldata recipients, uint256[] calldata amounts) external {
-        if (msg.sender != governanceContract) revert OnlyGovernance();
-        if (airdropContract == address(0)) revert InvalidAirdropContract();
-        if (recipients.length != amounts.length) revert InvalidAirdropArrays();
+        if (msg.sender != governanceContract) revert PumpFunToken__OnlyGovernance();
+        if (airdropContract == address(0)) revert PumpFunToken__InvalidAirdropContract();
+        if (recipients.length != amounts.length) revert PumpFunToken__InvalidAirdropArrays();
 
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < amounts.length; i++) {
-            if (amounts[i] == 0) revert ZeroAmount();
+            if (amounts[i] == 0) revert PumpFunToken__ZeroAmount();
             totalAmount += amounts[i];
         }
         if (balanceOf(address(this)) < totalAmount) {
-            revert InsufficientBalance(balanceOf(address(this)), totalAmount);
+            revert PumpFunToken__InsufficientBalance(balanceOf(address(this)), totalAmount);
         }
 
         _transfer(address(this), airdropContract, totalAmount);
@@ -208,7 +208,7 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
         if (lockedTokens[from].isLocked && 
             lockedTokens[from].amount >= amount && 
             block.timestamp < lockedTokens[from].unlockTime) {
-            revert TransferLocked(from, amount, lockedTokens[from].unlockTime);
+            revert PumpFunToken__TransferLocked(from, amount, lockedTokens[from].unlockTime);
         }
 
         if (isWhitelisted[from] || isWhitelisted[to]) {
@@ -217,13 +217,13 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
 
         if (transferLimitsEnabled) {
             if (amount > maxTransferAmount) {
-                revert ExceedsMaxTransferAmount(amount, maxTransferAmount);
+                revert PumpFunToken__ExceedsMaxTransferAmount(amount, maxTransferAmount);
             }
             if (balanceOf(to) + amount > maxHolding) {
-                revert ExceedsMaxHolding(balanceOf(to) + amount, maxHolding);
+                revert PumpFunToken__ExceedsMaxHolding(balanceOf(to) + amount, maxHolding);
             }
             if (block.timestamp < lastTransferTime[from] + TRANSFER_COOLDOWN) {
-                revert TransferLocked(from, amount, lastTransferTime[from] + TRANSFER_COOLDOWN);
+                revert PumpFunToken__TransferLocked(from, amount, lastTransferTime[from] + TRANSFER_COOLDOWN);
             }
         }
 
@@ -233,9 +233,9 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
     // Stability Functions
 
     function stabilityMint(uint256 amount, uint256 currentPrice) external onlyOwner {
-        if (!mintingEnabled) revert MintingPaused();
-        if (amount == 0) revert InvalidMintAmount(amount);
-        if (totalSupply() + amount > MAX_SUPPLY) revert InvalidMintAmount(amount);
+        if (!mintingEnabled) revert PumpFunToken__MintingPaused();
+        if (amount == 0) revert PumpFunToken__InvalidMintAmount(amount);
+        if (totalSupply() + amount > MAX_SUPPLY) revert PumpFunToken__InvalidMintAmount(amount);
 
         if (currentPrice > targetPrice && totalSupply() < stabilityThreshold) {
             _mint(address(this), amount);
@@ -244,10 +244,10 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
     }
 
     function stabilityBurn(uint256 amount, uint256 currentPrice) external onlyOwner {
-        if (!burningEnabled) revert BurningPaused();
-        if (amount == 0) revert ZeroAmount();
+        if (!burningEnabled) revert PumpFunToken__BurningPaused();
+        if (amount == 0) revert PumpFunToken__ZeroAmount();
         if (balanceOf(address(this)) < amount) {
-            revert InsufficientBalance(balanceOf(address(this)), amount);
+            revert PumpFunToken__InsufficientBalance(balanceOf(address(this)), amount);
         }
 
         if (currentPrice < targetPrice) {
@@ -287,8 +287,8 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
     }
 
     function setGovernanceContract(address _governanceContract) external {
-        if (msg.sender != factory) revert OnlyFactory();
-        if (_governanceContract == address(0)) revert ZeroAddress();
+        if (msg.sender != factory) revert PumpFunToken__OnlyFactory();
+        if (_governanceContract == address(0)) revert PumpFunToken__ZeroAddress();
         address oldGovernance = governanceContract;
         governanceContract = _governanceContract;
         emit GovernanceContractUpdated(address(this), oldGovernance, _governanceContract);
@@ -324,8 +324,8 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
 
     function emergencyUnlockLiquidity(address lpToken) external onlyOwner {
         LockInfo storage lockInfo = liquidityLocks[lpToken];
-        if (!lockInfo.isLocked) revert NoLockedTokens(lpToken);
-        if (block.timestamp <= lockInfo.unlockTime + 30 days) revert LockNotExpired(lockInfo.unlockTime + 30 days);
+        if (!lockInfo.isLocked) revert PumpFunToken__NoLockedTokens(lpToken);
+        if (block.timestamp <= lockInfo.unlockTime + 30 days) revert PumpFunToken__LockNotExpired(lockInfo.unlockTime + 30 days);
 
         IERC20(lpToken).transfer(owner(), lockInfo.amount);
         delete liquidityLocks[lpToken];

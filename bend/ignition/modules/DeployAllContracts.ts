@@ -16,15 +16,17 @@ const DeployAllContracts = buildModule("DeployAllContracts", (m) => {
   const factory = m.contract("PumpFunFactoryLite");
   const dexManager = m.contract("PumpFunDEXManager", [SWAP_ROUTER, POSITION_MANAGER, UNISWAP_V3_FACTORY, WETH]);
 
-  const requiredFee = m.call(factory, "getRequiredFee", [TOTAL_SUPPLY]);
+  m.call(dexManager,"setFactory", [factory], { after: [factory, dexManager] });
+  m.call(factory, "setGovernanceManager", [governance], { after: [governance, factory] });
+  const setAirdropManager = m.call(factory, "setAirdropManager", [airdrop], { after: [airdrop, factory] });
+  m.call(factory, "setDEXManager", [dexManager], { after: [dexManager, factory] });
+
+  const requiredFee = m.staticCall(factory, "getRequiredFee", [TOTAL_SUPPLY]);
   const deployToken = m.call(factory, "deployToken", [TOKEN_NAME, TOKEN_SYMBOL, TOTAL_SUPPLY, LIQUIDITY_LOCK_PERIOD_DAYS], {
     value: requiredFee,
     from: m.getAccount(0),
+    after: [setAirdropManager] // Ensure airdrop manager is set before deploying token
   });
-
-  m.call(factory, "setGovernanceManager", [governance], { after: [governance, factory] });
-  m.call(factory, "setAirdropManager", [airdrop], { after: [airdrop, factory] });
-  m.call(factory, "setDEXManager", [dexManager], { after: [dexManager, factory] });
   m.call(governance, "setAirdropContract", [airdrop], { after: [airdrop, governance] });
 
   return { factory, governance, airdrop, dexManager, token: deployToken };
