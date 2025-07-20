@@ -5,12 +5,12 @@ const POSITION_MANAGER = process.env.UNISWAP_V3_POSITION_MANAGER || "0x123853607
 const UNISWAP_V3_FACTORY = process.env.UNISWAP_V3_FACTORY || "0x0227628f3F023bb0B980b67D528571c95c6DaC1c";
 const WETH = process.env.WETH_ADDRESS || "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
 
-const TOKEN_NAME = "DemoMeme";
-const TOKEN_SYMBOL = "DEMO";
-const TOTAL_SUPPLY = 10000000n;
-const LIQUIDITY_LOCK_PERIOD_DAYS = 30;
+// const TOKEN_NAME = "DemoMeme";
+// const TOKEN_SYMBOL = "DEMO";
+// const TOTAL_SUPPLY = 10000000n;
+// const LIQUIDITY_LOCK_PERIOD_DAYS = 30;
 
-const DeployAllContracts = buildModule("DeployAllContracts", (m) => {
+const DeployAllContracts = buildModule("DeployAllContracts", (m:any) => {
   const governance = m.contract("PumpFunGovernance");
   const airdrop = m.contract("PumpFunGovernanceAirdrop", [governance]);
   const factory = m.contract("PumpFunFactoryLite");
@@ -18,18 +18,19 @@ const DeployAllContracts = buildModule("DeployAllContracts", (m) => {
 
   m.call(dexManager,"setFactory", [factory], { after: [factory, dexManager] });
   m.call(factory, "setGovernanceManager", [governance], { after: [governance, factory] });
-  const setAirdropManager = m.call(factory, "setAirdropManager", [airdrop], { after: [airdrop, factory] });
   m.call(factory, "setDEXManager", [dexManager], { after: [dexManager, factory] });
-
-  const requiredFee = m.staticCall(factory, "getRequiredFee", [TOTAL_SUPPLY]);
-  const deployToken = m.call(factory, "deployToken", [TOKEN_NAME, TOKEN_SYMBOL, TOTAL_SUPPLY, LIQUIDITY_LOCK_PERIOD_DAYS], {
-    value: requiredFee,
-    from: m.getAccount(0),
-    after: [setAirdropManager] // Ensure airdrop manager is set before deploying token
-  });
   m.call(governance, "setAirdropContract", [airdrop], { after: [airdrop, governance] });
+  m.call(factory, "setAirdropManager", [airdrop], { after: [airdrop, factory] });
+  // const setAirdropManager = m.call(factory, "setAirdropManager", [airdrop], { after: [airdrop, factory] });
 
-  return { factory, governance, airdrop, dexManager, token: deployToken };
+  // const requiredFee = m.staticCall(factory, "getRequiredFee", [TOTAL_SUPPLY]);
+  // const deployToken = m.call(factory, "deployToken", [TOKEN_NAME, TOKEN_SYMBOL, TOTAL_SUPPLY, LIQUIDITY_LOCK_PERIOD_DAYS], {
+  //   value: requiredFee,
+  //   from: m.getAccount(0),
+  //   after: [setAirdropManager] // Ensure airdrop manager is set before deploying token
+  // });
+
+  return { factory, governance, airdrop, dexManager };
 });
 
 export default DeployAllContracts;
