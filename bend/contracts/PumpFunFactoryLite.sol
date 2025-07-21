@@ -100,6 +100,8 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     mapping(address => bool) public isDeployedToken;
     mapping(address => TokenInfo) public tokenInfo;
     mapping(address => LiquidityInfo) public liquidityInfo;
+    mapping(address => uint256) public tokenLiquidityPoolBalance; // Tracks 20% liquidity allocation
+    mapping(address => uint256) public tokenDexPoolBalance; // Tracks 40% DEX pool allocation
     address[] public allDeployedTokens;
 
     // Statistics
@@ -179,13 +181,18 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         if (msg.value < requiredFee) revert PumpFunFactoryLite__InsufficientEtherFee(msg.value, requiredFee);
         if (msg.value > requiredFee) payable(msg.sender).transfer(msg.value - requiredFee);
 
-        // Pass both creator (msg.sender) and factory (address(this))
+        // Deploy token
         PumpFunToken token = new PumpFunToken(name, symbol, totalSupply, msg.sender, address(this));
         tokenAddress = address(token);
 
         if (governanceManager != address(0)) {
             PumpFunToken(tokenAddress).setGovernanceContract(governanceManager);
         }
+
+        // Initialize allocation balances
+        uint256 initialSupply = totalSupply * 10 ** 18; // Assuming 18 decimals
+        tokenLiquidityPoolBalance[tokenAddress] = (initialSupply * 20) / 100; // 20% for liquidity
+        tokenDexPoolBalance[tokenAddress] = (initialSupply * 40) / 100; // 40% for DEX
 
         tokenInfo[tokenAddress] = TokenInfo({
             tokenAddress: tokenAddress,
@@ -210,13 +217,18 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     function addAndLockLiquidity(address tokenAddress, uint256 tokenAmount) external payable nonReentrant {
         if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
         if (msg.value == 0 || tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
-        TokenInfo storage info = tokenInfo[tokenAddress];
-        if (info.creator != msg.sender) revert PumpFunFactoryLite__InvalidParameters();
-        if (IERC20(tokenAddress).balanceOf(tokenAddress) < tokenAmount) {
+        if (tokenLiquidityPoolBalance[tokenAddress] < tokenAmount) {
             revert PumpFunFactoryLite__InvalidLiquidityAmount();
         }
+        TokenInfo storage info = tokenInfo[tokenAddress];
+        if (info.creator != msg.sender) revert PumpFunFactoryLite__InvalidParameters();
 
+        // Deduct from liquidity pool balance in token contract
+        PumpFunToken(tokenAddress).deductLiquidityPoolBalance(tokenAmount);
         IERC20(tokenAddress).transferFrom(tokenAddress, address(this), tokenAmount);
+
+        // Update factory's tracking
+        tokenLiquidityPoolBalance[tokenAddress] -= tokenAmount;
 
         uint256 lockPeriodSeconds = info.liquidityLockPeriodDays * 1 days;
         liquidityInfo[tokenAddress] = LiquidityInfo({
@@ -230,17 +242,24 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         emit LiquidityAdded(tokenAddress, msg.sender, msg.value, tokenAmount);
     }
 
+    // In createDEXPool
     function createDEXPool(address tokenAddress, uint256 tokenAmount, uint24 fee) external payable nonReentrant {
         if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
         if (address(dexManager) == address(0)) revert PumpFunFactoryLite__InvalidParameters();
         if (msg.value == 0 || tokenAmount == 0) revert PumpFunFactoryLite__InvalidLiquidityAmount();
-        TokenInfo storage info = tokenInfo[tokenAddress];
-        if (info.creator != msg.sender) revert PumpFunFactoryLite__InvalidParameters();
-        if (IERC20(tokenAddress).balanceOf(tokenAddress) < tokenAmount) {
+        if (tokenDexPoolBalance[tokenAddress] < tokenAmount) {
             revert PumpFunFactoryLite__InvalidLiquidityAmount();
         }
+        TokenInfo storage info = tokenInfo[tokenAddress];
+        if (info.creator != msg.sender) revert PumpFunFactoryLite__InvalidParameters();
 
+        // Deduct from DEX pool balance in token contract
+        PumpFunToken(tokenAddress).deductDexPoolBalance(tokenAmount);
         IERC20(tokenAddress).transferFrom(tokenAddress, address(this), tokenAmount);
+
+        // Update factory's tracking
+        tokenDexPoolBalance[tokenAddress] -= tokenAmount;
+
         IERC20(tokenAddress).approve(address(dexManager), tokenAmount);
         dexManager.authorizeTokenFromFactory(tokenAddress);
         dexManager.createLiquidityPoolWithETH{value: msg.value}(tokenAddress, fee, tokenAmount);

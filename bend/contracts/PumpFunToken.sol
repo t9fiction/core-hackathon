@@ -72,10 +72,12 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
 
     uint256 public immutable MAX_SUPPLY;
 
+    uint256 public liquidityPoolBalance; // Tracks 20% for liquidity
+    uint256 public dexPoolBalance; // Tracks 40% for DEX pools
     uint256 public maxTransferAmount;
     uint256 public maxHolding;
-    uint256 public stabilityThreshold = 1000000 * 10**18;
-    uint256 public targetPrice = 1 * 10**18;
+    uint256 public stabilityThreshold = 1000000 * 10 ** 18;
+    uint256 public targetPrice = 1 * 10 ** 18;
 
     bool public transferLimitsEnabled = true;
     bool public mintingEnabled = true;
@@ -103,15 +105,17 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
         MAX_SUPPLY = _initialSupply * 10 ** decimals();
 
         uint256 initialSupply = _initialSupply * 10 ** decimals();
-        uint256 creatorAmount = (initialSupply * 10) / 100;
-        uint256 liquidityAmount = (initialSupply * 20) / 100;
-        uint256 communityAmount = initialSupply - creatorAmount - liquidityAmount;
+        uint256 creatorAmount = (initialSupply * 10) / 100; // 10% for creator
+        uint256 liquidityAmount = (initialSupply * 20) / 100; // 20% for liquidity
+        uint256 dexAmount = (initialSupply * 40) / 100; // 40% for DEX pools
+        uint256 communityAmount = initialSupply - creatorAmount - liquidityAmount - dexAmount; // 30% for community
 
         _mint(_creator, creatorAmount);
-        _mint(address(this), liquidityAmount + communityAmount);
+        _mint(address(this), liquidityAmount + dexAmount + communityAmount);
 
-        _approve(address(this), _factory, liquidityAmount);
-        emit ContractApprovedSpender(_factory, liquidityAmount);
+        // Approve factory to spend liquidity and DEX amounts
+        _approve(address(this), _factory, liquidityAmount + dexAmount);
+        emit ContractApprovedSpender(_factory, liquidityAmount + dexAmount);
 
         maxTransferAmount = (initialSupply * 1) / 100;
         maxHolding = (initialSupply * 5) / 100;
@@ -119,6 +123,10 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
         isWhitelisted[address(this)] = true;
         isWhitelisted[_factory] = true;
         isWhitelisted[airdropContract] = true;
+
+        // Track allocations for clarity (optional, for transparency)
+        liquidityPoolBalance = liquidityAmount;
+        dexPoolBalance = dexAmount;
     }
 
     function approveContractSpender(address spender, uint256 amount) external onlyOwner {
@@ -235,6 +243,20 @@ contract PumpFunToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, Reentranc
             _burn(address(this), amount);
             emit StabilityBurn(amount, currentPrice);
         }
+    }
+
+    function getPoolBalances() external view returns (uint256 liquidityBalance, uint256 dexBalance) {
+        return (liquidityPoolBalance, dexPoolBalance);
+    }
+
+    function deductLiquidityPoolBalance(uint256 amount) external onlyFactory {
+        if (amount > liquidityPoolBalance) revert PumpFunToken__InsufficientBalance(liquidityPoolBalance, amount);
+        liquidityPoolBalance -= amount;
+    }
+
+    function deductDexPoolBalance(uint256 amount) external onlyFactory {
+        if (amount > dexPoolBalance) revert PumpFunToken__InsufficientBalance(dexPoolBalance, amount);
+        dexPoolBalance -= amount;
     }
 
     function setMaxTransferAmount(uint256 newAmount) external onlyOwner {
