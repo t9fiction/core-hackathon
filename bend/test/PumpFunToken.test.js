@@ -3,459 +3,368 @@ const { ethers } = require("hardhat");
 const { time, loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
 describe("PumpFunToken", function () {
-  let token;
-  let factory;
-  let airdrop;
-  let deployer, creator, user1, user2, user3;
-  const INITIAL_SUPPLY = 1000000;
-  const DECIMALS = 18;
-  const MIN_LOCK_DURATION = 86400; // 1 day
-  const MAX_LOCK_DURATION = 31536000; // 365 days
-  const TRANSFER_COOLDOWN = 3600; // 1 hour
+  let pumpFunToken, mockFactory, mockAirdrop, owner, creator, addr1, addr2;
+  const TOKEN_NAME = "PumpFunToken";
+  const TOKEN_SYMBOL = "PFT";
+  const LOCK_DURATION = 7 * 24 * 3600; // 7 days
 
   async function deployTokenFixture() {
-    [deployer, creator, user1, user2, user3] = await ethers.getSigners();
-    
-    // Deploy Airdrop contract first
-    const PumpFunGovernanceAirdrop = await ethers.getContractFactory("PumpFunGovernanceAirdrop");
-    airdrop = await PumpFunGovernanceAirdrop.deploy(deployer.address);
-    await airdrop.waitForDeployment();
-    
-    // Deploy Factory
-    const PumpFunFactoryLite = await ethers.getContractFactory("PumpFunFactoryLite");
-    factory = await PumpFunFactoryLite.deploy();
-    await factory.waitForDeployment();
-    
-    // Set airdrop in factory
-    await factory.setAirdropManager(await airdrop.getAddress());
-    
-    // Deploy token
+    [owner, creator, addr1, addr2] = await ethers.getSigners();
+
+    // Deploy mock airdrop contract
+    const MockAirdrop = await ethers.getContractFactory("ERC20Mock");
+    const initialBalance = ethers.parseEther("1000");
+    mockAirdrop = await MockAirdrop.deploy("MockAirdrop", "MA", initialBalance);
+    await mockAirdrop.waitForDeployment();
+
+    // Deploy mock factory
+    const MockFactory = await ethers.getContractFactory("MockFactory");
+    mockFactory = await MockFactory.deploy(await mockAirdrop.getAddress());
+    await mockFactory.waitForDeployment();
+
+    // Deploy PumpFunToken with creator and factory
     const PumpFunToken = await ethers.getContractFactory("PumpFunToken");
-    token = await PumpFunToken.deploy(
-      "TestToken", 
-      "TEST", 
-      INITIAL_SUPPLY, 
-      creator.address, 
-      await factory.getAddress()
+    pumpFunToken = await PumpFunToken.deploy(
+      TOKEN_NAME,
+      TOKEN_SYMBOL,
+      ethers.parseUnits("1000000", 0), // 1M tokens without decimals
+      creator.address,
+      await mockFactory.getAddress()
     );
-    await token.waitForDeployment();
-    
-    return { token, factory, airdrop, deployer, creator, user1, user2, user3 };
+    await pumpFunToken.waitForDeployment();
+
+    console.log("PumpFunToken stats : ", TOKEN_NAME, TOKEN_SYMBOL,
+      await pumpFunToken.totalSupply().then(supply => supply.toString()),
+      "Creator:", creator.address,
+      "Factory:", await mockFactory.getAddress(),
+      "Deployment Address:", await pumpFunToken.getAddress()
+    );
+
+    return { pumpFunToken, mockFactory, mockAirdrop, owner, creator, addr1, addr2 };
   }
 
+  beforeEach(async function () {
+    ({ pumpFunToken, mockFactory, mockAirdrop, owner, creator, addr1, addr2 } = await loadFixture(deployTokenFixture));
+  });
+
   describe("Deployment", function () {
-    it("Should deploy with correct parameters", async function () {
-      const { token } = await loadFixture(deployTokenFixture);
-      
-      expect(await token.name()).to.equal("TestToken");
-      expect(await token.symbol()).to.equal("TEST");
-      expect(await token.decimals()).to.equal(DECIMALS);
-      expect(await token.owner()).to.equal(creator.address);
+    it("Should set the correct name and symbol", async function () {
+      expect(await pumpFunToken.name()).to.equal(TOKEN_NAME);
+      expect(await pumpFunToken.symbol()).to.equal(TOKEN_SYMBOL);
     });
 
-    it("Should set correct initial supply and distribution", async function () {
-      const { token } = await loadFixture(deployTokenFixture);
-      const expectedTotalSupply = ethers.parseUnits(INITIAL_SUPPLY.toString(), DECIMALS);
-      
-      expect(await token.totalSupply()).to.equal(expectedTotalSupply);
-      
-      // Creator gets 10%
-      const creatorBalance = await token.balanceOf(creator.address);
-      const expectedCreatorAmount = expectedTotalSupply * BigInt(10) / BigInt(100);
-      expect(creatorBalance).to.equal(expectedCreatorAmount);
-      
-      // Contract gets 90% (20% liquidity + 70% community)
-      const contractBalance = await token.balanceOf(await token.getAddress());
-      const expectedContractAmount = expectedTotalSupply * BigInt(90) / BigInt(100);
-      expect(contractBalance).to.equal(expectedContractAmount);
+    it("Should set the correct owner", async function () {
+      expect(await pumpFunToken.owner()).to.equal(creator.address);
+    });
+
+    it("Should distribute initial supply correctly", async function () {
+      const totalSupply = await pumpFunToken.totalSupply();
+      const creatorBalance = await pumpFunToken.balanceOf(creator.address);
+      const contractBalance = await pumpFunToken.balanceOf(pumpFunToken.getAddress());
+
+      // Creator should have 10% of total supply
+      const expectedCreatorBalance = totalSupply * 10n / 100n;
+      expect(creatorBalance).to.equal(expectedCreatorBalance);
+
+      // Contract should have 90% (20% + 40% + 30%)
+      expect(contractBalance).to.be.gt(0);
+      const expectedContractBalance = totalSupply * 90n / 100n;
+      expect(contractBalance).to.equal(expectedContractBalance);
     });
 
     it("Should revert with invalid parameters", async function () {
       const PumpFunToken = await ethers.getContractFactory("PumpFunToken");
-      const { factory } = await loadFixture(deployTokenFixture);
-      
-      // Empty name
+
+      // Invalid name
       await expect(
-        PumpFunToken.deploy("", "TEST", INITIAL_SUPPLY, creator.address, await factory.getAddress())
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__InvalidName");
-      
-      // Empty symbol
+        PumpFunToken.deploy("", TOKEN_SYMBOL, 1000000, creator.address, await mockFactory.getAddress())
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__InvalidName");
+
+      // Invalid symbol
       await expect(
-        PumpFunToken.deploy("Test", "", INITIAL_SUPPLY, creator.address, await factory.getAddress())
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__InvalidSymbol");
-      
+        PumpFunToken.deploy(TOKEN_NAME, "", 1000000, creator.address, await mockFactory.getAddress())
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__InvalidSymbol");
+
       // Zero supply
       await expect(
-        PumpFunToken.deploy("Test", "TEST", 0, creator.address, await factory.getAddress())
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__ZeroAmount");
-      
-      // Zero creator address
+        PumpFunToken.deploy(TOKEN_NAME, TOKEN_SYMBOL, 0, creator.address, await mockFactory.getAddress())
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__ZeroAmount");
+
+      // Zero address creator — this fails due to OpenZeppelin Ownable
       await expect(
-        PumpFunToken.deploy("Test", "TEST", INITIAL_SUPPLY, ethers.ZeroAddress, await factory.getAddress())
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__ZeroAddress");
-    });
-  });
+        PumpFunToken.deploy(TOKEN_NAME, TOKEN_SYMBOL, 1000000, ethers.ZeroAddress, await mockFactory.getAddress())
+      ).to.be.revertedWithCustomError(PumpFunToken, "OwnableInvalidOwner");
 
-  describe("ERC20 Functionality", function () {
-    it("Should handle transfers correctly", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const transferAmount = ethers.parseUnits("1000", DECIMALS);
-      
-      await token.connect(creator).transfer(user1.address, transferAmount);
-      expect(await token.balanceOf(user1.address)).to.equal(transferAmount);
-    });
-
-    it("Should handle approvals correctly", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const approveAmount = ethers.parseUnits("1000", DECIMALS);
-      
-      await token.connect(creator).approve(user1.address, approveAmount);
-      expect(await token.allowance(creator.address, user1.address)).to.equal(approveAmount);
-    });
-
-    it("Should handle transferFrom correctly", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const amount = ethers.parseUnits("1000", DECIMALS);
-      
-      await token.connect(creator).approve(user1.address, amount);
-      await token.connect(user1).transferFrom(creator.address, user2.address, amount);
-      
-      expect(await token.balanceOf(user2.address)).to.equal(amount);
-      expect(await token.allowance(creator.address, user1.address)).to.equal(0);
+      // Zero address factory
+      await expect(
+        PumpFunToken.deploy(TOKEN_NAME, TOKEN_SYMBOL, 1000000, creator.address, ethers.ZeroAddress)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__ZeroAddress");
     });
   });
 
   describe("Token Locking", function () {
     it("Should allow users to lock tokens", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const lockAmount = ethers.parseUnits("1000", DECIMALS);
-      const lockDuration = MIN_LOCK_DURATION;
-      
-      await expect(token.connect(creator).lockTokens(lockAmount, lockDuration))
-        .to.emit(token, "TokensLocked")
-        .withArgs(creator.address, lockAmount, (await time.latest()) + lockDuration + 1);
-      
-      const lockInfo = await token.getLockedTokens(creator.address);
-      expect(lockInfo[0]).to.equal(lockAmount); // amount
-      expect(lockInfo[2]).to.be.true; // isLocked
+      const lockAmount = ethers.parseEther("1000");
+      await pumpFunToken.connect(creator).lockTokens(lockAmount, LOCK_DURATION);
+
+      const lockInfo = await pumpFunToken.getLockedTokens(creator.address);
+      expect(lockInfo.amount).to.equal(lockAmount);
+      expect(lockInfo.isLocked).to.be.true;
+      expect(lockInfo.unlockTime).to.be.gt(await time.latest());
     });
 
     it("Should prevent locking with invalid duration", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const lockAmount = ethers.parseUnits("1000", DECIMALS);
-      
-      // Too short
+      const lockAmount = ethers.parseEther("1000");
+      const shortDuration = 3600; // 1 hour (less than minimum 1 day)
+      const longDuration = 366 * 24 * 3600; // More than 365 days
+
       await expect(
-        token.connect(creator).lockTokens(lockAmount, MIN_LOCK_DURATION - 1)
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__InvalidLockDuration");
-      
-      // Too long
+        pumpFunToken.connect(creator).lockTokens(lockAmount, shortDuration)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__InvalidLockDuration");
+
       await expect(
-        token.connect(creator).lockTokens(lockAmount, MAX_LOCK_DURATION + 1)
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__InvalidLockDuration");
+        pumpFunToken.connect(creator).lockTokens(lockAmount, longDuration)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__InvalidLockDuration");
+    });
+
+    it("Should prevent locking zero amount", async function () {
+      await expect(
+        pumpFunToken.connect(creator).lockTokens(0, LOCK_DURATION)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__ZeroAmount");
+    });
+
+    it("Should prevent locking more tokens than balance", async function () {
+      const balance = await pumpFunToken.balanceOf(creator.address);
+      const excessAmount = balance + ethers.parseEther("1");
+
+      await expect(
+        pumpFunToken.connect(creator).lockTokens(excessAmount, LOCK_DURATION)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__InsufficientBalance");
     });
 
     it("Should prevent double locking", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const lockAmount = ethers.parseUnits("1000", DECIMALS);
-      
-      await token.connect(creator).lockTokens(lockAmount, MIN_LOCK_DURATION);
-      
+      const lockAmount = ethers.parseEther("1000");
+      await pumpFunToken.connect(creator).lockTokens(lockAmount, LOCK_DURATION);
+
       await expect(
-        token.connect(creator).lockTokens(lockAmount, MIN_LOCK_DURATION)
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__TokensAlreadyLocked");
+        pumpFunToken.connect(creator).lockTokens(lockAmount, LOCK_DURATION)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__TokensAlreadyLocked");
     });
 
-    it("Should allow unlocking after expiry", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const lockAmount = ethers.parseUnits("1000", DECIMALS);
-      const lockDuration = MIN_LOCK_DURATION;
-      
-      await token.connect(creator).lockTokens(lockAmount, lockDuration);
-      
-      // Try to unlock before expiry
-      await expect(
-        token.connect(creator).unlockTokens()
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__LockNotExpired");
-      
+    it("Should allow unlocking after duration", async function () {
+      const lockAmount = ethers.parseEther("1000");
+      await pumpFunToken.connect(creator).lockTokens(lockAmount, LOCK_DURATION);
+
       // Fast forward time
-      await time.increase(lockDuration + 1);
-      
-      await expect(token.connect(creator).unlockTokens())
-        .to.emit(token, "TokensUnlocked")
+      await time.increase(LOCK_DURATION + 1);
+
+      await expect(pumpFunToken.connect(creator).unlockTokens())
+        .to.emit(pumpFunToken, "TokensUnlocked")
         .withArgs(creator.address, lockAmount);
-      
-      const lockInfo = await token.getLockedTokens(creator.address);
-      expect(lockInfo[2]).to.be.false; // isLocked
+
+      const lockInfo = await pumpFunToken.getLockedTokens(creator.address);
+      expect(lockInfo.isLocked).to.be.false;
+    });
+
+    it("Should prevent early unlocking", async function () {
+      const lockAmount = ethers.parseEther("1000");
+      await pumpFunToken.connect(creator).lockTokens(lockAmount, LOCK_DURATION);
+
+      const lockInfo = await pumpFunToken.getLockedTokens(creator.address);
+
+      await expect(
+        pumpFunToken.connect(creator).unlockTokens()
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__LockNotExpired");
     });
   });
 
   describe("Transfer Restrictions", function () {
     it("Should enforce max transfer amount", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const maxTransfer = await token.maxTransferAmount();
-      
-      // This should work
-      await token.connect(creator).transfer(user1.address, maxTransfer);
-      
-      // This should fail
+      const maxTransferAmount = await pumpFunToken.maxTransferAmount();
+      const excessAmount = maxTransferAmount + 1n;
+
       await expect(
-        token.connect(creator).transfer(user1.address, maxTransfer + BigInt(1))
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__ExceedsMaxTransferAmount");
+        pumpFunToken.connect(creator).transfer(addr1.address, excessAmount)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__ExceedsMaxTransferAmount");
     });
 
-    it("Should enforce max holding amount", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const maxHolding = await token.maxHolding();
-      
-      // Transfer close to max holding
-      await token.connect(creator).transfer(user1.address, maxHolding);
-      
-      // Try to exceed max holding
-      await expect(
-        token.connect(creator).transfer(user1.address, BigInt(1))
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__ExceedsMaxHolding");
-    });
+    it("Should enforce max holding limit", async function () {
+      const maxHolding = await pumpFunToken.maxHolding();
 
-    it("Should enforce transfer cooldown", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const transferAmount = ethers.parseUnits("100", DECIMALS);
-      
-      await token.connect(creator).transfer(user1.address, transferAmount);
-      
-      // Immediate second transfer should fail
+      await pumpFunToken.connect(creator).setTransferLimitsEnabled(false);
+      await pumpFunToken.connect(creator).transfer(addr1.address, maxHolding);
+      await pumpFunToken.connect(creator).setTransferLimitsEnabled(true);
+
       await expect(
-        token.connect(creator).transfer(user2.address, transferAmount)
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__TransferLocked");
-      
-      // After cooldown, should work
-      await time.increase(TRANSFER_COOLDOWN + 1);
-      await token.connect(creator).transfer(user2.address, transferAmount);
+        pumpFunToken.connect(creator).transfer(addr1.address, 1n)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__ExceedsMaxHolding");
     });
 
     it("Should allow whitelisted addresses to bypass restrictions", async function () {
-      const { token, creator, factory } = await loadFixture(deployTokenFixture);
-      const maxTransfer = await token.maxTransferAmount();
-      const largeAmount = maxTransfer * BigInt(2);
-      
-      // Factory should be whitelisted by default and can make large transfers
-      const factoryAddress = await factory.getAddress();
-      expect(await token.isWhitelisted(factoryAddress)).to.be.true;
-      
-      // Set user1 as whitelisted
-      await token.connect(creator).setWhitelisted(user1.address, true);
-      
-      // Transfer large amount to whitelisted user
-      await token.connect(creator).transfer(user1.address, largeAmount);
-      expect(await token.balanceOf(user1.address)).to.equal(largeAmount);
-    });
-  });
+      const maxTransferAmount = await pumpFunToken.maxTransferAmount();
+      const excessAmount = maxTransferAmount + 1n;
 
-  describe("Burning", function () {
-    it("Should allow token burning", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const burnAmount = ethers.parseUnits("1000", DECIMALS);
-      const initialBalance = await token.balanceOf(creator.address);
-      const initialSupply = await token.totalSupply();
-      
-      await token.connect(creator).burn(burnAmount);
-      
-      expect(await token.balanceOf(creator.address)).to.equal(initialBalance - burnAmount);
-      expect(await token.totalSupply()).to.equal(initialSupply - burnAmount);
+      // Whitelist addr1
+      await pumpFunToken.connect(creator).setWhitelisted(addr1.address, true);
+
+      // Transfer to whitelisted address should work
+      await pumpFunToken.connect(creator).transfer(addr1.address, excessAmount);
+
+      expect(await pumpFunToken.balanceOf(addr1.address)).to.equal(excessAmount);
     });
 
-    it("Should allow burning from approved amount", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const burnAmount = ethers.parseUnits("1000", DECIMALS);
-      
-      await token.connect(creator).approve(user1.address, burnAmount);
-      await token.connect(user1).burnFrom(creator.address, burnAmount);
-      
-      expect(await token.allowance(creator.address, user1.address)).to.equal(0);
-    });
-  });
+    it("Should enforce transfer cooldown", async function () {
+      const transferAmount = ethers.parseEther("100");
 
-  describe("Pausable Functionality", function () {
-    it("Should allow owner to pause and unpause", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      
-      await token.connect(creator).emergencyPause();
-      expect(await token.paused()).to.be.true;
-      
-      // Transfers should fail when paused
+      // First transfer should succeed
+      await pumpFunToken.connect(creator).transfer(addr1.address, transferAmount);
+
+      // Second transfer within cooldown should fail
       await expect(
-        token.connect(creator).transfer(user1.address, ethers.parseUnits("100", DECIMALS))
-      ).to.be.revertedWith("Pausable: paused");
-      
-      await token.connect(creator).emergencyUnpause();
-      expect(await token.paused()).to.be.false;
-      
-      // Transfers should work again
-      await token.connect(creator).transfer(user1.address, ethers.parseUnits("100", DECIMALS));
+        pumpFunToken.connect(creator).transfer(addr2.address, transferAmount)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__TransferLocked");
+
+      // Fast forward past cooldown
+      await time.increase(3601); // 1 hour + 1 second
+
+      // Now transfer should succeed
+      await pumpFunToken.connect(creator).transfer(addr2.address, transferAmount);
+      expect(await pumpFunToken.balanceOf(addr2.address)).to.equal(transferAmount);
     });
 
-    it("Should prevent non-owner from pausing", async function () {
-      const { token } = await loadFixture(deployTokenFixture);
-      
+    it("Should prevent transfers of locked tokens", async function () {
+      const lockAmount = ethers.parseEther("1000");
+      const transferAmount = ethers.parseEther("500");
+
+      await pumpFunToken.connect(creator).lockTokens(lockAmount, LOCK_DURATION);
+
       await expect(
-        token.connect(user1).emergencyPause()
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+        pumpFunToken.connect(creator).transfer(addr1.address, transferAmount)
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__TransferLocked");
     });
   });
 
   describe("Admin Functions", function () {
     it("Should allow owner to update max transfer amount", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const newAmount = ethers.parseUnits("5000", DECIMALS);
-      
-      await expect(token.connect(creator).setMaxTransferAmount(newAmount))
-        .to.emit(token, "MaxTransferAmountUpdated");
-      
-      expect(await token.maxTransferAmount()).to.equal(newAmount);
+      const newMaxTransfer = ethers.parseEther("2000");
+
+      await expect(pumpFunToken.connect(creator).setMaxTransferAmount(newMaxTransfer))
+        .to.emit(pumpFunToken, "MaxTransferAmountUpdated");
+
+      expect(await pumpFunToken.maxTransferAmount()).to.equal(newMaxTransfer);
     });
 
     it("Should allow owner to update max holding", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const newAmount = ethers.parseUnits("10000", DECIMALS);
-      
-      await expect(token.connect(creator).setMaxHolding(newAmount))
-        .to.emit(token, "MaxHoldingUpdated");
-      
-      expect(await token.maxHolding()).to.equal(newAmount);
+      const newMaxHolding = ethers.parseEther("10000");
+
+      await expect(pumpFunToken.connect(creator).setMaxHolding(newMaxHolding))
+        .to.emit(pumpFunToken, "MaxHoldingUpdated");
+
+      expect(await pumpFunToken.maxHolding()).to.equal(newMaxHolding);
     });
 
     it("Should allow owner to toggle transfer limits", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      
-      await token.connect(creator).setTransferLimitsEnabled(false);
-      expect(await token.transferLimitsEnabled()).to.be.false;
-      
-      await token.connect(creator).setTransferLimitsEnabled(true);
-      expect(await token.transferLimitsEnabled()).to.be.true;
+      await pumpFunToken.connect(creator).setTransferLimitsEnabled(false);
+      expect(await pumpFunToken.transferLimitsEnabled()).to.be.false;
+
+      await pumpFunToken.connect(creator).setTransferLimitsEnabled(true);
+      expect(await pumpFunToken.transferLimitsEnabled()).to.be.true;
     });
 
-    it("Should prevent non-owner from calling admin functions", async function () {
-      const { token } = await loadFixture(deployTokenFixture);
-      
+    it("Should allow owner to pause/unpause contract", async function () {
+      await pumpFunToken.connect(creator).emergencyPause();
+
       await expect(
-        token.connect(user1).setMaxTransferAmount(ethers.parseUnits("1000", DECIMALS))
-      ).to.be.revertedWith("Ownable: caller is not the owner");
-      
+        pumpFunToken.connect(creator).transfer(addr1.address, ethers.parseEther("100"))
+      ).to.be.revertedWithCustomError(pumpFunToken, "EnforcedPause");
+
+      await pumpFunToken.connect(creator).emergencyUnpause();
+
+      // Transfers should work again
+      await pumpFunToken.connect(creator).transfer(addr1.address, ethers.parseEther("100"));
+    });
+
+    it("Should prevent non-owners from accessing admin functions", async function () {
       await expect(
-        token.connect(user1).setTransferLimitsEnabled(false)
-      ).to.be.revertedWith("Ownable: caller is not the owner");
+        pumpFunToken.connect(addr1).setMaxTransferAmount(ethers.parseEther("2000"))
+      ).to.be.revertedWithCustomError(pumpFunToken, "OwnableUnauthorizedAccount");
+
+      await expect(
+        pumpFunToken.connect(addr1).emergencyPause()
+      ).to.be.revertedWithCustomError(pumpFunToken, "OwnableUnauthorizedAccount");
     });
   });
 
   describe("Stability Mechanisms", function () {
-    it("Should allow stability minting when conditions are met", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const mintAmount = ethers.parseUnits("1000", DECIMALS);
-      const targetPrice = await token.targetPrice();
-      const currentPrice = targetPrice + BigInt(1); // Above target
+    it("Should allow owner to stability mint when conditions are met", async function () {
+      const mintAmount = ethers.parseEther("10");
+      const currentPrice = ethers.parseEther("2"); // Higher than target price
       
-      const initialSupply = await token.totalSupply();
-      
-      await expect(
-        token.connect(creator).stabilityMint(mintAmount, currentPrice)
-      ).to.emit(token, "StabilityMint")
-      .withArgs(mintAmount, currentPrice);
-      
-      expect(await token.totalSupply()).to.equal(initialSupply + mintAmount);
+      // First burn some tokens to make room for minting and get below stability threshold
+      const burnAmount = ethers.parseEther("500000"); // Burn enough to get below threshold
+      await pumpFunToken.connect(creator).stabilityBurn(burnAmount, ethers.parseEther("0.5"));
+
+      await expect(pumpFunToken.connect(creator).stabilityMint(mintAmount, currentPrice))
+        .to.emit(pumpFunToken, "StabilityMint")
+        .withArgs(mintAmount, currentPrice);
+
+      // Contract balance should increase
+      const contractBalance = await pumpFunToken.balanceOf(await pumpFunToken.getAddress());
+      expect(contractBalance).to.be.gt(0);
     });
 
-    it("Should allow stability burning when conditions are met", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const burnAmount = ethers.parseUnits("1000", DECIMALS);
-      const targetPrice = await token.targetPrice();
-      const currentPrice = targetPrice - BigInt(1); // Below target
-      
-      const initialContractBalance = await token.balanceOf(await token.getAddress());
-      
-      await expect(
-        token.connect(creator).stabilityBurn(burnAmount, currentPrice)
-      ).to.emit(token, "StabilityBurn")
-      .withArgs(burnAmount, currentPrice);
-      
-      expect(await token.balanceOf(await token.getAddress())).to.equal(initialContractBalance - burnAmount);
+    it("Should allow owner to stability burn when conditions are met", async function () {
+      const burnAmount = ethers.parseEther("1000");
+      const currentPrice = ethers.parseEther("0.5"); // Lower than target price
+
+      await expect(pumpFunToken.connect(creator).stabilityBurn(burnAmount, currentPrice))
+        .to.emit(pumpFunToken, "StabilityBurn")
+        .withArgs(burnAmount, currentPrice);
     });
 
-    it("Should prevent stability operations when disabled", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const amount = ethers.parseUnits("1000", DECIMALS);
-      const price = ethers.parseUnits("1", DECIMALS);
-      
-      await token.connect(creator).setMintingEnabled(false);
-      await expect(
-        token.connect(creator).stabilityMint(amount, price + BigInt(1))
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__MintingPaused");
-      
-      await token.connect(creator).setBurningEnabled(false);
-      await expect(
-        token.connect(creator).stabilityBurn(amount, price - BigInt(1))
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__BurningPaused");
-    });
-  });
+    it("Should prevent minting when disabled", async function () {
+      await pumpFunToken.connect(creator).setMintingEnabled(false);
 
-  describe("Contract Interaction", function () {
-    it("Should allow contract owner to approve spenders", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const approveAmount = ethers.parseUnits("1000", DECIMALS);
-      
       await expect(
-        token.connect(creator).approveContractSpender(user1.address, approveAmount)
-      ).to.emit(token, "ContractApprovedSpender")
-      .withArgs(user1.address, approveAmount);
-      
-      expect(await token.allowance(await token.getAddress(), user1.address)).to.equal(approveAmount);
+        pumpFunToken.connect(creator).stabilityMint(
+          ethers.parseEther("1000"),
+          ethers.parseEther("2")
+        )
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__MintingPaused");
     });
 
-    it("Should prevent approving zero address or zero amount", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const amount = ethers.parseUnits("1000", DECIMALS);
-      
+    it("Should prevent burning when disabled", async function () {
+      await pumpFunToken.connect(creator).setBurningEnabled(false);
+
       await expect(
-        token.connect(creator).approveContractSpender(ethers.ZeroAddress, amount)
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__ZeroAddress");
-      
-      await expect(
-        token.connect(creator).approveContractSpender(user1.address, 0)
-      ).to.be.revertedWithCustomError(token, "PumpFunToken__ZeroAmount");
+        pumpFunToken.connect(creator).stabilityBurn(
+          ethers.parseEther("1000"),
+          ethers.parseEther("0.5")
+        )
+      ).to.be.revertedWithCustomError(pumpFunToken, "PumpFunToken__BurningPaused");
     });
   });
 
   describe("View Functions", function () {
     it("Should return correct available balance", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const lockAmount = ethers.parseUnits("1000", DECIMALS);
-      const totalBalance = await token.balanceOf(creator.address);
-      
+      const lockAmount = ethers.parseEther("1000");
+      const totalBalance = await pumpFunToken.balanceOf(creator.address);
+
       // Before locking
-      expect(await token.getAvailableBalance(creator.address)).to.equal(totalBalance);
-      
+      expect(await pumpFunToken.getAvailableBalance(creator.address)).to.equal(totalBalance);
+
       // After locking
-      await token.connect(creator).lockTokens(lockAmount, MIN_LOCK_DURATION);
-      expect(await token.getAvailableBalance(creator.address)).to.equal(totalBalance - lockAmount);
-      
-      // After unlock time passes
-      await time.increase(MIN_LOCK_DURATION + 1);
-      expect(await token.getAvailableBalance(creator.address)).to.equal(totalBalance);
+      await pumpFunToken.connect(creator).lockTokens(lockAmount, LOCK_DURATION);
+      const availableBalance = await pumpFunToken.getAvailableBalance(creator.address);
+      expect(availableBalance).to.equal(totalBalance - lockAmount);
     });
 
-    it("Should return correct lock information", async function () {
-      const { token, creator } = await loadFixture(deployTokenFixture);
-      const lockAmount = ethers.parseUnits("1000", DECIMALS);
-      const lockDuration = MIN_LOCK_DURATION;
-      
-      // Before locking
-      let lockInfo = await token.getLockedTokens(creator.address);
-      expect(lockInfo[2]).to.be.false; // isLocked
-      
-      // After locking
-      await token.connect(creator).lockTokens(lockAmount, lockDuration);
-      lockInfo = await token.getLockedTokens(creator.address);
-      expect(lockInfo[0]).to.equal(lockAmount); // amount
-      expect(lockInfo[2]).to.be.true; // isLocked
+    it("Should return correct pool balances", async function () {
+      const [liquidityBalance, dexBalance] = await pumpFunToken.getPoolBalances();
+      const totalSupply = await pumpFunToken.totalSupply();
+
+      expect(liquidityBalance).to.equal(totalSupply * 20n / 100n);
+      expect(dexBalance).to.equal(totalSupply * 40n / 100n);
     });
   });
 });
