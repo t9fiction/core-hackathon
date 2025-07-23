@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
@@ -121,6 +122,41 @@ const PumpFunApp = () => {
           </div>
         </div>
 
+        {/* Action Cards */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <Link href="/deploy" className="group">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-colors group-hover:bg-gray-750">
+              <div className="text-3xl mb-4">🚀</div>
+              <h3 className="text-xl font-bold mb-2">Deploy Token</h3>
+              <p className="text-gray-400 text-sm">Create your sustainable meme token with anti-rug pull protection</p>
+            </div>
+          </Link>
+          
+          <Link href="/tokens" className="group">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-green-500 transition-colors group-hover:bg-gray-750">
+              <div className="text-3xl mb-4">🪙</div>
+              <h3 className="text-xl font-bold mb-2">My Tokens</h3>
+              <p className="text-gray-400 text-sm">Manage your deployed tokens and view analytics</p>
+            </div>
+          </Link>
+          
+          <Link href="/governance" className="group">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-purple-500 transition-colors group-hover:bg-gray-750">
+              <div className="text-3xl mb-4">🏛️</div>
+              <h3 className="text-xl font-bold mb-2">Governance</h3>
+              <p className="text-gray-400 text-sm">Participate in community governance and voting</p>
+            </div>
+          </Link>
+          
+          <Link href="/trading" className="group">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-yellow-500 transition-colors group-hover:bg-gray-750">
+              <div className="text-3xl mb-4">📊</div>
+              <h3 className="text-xl font-bold mb-2">Trading</h3>
+              <p className="text-gray-400 text-sm">Trade tokens and manage liquidity pools</p>
+            </div>
+          </Link>
+        </div>
+
         {/* Wallet Connection Section */}
         <div className="text-center">
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 max-w-md mx-auto">
@@ -132,9 +168,14 @@ const PumpFunApp = () => {
                   <span className="text-sm">Wallet Connected</span>
                 </div>
                 <p className="text-xs text-gray-400 break-all">{address}</p>
-                <p className="text-sm text-gray-300">
-                  Navigate to the token deployment section to create your first token!
-                </p>
+                <div className="flex gap-2 justify-center">
+                  <Link href="/deploy" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                    Deploy Token
+                  </Link>
+                  <Link href="/tokens" className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded text-sm transition-colors">
+                    View Tokens
+                  </Link>
+                </div>
               </div>
             ) : (
               <div>

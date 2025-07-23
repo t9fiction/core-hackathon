@@ -10,19 +10,19 @@ export const CONTRACTS = {
 export const SUPPLY_TIERS = {
   STANDARD: {
     name: 'Standard',
-    maxSupply: 100_000_000,
+    maxSupply: 100000000,
     feeMultiplier: 1,
     description: 'Up to 100M tokens - 1x base fee',
   },
   PREMIUM: {
     name: 'Premium', 
-    maxSupply: 500_000_000,
+    maxSupply: 500000000,
     feeMultiplier: 3,
     description: 'Up to 500M tokens - 3x base fee',
   },
   ULTIMATE: {
     name: 'Ultimate',
-    maxSupply: 1_000_000_000,
+    maxSupply: 1000000000,
     feeMultiplier: 10,
     description: 'Up to 1B tokens - 10x base fee',
   },
