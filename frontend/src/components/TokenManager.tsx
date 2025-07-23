@@ -21,6 +21,16 @@ const TokenManager = () => {
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [selectedToken, setSelectedToken] = useState<string>('');
 
+  if(chainId !== 11155111) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <h2 className="text-2xl font-bold mb-4">Unsupported Network</h2>
+          <p className="text-gray-400">Please switch to the Sepolia testnet to use this feature.</p>
+        </div>
+      </div>
+    );
+  }
   const contractAddress = getContractAddresses(chainId).PUMPFUN_FACTORY;
 
   // Get all tokens created by the user
@@ -28,8 +38,7 @@ const TokenManager = () => {
     address: contractAddress,
     abi: PUMPFUN_FACTORY_ABI,
     functionName: 'creatorTokens',
-    args: address ? [address] : undefined,
-    enabled: !!address,
+    args: address ? [address, BigInt(0)] : undefined,
   });
 
   // Get all deployed tokens

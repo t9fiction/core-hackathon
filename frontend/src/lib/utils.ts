@@ -13,7 +13,7 @@ export function formatTokenAmount(amount: bigint, decimals: number = 18, maxDeci
   const whole = amount / factor;
   const remainder = amount % factor;
   
-  if (remainder === 0n) {
+  if (remainder === BigInt(0)) {
     return whole.toString();
   }
   
@@ -97,8 +97,8 @@ export function formatPercentage(value: number, decimals: number = 1): string {
 
 // Calculate voting power percentage
 export function calculateVotingPower(userBalance: bigint, totalSupply: bigint): number {
-  if (totalSupply === 0n) return 0;
-  return Number((userBalance * 10000n) / totalSupply) / 100;
+  if (totalSupply === BigInt(0)) return 0;
+  return Number((userBalance * BigInt(10000)) / totalSupply) / 100;
 }
 
 // Format ETH amounts
@@ -118,7 +118,7 @@ export function isValidAddress(address: string): boolean {
 
 // Calculate quorum percentage
 export function calculateQuorum(totalSupply: bigint, quorumPercentage: number = 10): bigint {
-  return (totalSupply * BigInt(quorumPercentage)) / 100n;
+  return (totalSupply * BigInt(quorumPercentage)) / BigInt(100);
 }
 
 // Check if proposal meets quorum

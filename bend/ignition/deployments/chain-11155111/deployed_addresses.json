@@ -1,3 +1,7 @@
 {
-  "PumpFunToken#PumpFunToken": "0x151c0B8Ef2D4f96F924837e4A7fC633673c89d8D"
+  "PumpFunToken#PumpFunToken": "0x51Daf26184cC2975d3163E5be6cae4433808b04C",
+  "DeployAllContracts#PumpFunDEXManager": "0x5205d625115104ffeB3A9e5282F06d36f4CF6Ab9",
+  "DeployAllContracts#PumpFunFactoryLite": "0x698f497cE0c50eBB34a684e3b0D5747eFF552BE4",
+  "DeployAllContracts#PumpFunGovernance": "0x8cB5E8aFE9Dd693596636F46af51F68A4FecceD6",
+  "DeployAllContracts#PumpFunGovernanceAirdrop": "0x9A048eD6EA377a30aED7bb598c14310Fdd71f899"
 }
