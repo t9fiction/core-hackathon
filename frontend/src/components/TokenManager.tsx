@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useChainId } from 'wagmi';
+import { useAccount, useReadContract, useChainId, useWriteContract } from 'wagmi';
 import { formatEther } from 'viem';
 import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from '../lib/contracts/addresses';
@@ -20,6 +20,7 @@ const TokenManager = () => {
   const chainId = useChainId();
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [selectedToken, setSelectedToken] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
   if(chainId !== 11155111) {
     return (
@@ -37,41 +38,86 @@ const TokenManager = () => {
   const { data: creatorTokens } = useReadContract({
     address: contractAddress,
     abi: PUMPFUN_FACTORY_ABI,
-    functionName: 'creatorTokens',
-    args: address ? [address, BigInt(0)] : undefined,
+    functionName: 'getTokensByCreator',
+    args: address ? [address] : undefined,
   });
 
   // Get all deployed tokens
   const { data: allTokens } = useReadContract({
     address: contractAddress,
     abi: PUMPFUN_FACTORY_ABI,
-    functionName: 'allDeployedTokens',
+    functionName: 'getAllDeployedTokens',
   });
 
   useEffect(() => {
+    console.log('TokenManager: creatorTokens data:', creatorTokens);
+    console.log('TokenManager: address:', address);
+    console.log('TokenManager: chainId:', chainId);
+    
     if (creatorTokens && creatorTokens.length > 0) {
+      console.log('TokenManager: Found creator tokens, fetching details...');
+      setLoading(true);
       const fetchTokenDetails = async () => {
         const tokenDetails: TokenInfo[] = [];
         
         for (const tokenAddress of creatorTokens) {
           try {
-            // Fetch basic token info from factory
-            const tokenInfo = await fetch(`/api/token-info?address=${tokenAddress}`).then(r => r.json());
+            console.log('TokenManager: Fetching details for token:', tokenAddress);
+            // Call the API endpoint to get token info
+            const response = await fetch(`/api/token-info?address=${tokenAddress}`);
+            if (!response.ok) {
+              // If API fails, create a basic token info object
+              console.warn(`Failed to fetch details for token ${tokenAddress}:`, response.status, response.statusText);
+              tokenDetails.push({
+                tokenAddress: tokenAddress as string,
+                creator: address as string,
+                deploymentTime: BigInt(0),
+                liquidityLockPeriodDays: BigInt(30),
+                name: 'Unknown Token',
+                symbol: 'UNK',
+                totalSupply: BigInt(0),
+              });
+              continue;
+            }
+            
+            const tokenInfo = await response.json();
+            console.log('TokenManager: Token info received:', tokenInfo);
             tokenDetails.push({
-              tokenAddress,
-              ...tokenInfo
+              tokenAddress: tokenAddress as string,
+              creator: tokenInfo.creator,
+              deploymentTime: BigInt(tokenInfo.deploymentTime),
+              liquidityLockPeriodDays: BigInt(tokenInfo.liquidityLockPeriodDays),
+              name: tokenInfo.name,
+              symbol: tokenInfo.symbol,
+              totalSupply: BigInt(tokenInfo.totalSupply),
             });
           } catch (error) {
             console.error('Error fetching token details:', error);
+            // Add a fallback token entry
+            tokenDetails.push({
+              tokenAddress: tokenAddress as string,
+              creator: address as string,
+              deploymentTime: BigInt(Date.now() / 1000),
+              liquidityLockPeriodDays: BigInt(30),
+              name: 'Error Loading Token',
+              symbol: 'ERR',
+              totalSupply: BigInt(0),
+            });
           }
         }
         
+        console.log('TokenManager: Final token details:', tokenDetails);
         setTokens(tokenDetails);
+        setLoading(false);
       };
 
       fetchTokenDetails();
+    } else {
+      console.log('TokenManager: No creator tokens found');
+      setTokens([]);
+      setLoading(false);
     }
-  }, [creatorTokens]);
+  }, [creatorTokens, address, chainId]);
 
   const TokenCard = ({ token }: { token: TokenInfo }) => (
     <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-colors">
