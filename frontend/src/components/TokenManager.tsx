@@ -1,8 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useChainId, useWriteContract } from 'wagmi';
-import { formatEther } from 'viem';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
-import { getContractAddresses } from '../lib/contracts/addresses';
+import { useState, useEffect } from "react";
+import {
+  useAccount,
+  useReadContract,
+  useChainId,
+  useWriteContract,
+} from "wagmi";
+import { formatEther } from "viem";
+import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from "../lib/contracts/abis";
+import { getContractAddresses } from "../lib/contracts/addresses";
+import Link from "next/link";
 
 interface TokenInfo {
   tokenAddress: string;
@@ -19,15 +25,17 @@ const TokenManager = () => {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
-  const [selectedToken, setSelectedToken] = useState<string>('');
+  const [selectedToken, setSelectedToken] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  if(chainId !== 11155111) {
+  if (chainId !== 11155111) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="text-center text-white">
           <h2 className="text-2xl font-bold mb-4">Unsupported Network</h2>
-          <p className="text-gray-400">Please switch to the Sepolia testnet to use this feature.</p>
+          <p className="text-gray-400">
+            Please switch to the Sepolia testnet to use this feature.
+          </p>
         </div>
       </div>
     );
@@ -38,7 +46,7 @@ const TokenManager = () => {
   const { data: creatorTokens } = useReadContract({
     address: contractAddress,
     abi: PUMPFUN_FACTORY_ABI,
-    functionName: 'getTokensByCreator',
+    functionName: "getTokensByCreator",
     args: address ? [address] : undefined,
   });
 
@@ -46,74 +54,85 @@ const TokenManager = () => {
   const { data: allTokens } = useReadContract({
     address: contractAddress,
     abi: PUMPFUN_FACTORY_ABI,
-    functionName: 'getAllDeployedTokens',
+    functionName: "getAllDeployedTokens",
   });
 
   useEffect(() => {
-    console.log('TokenManager: creatorTokens data:', creatorTokens);
-    console.log('TokenManager: address:', address);
-    console.log('TokenManager: chainId:', chainId);
-    
+    console.log("TokenManager: creatorTokens data:", creatorTokens);
+    console.log("TokenManager: address:", address);
+    console.log("TokenManager: chainId:", chainId);
+
     if (creatorTokens && creatorTokens.length > 0) {
-      console.log('TokenManager: Found creator tokens, fetching details...');
+      console.log("TokenManager: Found creator tokens, fetching details...");
       setLoading(true);
       const fetchTokenDetails = async () => {
         const tokenDetails: TokenInfo[] = [];
-        
+
         for (const tokenAddress of creatorTokens) {
           try {
-            console.log('TokenManager: Fetching details for token:', tokenAddress);
+            console.log(
+              "TokenManager: Fetching details for token:",
+              tokenAddress
+            );
             // Call the API endpoint to get token info
-            const response = await fetch(`/api/token-info?address=${tokenAddress}`);
+            const response = await fetch(
+              `/api/token-info?address=${tokenAddress}`
+            );
             if (!response.ok) {
               // If API fails, create a basic token info object
-              console.warn(`Failed to fetch details for token ${tokenAddress}:`, response.status, response.statusText);
+              console.warn(
+                `Failed to fetch details for token ${tokenAddress}:`,
+                response.status,
+                response.statusText
+              );
               tokenDetails.push({
                 tokenAddress: tokenAddress as string,
                 creator: address as string,
                 deploymentTime: BigInt(0),
                 liquidityLockPeriodDays: BigInt(30),
-                name: 'Unknown Token',
-                symbol: 'UNK',
+                name: "Unknown Token",
+                symbol: "UNK",
                 totalSupply: BigInt(0),
               });
               continue;
             }
-            
+
             const tokenInfo = await response.json();
-            console.log('TokenManager: Token info received:', tokenInfo);
+            console.log("TokenManager: Token info received:", tokenInfo);
             tokenDetails.push({
               tokenAddress: tokenAddress as string,
               creator: tokenInfo.creator,
               deploymentTime: BigInt(tokenInfo.deploymentTime),
-              liquidityLockPeriodDays: BigInt(tokenInfo.liquidityLockPeriodDays),
+              liquidityLockPeriodDays: BigInt(
+                tokenInfo.liquidityLockPeriodDays
+              ),
               name: tokenInfo.name,
               symbol: tokenInfo.symbol,
               totalSupply: BigInt(tokenInfo.totalSupply),
             });
           } catch (error) {
-            console.error('Error fetching token details:', error);
+            console.error("Error fetching token details:", error);
             // Add a fallback token entry
             tokenDetails.push({
               tokenAddress: tokenAddress as string,
               creator: address as string,
               deploymentTime: BigInt(Date.now() / 1000),
               liquidityLockPeriodDays: BigInt(30),
-              name: 'Error Loading Token',
-              symbol: 'ERR',
+              name: "Error Loading Token",
+              symbol: "ERR",
               totalSupply: BigInt(0),
             });
           }
         }
-        
-        console.log('TokenManager: Final token details:', tokenDetails);
+
+        console.log("TokenManager: Final token details:", tokenDetails);
         setTokens(tokenDetails);
         setLoading(false);
       };
 
       fetchTokenDetails();
     } else {
-      console.log('TokenManager: No creator tokens found');
+      console.log("TokenManager: No creator tokens found");
       setTokens([]);
       setLoading(false);
     }
@@ -123,13 +142,15 @@ const TokenManager = () => {
     <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-colors">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h3 className="text-xl font-bold text-white">{token.name || 'Unknown Token'}</h3>
-          <p className="text-gray-400">{token.symbol || 'N/A'}</p>
+          <h3 className="text-xl font-bold text-white">
+            {token.name || "Unknown Token"}
+          </h3>
+          <p className="text-gray-400">{token.symbol || "N/A"}</p>
         </div>
         <div className="text-right">
           <p className="text-sm text-gray-400">Total Supply</p>
           <p className="text-white font-medium">
-            {token.totalSupply ? formatEther(token.totalSupply) : 'N/A'}
+            {token.totalSupply ? formatEther(token.totalSupply) : "N/A"}
           </p>
         </div>
       </div>
@@ -149,7 +170,9 @@ const TokenManager = () => {
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">Lock Period:</span>
-          <span className="text-white">{token.liquidityLockPeriodDays.toString()} days</span>
+          <span className="text-white">
+            {token.liquidityLockPeriodDays.toString()} days
+          </span>
         </div>
       </div>
 
@@ -161,26 +184,36 @@ const TokenManager = () => {
           Manage
         </button>
         <button className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded-lg text-sm transition-colors">
-          View on Explorer
+          <Link
+            href={`https://sepolia.etherscan.io/token/${token.tokenAddress}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View on Explorer
+          </Link>
         </button>
       </div>
     </div>
   );
 
   const TokenManagement = ({ tokenAddress }: { tokenAddress: string }) => {
-    const [lockAmount, setLockAmount] = useState('');
+    const [lockAmount, setLockAmount] = useState("");
     const [lockDuration, setLockDuration] = useState(30);
 
     return (
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 mt-6">
         <h3 className="text-xl font-bold text-white mb-4">Token Management</h3>
-        
+
         <div className="grid md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Lock Tokens</h4>
+            <h4 className="text-lg font-semibold text-white mb-3">
+              Lock Tokens
+            </h4>
             <div className="space-y-3">
               <div>
-                <label className="block text-gray-300 text-sm mb-1">Amount to Lock</label>
+                <label className="block text-gray-300 text-sm mb-1">
+                  Amount to Lock
+                </label>
                 <input
                   type="number"
                   value={lockAmount}
@@ -190,7 +223,9 @@ const TokenManager = () => {
                 />
               </div>
               <div>
-                <label className="block text-gray-300 text-sm mb-1">Duration (days)</label>
+                <label className="block text-gray-300 text-sm mb-1">
+                  Duration (days)
+                </label>
                 <input
                   type="number"
                   value={lockDuration}
@@ -207,7 +242,9 @@ const TokenManager = () => {
           </div>
 
           <div>
-            <h4 className="text-lg font-semibold text-white mb-3">Transfer Settings</h4>
+            <h4 className="text-lg font-semibold text-white mb-3">
+              Transfer Settings
+            </h4>
             <div className="space-y-3">
               <button className="w-full bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded transition-colors">
                 Update Max Transfer
@@ -223,7 +260,7 @@ const TokenManager = () => {
         </div>
 
         <button
-          onClick={() => setSelectedToken('')}
+          onClick={() => setSelectedToken("")}
           className="mt-4 bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded transition-colors"
         >
           Back to Token List
@@ -236,8 +273,12 @@ const TokenManager = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Connect Your Wallet</h2>
-          <p className="text-gray-400">Please connect your wallet to view your tokens</p>
+          <h2 className="text-2xl font-bold text-white mb-4">
+            Connect Your Wallet
+          </h2>
+          <p className="text-gray-400">
+            Please connect your wallet to view your tokens
+          </p>
         </div>
       </div>
     );
@@ -262,10 +303,14 @@ const TokenManager = () => {
             {tokens.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🪙</div>
-                <h3 className="text-xl font-bold text-white mb-2">No Tokens Found</h3>
-                <p className="text-gray-400 mb-6">You haven't deployed any tokens yet</p>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  No Tokens Found
+                </h3>
+                <p className="text-gray-400 mb-6">
+                  You haven't deployed any tokens yet
+                </p>
                 <button
-                  onClick={() => window.location.href = '/deploy'}
+                  onClick={() => (window.location.href = "/deploy")}
                   className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
                 >
                   Deploy Your First Token
@@ -281,10 +326,15 @@ const TokenManager = () => {
 
             {allTokens && allTokens.length > 0 && (
               <div className="mt-12">
-                <h2 className="text-2xl font-bold text-white mb-6">All Deployed Tokens</h2>
+                <h2 className="text-2xl font-bold text-white mb-6">
+                  All Deployed Tokens
+                </h2>
                 <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
                   <p className="text-gray-300">
-                    Total tokens deployed on the platform: <span className="text-blue-400 font-bold">{allTokens.length}</span>
+                    Total tokens deployed on the platform:{" "}
+                    <span className="text-blue-400 font-bold">
+                      {allTokens.length}
+                    </span>
                   </p>
                 </div>
               </div>
