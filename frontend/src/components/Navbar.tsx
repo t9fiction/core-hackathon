@@ -50,7 +50,7 @@ const Navbar = () => {
           
           {/* Connect Button Section - Fixed Width */}
           <div className='flex-shrink-0 w-48 flex justify-end'>
-            <div className='transform  transition-transform duration-200'>
+            <div className='transform  transition-transform duration-200 cursor-pointer'>
               {/* <ConnectButton /> */}
               <CustomButton />
             </div>
