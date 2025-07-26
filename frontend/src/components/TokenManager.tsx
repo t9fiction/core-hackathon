@@ -8,7 +8,11 @@ import {
 import { formatEther, Address } from "viem";
 import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from "../lib/contracts/abis";
 import { getContractAddresses } from "../lib/contracts/addresses";
-import { useTokenGovernance, useTokenDEX, useTokenLock } from "../lib/hooks/useTokenContracts";
+import {
+  useTokenGovernance,
+  useTokenDEX,
+  useTokenLock,
+} from "../lib/hooks/useTokenContracts";
 import Link from "next/link";
 
 interface TokenInfo {
@@ -79,6 +83,7 @@ const TokenManager = () => {
             const response = await fetch(
               `/api/token-info?address=${tokenAddress}`
             );
+
             if (!response.ok) {
               // If API fails, create a basic token info object
               console.warn(
@@ -211,13 +216,15 @@ const TokenManager = () => {
     const [poolTokenAmount, setPoolTokenAmount] = useState("");
     const [poolEthAmount, setPoolEthAmount] = useState("");
     const [poolFee, setPoolFee] = useState(3000);
-    
+
     const chainId = useChainId();
     const contractAddresses = getContractAddresses(chainId);
 
     // Get token details
-    const selectedTokenInfo = tokens.find(t => t.tokenAddress === tokenAddress);
-    
+    const selectedTokenInfo = tokens.find(
+      (t) => t.tokenAddress === tokenAddress
+    );
+
     // Initialize hooks for blockchain interactions
     const governance = useTokenGovernance(tokenAddress as Address);
     const dex = useTokenDEX(tokenAddress as Address);
@@ -227,8 +234,23 @@ const TokenManager = () => {
       { id: "governance", label: "🏛️ Governance", icon: "🏛️" },
       { id: "dex", label: "💱 DEX Trading", icon: "💱" },
       { id: "liquidity", label: "💧 Liquidity", icon: "💧" },
-      { id: "lock", label: "🔐 Token Lock", icon: "🔐" }
+      { id: "lock", label: "🔐 Token Lock", icon: "🔐" },
     ];
+
+    const dexHash = async () => {
+      try {
+        if (poolTokenAmount && poolEthAmount) {
+          const result = await dex.createFactoryDEXPool(
+            poolTokenAmount,
+            poolEthAmount,
+            poolFee
+          );
+          console.log("DEX Pool created successfully:", result);
+        }
+      } catch (error) {
+        console.error("Error creating DEX pool:", error);
+      }
+    };
 
     return (
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 mt-6">
@@ -238,7 +260,8 @@ const TokenManager = () => {
               {selectedTokenInfo?.name || "Token"} Management
             </h3>
             <p className="text-gray-400 text-sm">
-              {selectedTokenInfo?.symbol} • {tokenAddress.slice(0, 6)}...{tokenAddress.slice(-4)}
+              {selectedTokenInfo?.symbol} • {tokenAddress.slice(0, 6)}...
+              {tokenAddress.slice(-4)}
             </p>
           </div>
           <button
@@ -284,7 +307,9 @@ const TokenManager = () => {
                       </label>
                       <select
                         value={proposalType}
-                        onChange={(e) => setProposalType(Number(e.target.value))}
+                        onChange={(e) =>
+                          setProposalType(Number(e.target.value))
+                        }
                         className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
                       >
                         <option value={1}>Update Max Transfer</option>
@@ -319,7 +344,7 @@ const TokenManager = () => {
                         />
                       </div>
                     )}
-                    <button 
+                    <button
                       disabled={!isConnected}
                       className="w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
                     >
@@ -335,9 +360,13 @@ const TokenManager = () => {
                   </h4>
                   <div className="space-y-3">
                     <div className="bg-gray-600 rounded p-3">
-                      <p className="text-sm text-white mb-2">Update transfer cooldown</p>
+                      <p className="text-sm text-white mb-2">
+                        Update transfer cooldown
+                      </p>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">Proposal #1</span>
+                        <span className="text-xs text-gray-400">
+                          Proposal #1
+                        </span>
                         <div className="flex gap-1">
                           <button className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs">
                             Vote Yes
@@ -353,11 +382,14 @@ const TokenManager = () => {
                           <span>Against: 300 votes</span>
                         </div>
                         <div className="w-full bg-gray-500 rounded-full h-2 mt-1">
-                          <div className="bg-green-500 h-2 rounded-full" style={{width: '80%'}}></div>
+                          <div
+                            className="bg-green-500 h-2 rounded-full"
+                            style={{ width: "80%" }}
+                          ></div>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="text-center text-gray-400 text-sm py-4">
                       No other active proposals
                     </div>
@@ -390,14 +422,16 @@ const TokenManager = () => {
                     <div className="bg-gray-600 rounded p-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-300">You'll receive:</span>
-                        <span className="text-white font-medium">~1,234 {selectedTokenInfo?.symbol}</span>
+                        <span className="text-white font-medium">
+                          ~1,234 {selectedTokenInfo?.symbol}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
                         <span>Price:</span>
                         <span>1 ETH = 12,340 {selectedTokenInfo?.symbol}</span>
                       </div>
                     </div>
-                    <button 
+                    <button
                       disabled={!isConnected}
                       className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
                     >
@@ -425,14 +459,18 @@ const TokenManager = () => {
                     <div className="bg-gray-600 rounded p-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-300">You'll receive:</span>
-                        <span className="text-white font-medium">~0.081 ETH</span>
+                        <span className="text-white font-medium">
+                          ~0.081 ETH
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
                         <span>Price:</span>
-                        <span>1 {selectedTokenInfo?.symbol} = 0.000081 ETH</span>
+                        <span>
+                          1 {selectedTokenInfo?.symbol} = 0.000081 ETH
+                        </span>
                       </div>
                     </div>
-                    <button 
+                    <button
                       disabled={!isConnected}
                       className="w-full bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
                     >
@@ -524,7 +562,9 @@ const TokenManager = () => {
                   <div className="text-sm space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-300">Pool Type:</span>
-                      <span className="text-white">Token/{selectedTokenInfo?.symbol} - ETH</span>
+                      <span className="text-white">
+                        Token/{selectedTokenInfo?.symbol} - ETH
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-300">Fee Tier:</span>
@@ -533,46 +573,64 @@ const TokenManager = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-300">Initial Price:</span>
                       <span className="text-white">
-                        {poolTokenAmount && poolEthAmount 
-                          ? `1 ETH = ${(Number(poolTokenAmount) / Number(poolEthAmount)).toFixed(2)} ${selectedTokenInfo?.symbol}`
-                          : 'Enter amounts'}
+                        {poolTokenAmount && poolEthAmount
+                          ? `1 ETH = ${(
+                              Number(poolTokenAmount) / Number(poolEthAmount)
+                            ).toFixed(2)} ${selectedTokenInfo?.symbol}`
+                          : "Enter amounts"}
                       </span>
                     </div>
                   </div>
                 </div>
-                <button 
-                  onClick={async () => {
-                    if (poolTokenAmount && poolEthAmount) {
-                      try {
-                        await dex.createDEXPool(poolTokenAmount, poolEthAmount, poolFee);
-                      } catch (error) {
-                        console.error('Error creating DEX pool:', error);
-                      }
-                    }
-                  }}
-                  disabled={!isConnected || !poolTokenAmount || !poolEthAmount || dex.isCreatingPool}
+                <button
+                  onClick={dexHash}
+                  disabled={
+                    !isConnected ||
+                    !poolTokenAmount ||
+                    !poolEthAmount ||
+                    dex.isCreatingPool
+                  }
                   className="w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 text-white py-3 px-4 rounded transition-colors font-medium"
                 >
                   {dex.isCreatingPool ? (
                     <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <svg
+                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
                       </svg>
                       Creating DEX Pool...
                     </span>
                   ) : (
-                    'Create DEX Pool'
+                    "Create DEX Pool"
                   )}
                 </button>
               </div>
-              
+
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Add Liquidity */}
                 <div className="bg-gray-700 rounded-lg p-4">
                   <h4 className="text-lg font-semibold text-white mb-3">
                     Add Liquidity
                   </h4>
+                  {dex.error && (
+                    <div className="text-red-400 text-sm mb-4">{dex.error}</div>
+                  )}
                   <div className="space-y-3">
                     <div>
                       <label className="block text-gray-300 text-sm mb-1">
@@ -599,8 +657,24 @@ const TokenManager = () => {
                         step="0.01"
                       />
                     </div>
-                    <button 
-                      disabled={!isConnected}
+                    <button
+                      disabled={
+                        !isConnected ||
+                        !dex.poolInfo ||
+                        !liquidityAmount ||
+                        !ethAmount
+                      }
+                      onClick={async () => {
+                        try {
+                          await dex.addLiquidity(
+                            liquidityAmount,
+                            ethAmount,
+                            poolFee
+                          );
+                        } catch (error) {
+                          console.error("Error adding liquidity:", error);
+                        }
+                      }}
                       className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
                     >
                       Add Liquidity
@@ -628,13 +702,17 @@ const TokenManager = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-300">Lock Period:</span>
-                      <span className="text-yellow-400 font-medium">28 days remaining</span>
+                      <span className="text-yellow-400 font-medium">
+                        28 days remaining
+                      </span>
                     </div>
-                    <button 
+                    <button
                       disabled={!isConnected}
                       className="w-full bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors mt-3"
                     >
-                      View Pool on DEX
+                      <Link href={`https://sepolia.etherscan.io/tx/${dexHash}`}>
+                        View Pool on DEX
+                      </Link>
                     </button>
                   </div>
                 </div>
@@ -670,13 +748,15 @@ const TokenManager = () => {
                       <input
                         type="number"
                         value={lockDuration}
-                        onChange={(e) => setLockDuration(Number(e.target.value))}
+                        onChange={(e) =>
+                          setLockDuration(Number(e.target.value))
+                        }
                         min="1"
                         max="365"
                         className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
                       />
                     </div>
-                    <button 
+                    <button
                       disabled={!isConnected}
                       className="w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
                     >
@@ -694,11 +774,15 @@ const TokenManager = () => {
                     <div className="bg-gray-600 rounded p-3">
                       <div className="flex justify-between">
                         <span className="text-gray-300">Locked Amount:</span>
-                        <span className="text-white font-medium">50,000 {selectedTokenInfo?.symbol}</span>
+                        <span className="text-white font-medium">
+                          50,000 {selectedTokenInfo?.symbol}
+                        </span>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-gray-300">Unlock Date:</span>
-                        <span className="text-yellow-400 font-medium">Jan 15, 2025</span>
+                        <span className="text-yellow-400 font-medium">
+                          Jan 15, 2025
+                        </span>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-gray-300">Days Remaining:</span>

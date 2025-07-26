@@ -1,39 +1,64 @@
-import { useState } from 'react';
-import { 
-  useWriteContract, 
+import { useState, useEffect } from "react";
+import {
+  useWriteContract,
   useReadContract,
   useWaitForTransactionReceipt,
   useChainId,
-  useAccount
-} from 'wagmi';
-import { parseEther, formatEther, Address } from 'viem';
-import { 
-  PUMPFUN_GOVERNANCE_ABI, 
+  useAccount,
+} from "wagmi";
+import {
+  UNISWAP_V3_FACTORY_ABI,
+  UNISWAP_V3_POOL_ABI,
+  NONFUNGIBLE_POSITION_MANAGER_ABI,
+} from "../contracts/abis/uniswap";
+import { parseEther, formatEther, Address, parseUnits } from "viem";
+import {
+  PUMPFUN_GOVERNANCE_ABI,
   PUMPFUN_DEX_MANAGER_ABI,
   PUMPFUN_TOKEN_ABI,
-  PUMPFUN_FACTORY_ABI
-} from '../contracts/abis';
-import { getContractAddresses } from '../contracts/addresses';
+  PUMPFUN_FACTORY_ABI,
+} from "../contracts/abis";
+import { getContractAddresses } from "../contracts/addresses";
+
+interface PoolInfo {
+  poolAddress: string;
+  token0: string;
+  token1: string;
+  fee: number;
+  liquidity: string;
+  sqrtPriceX96: string;
+  tick: number;
+}
+
+interface PositionInfo {
+  tokenId: number;
+  liquidity: string;
+  tickLower: number;
+  tickUpper: number;
+  tokensOwed0: string;
+  tokensOwed1: string;
+}
 
 export const useTokenGovernance = (tokenAddress?: Address) => {
   const [isCreatingProposal, setIsCreatingProposal] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
-  
+
   const chainId = useChainId();
   const { address } = useAccount();
   const contractAddresses = getContractAddresses(chainId);
-  
+
   const { writeContract, data: hash, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash,
+    });
 
   // Read user's voting power for a token
   const { data: votingPower } = useReadContract({
     address: tokenAddress,
     abi: PUMPFUN_TOKEN_ABI,
-    functionName: 'balanceOf',
+    functionName: "balanceOf",
     args: address ? [address] : undefined,
   });
 
@@ -41,7 +66,7 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
   const { data: proposalCount } = useReadContract({
     address: contractAddresses.PUMPFUN_GOVERNANCE,
     abi: PUMPFUN_GOVERNANCE_ABI,
-    functionName: 'proposalCount',
+    functionName: "proposalCount",
   });
 
   // Get proposal details
@@ -49,17 +74,17 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
     return useReadContract({
       address: contractAddresses.PUMPFUN_GOVERNANCE,
       abi: PUMPFUN_GOVERNANCE_ABI,
-      functionName: 'getProposal',
+      functionName: "getProposal",
       args: [BigInt(proposalId)],
     });
   };
 
-  // Check if user has voted on a proposal  
+  // Check if user has voted on a proposal
   const hasVoted = (proposalId: number) => {
     return useReadContract({
       address: contractAddresses.PUMPFUN_GOVERNANCE,
       abi: PUMPFUN_GOVERNANCE_ABI,
-      functionName: 'hasVotedOnProposal',
+      functionName: "hasVotedOnProposal",
       args: address ? [BigInt(proposalId), address] : undefined,
     });
   };
@@ -71,16 +96,16 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
     recipients: Address[] = [],
     amounts: string[] = []
   ) => {
-    if (!tokenAddress) throw new Error('Token address required');
-    
+    if (!tokenAddress) throw new Error("Token address required");
+
     setIsCreatingProposal(true);
     try {
-      const amountsBigInt = amounts.map(amount => parseEther(amount));
-      
+      const amountsBigInt = amounts.map((amount) => parseEther(amount));
+
       await writeContract({
         address: contractAddresses.PUMPFUN_GOVERNANCE,
         abi: PUMPFUN_GOVERNANCE_ABI,
-        functionName: 'createProposal',
+        functionName: "createProposal",
         args: [
           tokenAddress,
           description,
@@ -101,7 +126,7 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
       await writeContract({
         address: contractAddresses.PUMPFUN_GOVERNANCE,
         abi: PUMPFUN_GOVERNANCE_ABI,
-        functionName: 'vote',
+        functionName: "vote",
         args: [BigInt(proposalId), support],
       });
     } finally {
@@ -115,7 +140,7 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
       await writeContract({
         address: contractAddresses.PUMPFUN_GOVERNANCE,
         abi: PUMPFUN_GOVERNANCE_ABI,
-        functionName: 'executeProposal',
+        functionName: "executeProposal",
         args: [BigInt(proposalId)],
       });
     } finally {
@@ -131,11 +156,11 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
     isConfirming,
     isConfirmed,
     error,
-    
+
     // Data
-    votingPower: votingPower ? formatEther(votingPower as bigint) : '0',
+    votingPower: votingPower ? formatEther(votingPower as bigint) : "0",
     proposalCount: proposalCount ? Number(proposalCount) : 0,
-    
+
     // Functions
     createProposal,
     vote,
@@ -145,209 +170,355 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
   };
 };
 
-export const useTokenDEX = (tokenAddress?: Address) => {
-  const [isBuying, setIsBuying] = useState(false);
-  const [isSelling, setIsSelling] = useState(false);
-  const [isAddingLiquidity, setIsAddingLiquidity] = useState(false);
-  const [isCreatingPool, setIsCreatingPool] = useState(false);
-  
-  const chainId = useChainId();
-  const { address } = useAccount();
+export const useTokenDEX = (tokenAddress: Address) => {
+  const { address: userAddress } = useAccount();
+  const chainId = 11155111; // Sepolia Testnet
   const contractAddresses = getContractAddresses(chainId);
-  
-  const { writeContract, data: hash, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const [isCreatingPool, setIsCreatingPool] = useState(false);
+  const [poolInfo, setPoolInfo] = useState<PoolInfo | null>(null);
+  const [positionInfo, setPositionInfo] = useState<PositionInfo[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoadingPool, setIsLoadingPool] = useState(false);
+  const [poolExists, setPoolExists] = useState(false);
 
-  // Get token price and stats
-  const { data: tokenStats } = useReadContract({
+  const { writeContractAsync } = useWriteContract();
+
+  const WETH_ADDRESS = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
+  const UNISWAP_V3_FACTORY_ADDRESS =
+    "0x0227628f3F023bb0B980b67D528571c95c6DaC1c";
+  const NONFUNGIBLE_POSITION_MANAGER_ADDRESS =
+    "0x1238536071E1c677A632429e3655c799b22cDA52";
+
+  // Read pool info from DEX Manager
+  const { data: poolInfoData, refetch: refetchPoolInfo } = useReadContract({
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: 'getTokenStats',
-    args: tokenAddress ? [tokenAddress] : undefined,
+    functionName: "getPoolInfo",
+    args: [tokenAddress, WETH_ADDRESS, 3000], // Default 0.3% fee
   });
 
-  // Get pool information
-  const { data: poolInfo } = useReadContract({
+  // Read token stats from DEX Manager
+  const { data: tokenStats, refetch: refetchTokenStats } = useReadContract({
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: 'getPoolInfo',
-    args: tokenAddress ? [tokenAddress, contractAddresses.PUMPFUN_DEX_MANAGER, 3000] : undefined, // 0.3% fee tier
+    functionName: "getTokenStats",
+    args: [tokenAddress],
   });
 
   // Check if token is authorized
   const { data: isAuthorized } = useReadContract({
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: 'authorizedTokens',
-    args: tokenAddress ? [tokenAddress] : undefined,
+    functionName: "authorizedTokens",
+    args: [tokenAddress],
   });
 
-  // Get user's token balance
-  const { data: tokenBalance } = useReadContract({
-    address: tokenAddress,
-    abi: PUMPFUN_TOKEN_ABI,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-  });
-
-  const buyTokens = async (ethAmount: string, minTokensOut: string = '0') => {
-    if (!tokenAddress) throw new Error('Token address required');
-    
-    setIsBuying(true);
-    try {
-      await writeContract({
-        address: contractAddresses.PUMPFUN_DEX_MANAGER,
-        abi: PUMPFUN_DEX_MANAGER_ABI,
-        functionName: 'swapExactETHForTokens',
-        args: [
-          tokenAddress,
-          3000, // 0.3% fee tier
-          parseEther(minTokensOut),
-        ],
-        value: parseEther(ethAmount),
-      });
-    } finally {
-      setIsBuying(false);
+  // Update pool info when data changes
+  useEffect(() => {
+    if (poolInfoData && Array.isArray(poolInfoData) && poolInfoData.length >= 5) {
+      const [tokenId, liquidity, lockExpiry, isActive, createdAt] = poolInfoData as [bigint, bigint, bigint, boolean, bigint];
+      setPoolExists(isActive);
+      if (isActive) {
+        setPoolInfo({
+          poolAddress: "" + tokenId, // We'll get the actual pool address separately
+          token0: tokenAddress < WETH_ADDRESS ? tokenAddress : WETH_ADDRESS,
+          token1: tokenAddress < WETH_ADDRESS ? WETH_ADDRESS : tokenAddress,
+          fee: 3000,
+          liquidity: liquidity.toString(),
+          sqrtPriceX96: "0", // We'll update this if needed
+          tick: 0,
+        });
+      }
     }
-  };
+  }, [poolInfoData, tokenAddress]);
 
-  const sellTokens = async (tokenAmount: string, minEthOut: string = '0') => {
-    if (!tokenAddress) throw new Error('Token address required');
-    
-    setIsSelling(true);
-    try {
-      await writeContract({
-        address: contractAddresses.PUMPFUN_DEX_MANAGER,
-        abi: PUMPFUN_DEX_MANAGER_ABI,
-        functionName: 'swapExactTokensForETH',
-        args: [
-          tokenAddress,
-          3000, // 0.3% fee tier
-          parseEther(tokenAmount),
-          parseEther(minEthOut),
-        ],
-      });
-    } finally {
-      setIsSelling(false);
-    }
-  };
-
-  const addLiquidity = async (tokenAmount: string, ethAmount: string) => {
-    if (!tokenAddress) throw new Error('Token address required');
-    
-    setIsAddingLiquidity(true);
-    try {
-      await writeContract({
-        address: contractAddresses.PUMPFUN_DEX_MANAGER,
-        abi: PUMPFUN_DEX_MANAGER_ABI,
-        functionName: 'addLiquidity',
-        args: [
-          tokenAddress,
-          contractAddresses.PUMPFUN_DEX_MANAGER, // WETH address should be fetched from DEX manager
-          3000, // 0.3% fee tier
-          parseEther(tokenAmount),
-          parseEther(ethAmount),
-        ],
-        value: parseEther(ethAmount),
-      });
-    } finally {
-      setIsAddingLiquidity(false);
-    }
-  };
-
-  const createDEXPool = async (tokenAmount: string, ethAmount: string, fee: number = 3000) => {
-    if (!tokenAddress) throw new Error('Token address required');
-    
+  const createFactoryDEXPool = async (
+    tokenAmount: string,
+    ethAmount: string,
+    fee: number = 3000
+  ) => {
     setIsCreatingPool(true);
+    setError(null);
     try {
-      await writeContract({
+      const tokenAmountWei = parseUnits(tokenAmount, 18);
+      const ethAmountWei = parseEther(ethAmount);
+
+      // First approve the factory to spend tokens
+      await writeContractAsync({
+        address: tokenAddress,
+        abi: PUMPFUN_TOKEN_ABI,
+        functionName: "approve",
+        args: [contractAddresses.PUMPFUN_FACTORY, tokenAmountWei],
+      });
+
+      // Create pool via factory
+      const tx = await writeContractAsync({
         address: contractAddresses.PUMPFUN_FACTORY,
         abi: PUMPFUN_FACTORY_ABI,
-        functionName: 'createDEXPool',
-        args: [
-          tokenAddress,
-          parseEther(tokenAmount),
-          fee, // Fee tier (3000 = 0.3%)
-        ],
-        value: parseEther(ethAmount),
+        functionName: "createDEXPool",
+        args: [tokenAddress, tokenAmountWei, fee],
+        value: ethAmountWei,
       });
+
+      // Refetch pool info after creation
+      setTimeout(() => {
+        refetchPoolInfo();
+        refetchTokenStats();
+      }, 2000);
+
+      return tx;
+    } catch (error: any) {
+      setError(error.message || "Failed to create DEX pool via factory");
+      throw error;
     } finally {
       setIsCreatingPool(false);
     }
   };
 
-  const formatTokenStats = (stats: any) => {
-    if (!stats) return null;
-    
-    return {
-      price: formatEther(stats[0] || BigInt(0)),
-      marketCap: formatEther(stats[1] || BigInt(0)),
-      volume24h: formatEther(stats[2] || BigInt(0)),
-      liquidity: formatEther(stats[3] || BigInt(0)),
-      isActive: stats[4] || false,
-    };
+  const createDEXPool = async (
+    tokenAmount: string,
+    ethAmount: string,
+    fee: number
+  ) => {
+    setIsCreatingPool(true);
+    setError(null);
+    try {
+      const token0 = tokenAddress < WETH_ADDRESS ? tokenAddress : WETH_ADDRESS;
+      const token1 = tokenAddress < WETH_ADDRESS ? WETH_ADDRESS : tokenAddress;
+      const isToken0 = tokenAddress === token0;
+
+      // Approve tokens
+      const tokenAmountWei = parseUnits(tokenAmount, 18); // Assuming 18 decimals for token
+      const ethAmountWei = parseEther(ethAmount);
+
+      await writeContractAsync({
+        address: tokenAddress,
+        abi: PUMPFUN_TOKEN_ABI, // Use ERC20 ABI for approval
+        functionName: "approve",
+        args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS, tokenAmountWei],
+      });
+
+      await writeContractAsync({
+        address: WETH_ADDRESS,
+        abi: PUMPFUN_TOKEN_ABI, // Use ERC20 ABI for WETH approval
+        functionName: "approve",
+        args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS, ethAmountWei],
+      });
+
+      // Create pool if it doesn't exist
+      let poolAddress = await useReadContract({
+        address: UNISWAP_V3_FACTORY_ADDRESS,
+        abi: UNISWAP_V3_FACTORY_ABI,
+        functionName: "getPool",
+        args: [token0, token1, fee],
+      }).data;
+
+      if (
+        !poolAddress ||
+        poolAddress === "0x0000000000000000000000000000000000000000"
+      ) {
+        await writeContractAsync({
+          address: UNISWAP_V3_FACTORY_ADDRESS,
+          abi: UNISWAP_V3_FACTORY_ABI,
+          functionName: "createPool",
+          args: [token0, token1, fee],
+        });
+        // Fetch pool address again after creation
+        poolAddress = await useReadContract({
+          address: UNISWAP_V3_FACTORY_ADDRESS,
+          abi: UNISWAP_V3_FACTORY_ABI,
+          functionName: "getPool",
+          args: [token0, token1, fee],
+        }).data;
+      }
+
+      // Calculate tick range (simplified: ±10% price range)
+      const { data: slot0 } = await useReadContract({
+        address: poolAddress as Address,
+        abi: UNISWAP_V3_POOL_ABI,
+        functionName: "slot0",
+      });
+      // slot0 is expected to be an array: [sqrtPriceX96, tick, ...]
+      const currentTick = Number((slot0 as [bigint, number, ...unknown[]])[1]);
+      const tickSpacing = fee === 500 ? 10 : fee === 3000 ? 60 : 200;
+      const tickLower =
+        Math.floor((currentTick - 600) / tickSpacing) * tickSpacing;
+      const tickUpper =
+        Math.ceil((currentTick + 600) / tickSpacing) * tickSpacing;
+
+      // Mint liquidity position
+      const mintParams = {
+        token0,
+        token1,
+        fee,
+        tickLower,
+        tickUpper,
+        amount0Desired: isToken0 ? tokenAmountWei : ethAmountWei,
+        amount1Desired: isToken0 ? ethAmountWei : tokenAmountWei,
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: userAddress,
+        deadline: Math.floor(Date.now() / 1000) + 1800, // 30 minutes from now
+      };
+
+      const tx = await writeContractAsync({
+        address: NONFUNGIBLE_POSITION_MANAGER_ADDRESS,
+        abi: NONFUNGIBLE_POSITION_MANAGER_ABI,
+        functionName: "mint",
+        args: [mintParams],
+        value: isToken0 ? ethAmountWei : BigInt(0), // Send ETH if WETH is token1
+      });
+
+      return tx;
+    } catch (error: any) {
+      setError(error.message || "Failed to create DEX pool");
+      throw error;
+    } finally {
+      setIsCreatingPool(false);
+    }
+  };
+
+  const addLiquidity = async (
+    tokenAmount: string,
+    ethAmount: string,
+    fee: number
+  ) => {
+    setError(null);
+    try {
+      const token0 = tokenAddress < WETH_ADDRESS ? tokenAddress : WETH_ADDRESS;
+      const token1 = tokenAddress < WETH_ADDRESS ? WETH_ADDRESS : tokenAddress;
+      const isToken0 = tokenAddress === token0;
+
+      const tokenAmountWei = parseUnits(tokenAmount, 18);
+      const ethAmountWei = parseEther(ethAmount);
+
+      // Approve tokens
+      await writeContractAsync({
+        address: tokenAddress,
+        abi: PUMPFUN_TOKEN_ABI,
+        functionName: "approve",
+        args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS, tokenAmountWei],
+      });
+
+      await writeContractAsync({
+        address: WETH_ADDRESS,
+        abi: PUMPFUN_TOKEN_ABI,
+        functionName: "approve",
+        args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS, ethAmountWei],
+      });
+
+      // Get pool address
+      const poolAddress = await useReadContract({
+        address: UNISWAP_V3_FACTORY_ADDRESS,
+        abi: UNISWAP_V3_FACTORY_ABI,
+        functionName: "getPool",
+        args: [token0, token1, fee],
+      }).data;
+
+      if (
+        !poolAddress ||
+        poolAddress === "0x0000000000000000000000000000000000000000"
+      ) {
+        throw new Error("Pool does not exist");
+      }
+
+      // Calculate tick range
+      const { data: slot0 } = await useReadContract({
+        address: poolAddress as Address,
+        abi: UNISWAP_V3_POOL_ABI,
+        functionName: "slot0",
+      });
+      const currentTick = Number((slot0 as [bigint, number, ...unknown[]])[1]);
+      const tickSpacing = fee === 500 ? 10 : fee === 3000 ? 60 : 200;
+      const tickLower =
+        Math.floor((currentTick - 600) / tickSpacing) * tickSpacing;
+      const tickUpper =
+        Math.ceil((currentTick + 600) / tickSpacing) * tickSpacing;
+
+      // Mint liquidity
+      const mintParams = {
+        token0,
+        token1,
+        fee,
+        tickLower,
+        tickUpper,
+        amount0Desired: isToken0 ? tokenAmountWei : ethAmountWei,
+        amount1Desired: isToken0 ? ethAmountWei : tokenAmountWei,
+        amount0Min: 0,
+        amount1Min: 0,
+        recipient: userAddress,
+        deadline: Math.floor(Date.now() / 1000) + 1800,
+      };
+
+      const tx = await writeContractAsync({
+        address: NONFUNGIBLE_POSITION_MANAGER_ADDRESS,
+        abi: NONFUNGIBLE_POSITION_MANAGER_ABI,
+        functionName: "mint",
+        args: [mintParams],
+        value: isToken0 ? ethAmountWei : BigInt(0),
+      });
+
+      return tx;
+    } catch (error: any) {
+      setError(error.message || "Failed to add liquidity");
+      throw error;
+    }
   };
 
   return {
-    // State
-    isBuying,
-    isSelling,
-    isAddingLiquidity,
-    isCreatingPool,
-    isConfirming,
-    isConfirmed,
-    error,
-    
-    // Data
-    tokenStats: formatTokenStats(tokenStats),
-    poolInfo,
-    isAuthorized: Boolean(isAuthorized),
-    tokenBalance: tokenBalance ? formatEther(tokenBalance as bigint) : '0',
-    
-    // Functions
-    buyTokens,
-    sellTokens,
-    addLiquidity,
     createDEXPool,
+    createFactoryDEXPool,
+    addLiquidity,
+    isCreatingPool,
+    poolInfo,
+    positionInfo,
+    error,
+    poolExists,
+    tokenStats,
+    isAuthorized,
+    refetchPoolInfo,
+    refetchTokenStats,
+    setPoolInfo,
+    setPositionInfo,
   };
 };
 
 export const useTokenLock = (tokenAddress?: Address) => {
   const [isLocking, setIsLocking] = useState(false);
-  
+
   const chainId = useChainId();
   const { address } = useAccount();
   const contractAddresses = getContractAddresses(chainId);
-  
+
   const { writeContract, data: hash, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash,
+    });
 
   // Get liquidity lock information
   const { data: liquidityInfo } = useReadContract({
     address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI, 
-    functionName: 'liquidityInfo',
+    abi: PUMPFUN_FACTORY_ABI,
+    functionName: "liquidityInfo",
     args: tokenAddress ? [tokenAddress] : undefined,
   });
 
-  const lockTokens = async (ethAmount: string, tokenAmount: string, duration: number) => {
-    if (!tokenAddress) throw new Error('Token address required');
-    
+  const lockTokens = async (
+    ethAmount: string,
+    tokenAmount: string,
+    duration: number
+  ) => {
+    if (!tokenAddress) throw new Error("Token address required");
+
     setIsLocking(true);
     try {
       // This would call a lock function on the factory or a separate locking contract
       writeContract({
         address: contractAddresses.PUMPFUN_FACTORY,
         abi: PUMPFUN_FACTORY_ABI,
-        functionName: 'addAndLockLiquidity', // Update with correct function name
-        args: [
-          tokenAddress,
-          parseEther(tokenAmount),
-        ],
+        functionName: "addAndLockLiquidity", // Update with correct function name
+        args: [tokenAddress, parseEther(tokenAmount)],
         value: parseEther(ethAmount),
       });
     } finally {
@@ -361,10 +532,10 @@ export const useTokenLock = (tokenAddress?: Address) => {
     isConfirming,
     isConfirmed,
     error,
-    
+
     // Data
     liquidityInfo,
-    
+
     // Functions
     lockTokens,
   };

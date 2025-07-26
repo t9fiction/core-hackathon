@@ -124,7 +124,7 @@ const PumpFunApp = () => {
 
         {/* Action Cards */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <Link href="/deploy" className="group">
+          <Link href="/token" className="group">
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-colors group-hover:bg-gray-750">
               <div className="text-3xl mb-4">🚀</div>
               <h3 className="text-xl font-bold mb-2">Deploy Token</h3>
@@ -169,7 +169,7 @@ const PumpFunApp = () => {
                 </div>
                 <p className="text-xs text-gray-400 break-all">{address}</p>
                 <div className="flex gap-2 justify-center">
-                  <Link href="/deploy" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm transition-colors">
+                  <Link href="/token" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm transition-colors">
                     Deploy Token
                   </Link>
                   <Link href="/tokens" className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded text-sm transition-colors">

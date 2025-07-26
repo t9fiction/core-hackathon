@@ -36,6 +36,7 @@ export default async function handler(
 
     const tokenInfo = await factoryContract.read.getTokenInfo([address as `0x${string}`]);
     
+    console.log("tokenInfo:",tokenInfo)
     if (!tokenInfo) {
       return res.status(404).json({ error: 'Token not found' });
     }
