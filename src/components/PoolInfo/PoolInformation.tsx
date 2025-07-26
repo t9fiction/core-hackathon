@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Address } from 'viem';
+import { useChainId } from 'wagmi';
+import { CONTRACT_ADDRESSES as ADDRESSES } from "../../lib/contracts/addresses"
 
 interface PoolData {
   tokenAddress: string;
@@ -38,8 +40,10 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  const WETH_ADDRESS = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14"; // Sepolia WETH
+  
+  const chainId = useChainId();
+  const addresses = ADDRESSES[chainId];
+  const WETH_ADDRESS = addresses?.WETH || "0xfff9976782d46cc05630d1f6ebab18b2324d6b14"; // fallback to Sepolia WETH
 
   const fetchPoolData = async () => {
     if (!tokenAddress) return;
@@ -49,7 +53,7 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
 
     try {
       const response = await fetch(
-        `/api/pool-info?tokenAddress=${tokenAddress}&ethAddress=${WETH_ADDRESS}`
+        `/api/pool-info?tokenAddress=${tokenAddress}&ethAddress=${WETH_ADDRESS}&chainId=${chainId}`
       );
 
       if (!response.ok) {

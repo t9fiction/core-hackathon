@@ -34,6 +34,12 @@ const Navbar = () => {
                 TOKEN
               </a>
               <a 
+                href='/dex' 
+                className='text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
+              >
+                DEX
+              </a>
+              <a 
                 href='/governance' 
                 className='text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
               >

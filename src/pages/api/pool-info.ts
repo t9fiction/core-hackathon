@@ -1,14 +1,19 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createPublicClient, http, getContract } from 'viem';
-import { sepolia } from 'viem/chains';
+import { sepolia, mainnet } from 'viem/chains';
 import { PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 
-// Create a public client for reading from the blockchain
-const publicClient = createPublicClient({
-  chain: sepolia,
-  transport: http(),
-});
+function getChain(chainId: number) {
+  switch (chainId) {
+    case 1:
+      return mainnet;
+    case 11155111:
+      return sepolia;
+    default:
+      return sepolia;
+  }
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -18,7 +23,7 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { tokenAddress, ethAddress } = req.query;
+const { tokenAddress, ethAddress, chainId } = req.query;
 
   if (!tokenAddress || typeof tokenAddress !== 'string') {
     return res.status(400).json({ error: 'Token address is required' });
@@ -28,8 +33,14 @@ export default async function handler(
     return res.status(400).json({ error: 'ETH address is required' });
   }
 
+  const chain = getChain(Number(chainId));
+  const publicClient = createPublicClient({
+    chain,
+    transport: http(),
+  });
+
   try {
-    const contractAddresses = getContractAddresses(sepolia.id);
+    const contractAddresses = getContractAddresses(chain.id);
     
     // Get DEX Manager contract
     const dexManagerContract = getContract({

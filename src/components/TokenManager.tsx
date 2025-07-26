@@ -107,14 +107,14 @@ const TokenManager = () => {
             console.log("TokenManager: Token info received:", tokenInfo);
             tokenDetails.push({
               tokenAddress: tokenAddress as string,
-              creator: tokenInfo.creator,
-              deploymentTime: BigInt(tokenInfo.deploymentTime),
-              liquidityLockPeriodDays: BigInt(
+              creator: tokenInfo.creator || address as string,
+              deploymentTime: tokenInfo.deploymentTime ? BigInt(tokenInfo.deploymentTime) : BigInt(Math.floor(Date.now() / 1000)),
+              liquidityLockPeriodDays: tokenInfo.liquidityLockPeriodDays ? BigInt(
                 tokenInfo.liquidityLockPeriodDays
-              ),
-              name: tokenInfo.name,
-              symbol: tokenInfo.symbol,
-              totalSupply: BigInt(tokenInfo.totalSupply),
+              ) : BigInt(30),
+              name: tokenInfo.name || "Unknown Token",
+              symbol: tokenInfo.symbol || "UNK",
+              totalSupply: tokenInfo.totalSupply ? BigInt(tokenInfo.totalSupply) : BigInt(0),
             });
           } catch (error) {
             console.error("Error fetching token details:", error);
@@ -122,7 +122,7 @@ const TokenManager = () => {
             tokenDetails.push({
               tokenAddress: tokenAddress as string,
               creator: address as string,
-              deploymentTime: BigInt(Date.now() / 1000),
+              deploymentTime: BigInt(Math.floor(Date.now() / 1000)),
               liquidityLockPeriodDays: BigInt(30),
               name: "Error Loading Token",
               symbol: "ERR",

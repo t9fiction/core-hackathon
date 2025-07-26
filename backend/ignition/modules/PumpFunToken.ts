@@ -6,7 +6,7 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 const tokenName = "DemoMeme";
 const tokenSymbol = "DEMO";
 const ownersAddress = "0x8ef123b0bCC118e522Fd202d11d691b88F38F312";
-const totalSupply: bigint = 10000000n;
+const totalSupply: bigint = BigInt(10000000);
 const factory = "0x549b1A8518E77c8E756b137751Bb06Aed00860Bf";
 
 const TokenModule = buildModule("PumpFunToken", (m) => {
