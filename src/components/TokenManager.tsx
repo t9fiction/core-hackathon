@@ -413,7 +413,7 @@ const TokenManager = () => {
                     </div>
                     <div className="bg-gray-600 rounded p-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-300">You'll receive:</span>
+                        <span className="text-gray-300">You&apos;ll receive:</span>
                         <span className="text-white font-medium">
                           ~1,234 {selectedTokenInfo?.symbol}
                         </span>
@@ -450,7 +450,7 @@ const TokenManager = () => {
                     </div>
                     <div className="bg-gray-600 rounded p-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-300">You'll receive:</span>
+                        <span className="text-gray-300">You&apos;ll receive:</span>
                         <span className="text-white font-medium">
                           ~0.081 ETH
                         </span>
@@ -864,7 +864,7 @@ const TokenManager = () => {
                   No Tokens Found
                 </h3>
                 <p className="text-gray-400 mb-6">
-                  You haven't deployed any tokens yet
+                  You haven&apos;t deployed any tokens yet
                 </p>
                 <button
                   onClick={() => (window.location.href = "/deploy")}

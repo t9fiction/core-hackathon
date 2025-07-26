@@ -229,7 +229,7 @@ const DEXPage = () => {
                     <div className="text-4xl mb-4">🪙</div>
                     <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
                     <p className="text-gray-400 mb-4">
-                      You haven't deployed any tokens yet. Create your first token to get started!
+                      You haven&apos;t deployed any tokens yet. Create your first token to get started!
                     </p>
                     <Link
                       href="/token"
@@ -264,7 +264,7 @@ const DEXPage = () => {
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-white mb-4">Manage Liquidity</h2>
               <p className="text-gray-300 max-w-2xl mx-auto">
-                Add or remove liquidity from existing pools. Lock liquidity to build trust and stabilize your token's trading environment.
+                Add or remove liquidity from existing pools. Lock liquidity to build trust and stabilize your token&apos;s trading environment.
               </p>
             </div>
             
@@ -346,7 +346,7 @@ const DEXPage = () => {
                     <div className="text-4xl mb-4">🪙</div>
                     <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
                     <p className="text-gray-400 mb-4">
-                      You haven't deployed any tokens yet. Create your first token to get started!
+                      You haven&apos;t deployed any tokens yet. Create your first token to get started!
                     </p>
                     <Link
                       href="/token"

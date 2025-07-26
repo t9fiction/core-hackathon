@@ -166,7 +166,7 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
           <div className="text-blue-300 text-sm">
             <div className="font-medium mb-1">📝 Important:</div>
             <ul className="list-disc list-inside space-y-1 text-xs">
-              <li>Liquidity will be automatically locked for the token's lock period</li>
+              <li>Liquidity will be automatically locked for the token&apos;s lock period</li>
               <li>You will receive LP tokens representing your share</li>
               <li>Both tokens will be deposited at the current market ratio</li>
             </ul>
