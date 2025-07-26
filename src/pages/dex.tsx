@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { Address, formatEther } from 'viem';
@@ -25,14 +25,14 @@ const DEXPage = () => {
   const chainId = useChainId();
   const contractAddresses = getContractAddresses(chainId);
   
-  // Debug logs
-  console.log('DEX Page Debug:', {
-    address,
-    isConnected,
-    chainId,
-    contractAddresses,
-    pumpfunFactory: contractAddresses?.PUMPFUN_FACTORY
-  });
+  // Debug logs - commented out to prevent infinite logging
+  // console.log('DEX Page Debug:', {
+  //   address,
+  //   isConnected,
+  //   chainId,
+  //   contractAddresses,
+  //   pumpfunFactory: contractAddresses?.PUMPFUN_FACTORY
+  // });
 
   // Fetch user's deployed tokens
   const { data: tokenAddresses } = useReadContract({
@@ -46,43 +46,47 @@ const DEXPage = () => {
   });
 
   
-  // Debug token addresses
-  console.log('Token Addresses Data:', {
-    tokenAddresses,
-    enabled: isConnected && !!address && !!contractAddresses?.PUMPFUN_FACTORY,
-    args: [address]
-  });
+  // Debug token addresses - commented out to prevent infinite logging
+  // console.log('Token Addresses Data:', {
+  //   tokenAddresses,
+  //   enabled: isConnected && !!address && !!contractAddresses?.PUMPFUN_FACTORY,
+  //   args: [address]
+  // });
 
   // Fetch token data directly using hooks
   useEffect(() => {
-    console.log("TokenManager: Address List:", tokenAddresses);
-    console.log("TokenManager: chainId:", chainId);
+    // console.log("TokenManager: Address List:", tokenAddresses);
+    // console.log("TokenManager: chainId:", chainId);
 
     if (tokenAddresses && tokenAddresses.length > 0) {
-      console.log("TokenManager: Found tokens, preparing to fetch details...");
+      // console.log("TokenManager: Found tokens, preparing to fetch details...");
       setIsLoadingTokens(true);
       setUserTokens([]); // Reset token array
     } else {
-      console.log("TokenManager: No tokens found");
+      // console.log("TokenManager: No tokens found");
       setUserTokens([]);
       setIsLoadingTokens(false);
     }
   }, [tokenAddresses, chainId]);
 
-  const handleTokenDataFetched = (data: TokenInfo) => {
+  const handleTokenDataFetched = useCallback((data: TokenInfo) => {
     setUserTokens(prevTokens => {
       const exists = prevTokens.find((token) => token.address === data.address);
       if (exists) {
         return prevTokens.map((token) => token.address === data.address ? data : token);
       } else {
         const newTokens = [...prevTokens, data];
-        if (tokenAddresses && newTokens.length === tokenAddresses.length) {
-          setIsLoadingTokens(false);
-        }
         return newTokens;
       }
     });
-  };
+  }, []);
+
+  // Separate useEffect to handle loading state management
+  useEffect(() => {
+    if (tokenAddresses && userTokens.length === tokenAddresses.length && userTokens.length > 0) {
+      setIsLoadingTokens(false);
+    }
+  }, [tokenAddresses, userTokens.length]);
 
   // TokenDataFetcher component for each token
   const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {

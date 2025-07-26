@@ -58,6 +58,8 @@ const TokenManager = () => {
     tokenAddress: string;
     onDataFetched: (data: TokenInfo) => void;
   }) => {
+    const [hasBeenFetched, setHasBeenFetched] = useState(false);
+
     // Get token info from factory contract
     const { data: tokenInfo } = useReadContract({
       address: contractAddress,
@@ -86,7 +88,13 @@ const TokenManager = () => {
     });
 
     useEffect(() => {
-      if (tokenInfo && tokenName && tokenSymbol && totalSupply !== undefined) {
+      if (
+        !hasBeenFetched &&
+        tokenInfo &&
+        tokenName &&
+        tokenSymbol &&
+        totalSupply !== undefined
+      ) {
         const [creator, deploymentTime, liquidityLockPeriodDays] =
           tokenInfo as [string, bigint, bigint];
         onDataFetched({
@@ -98,6 +106,7 @@ const TokenManager = () => {
           symbol: tokenSymbol as string,
           totalSupply: totalSupply as bigint,
         });
+        setHasBeenFetched(true);
       }
     }, [
       tokenInfo,
@@ -106,6 +115,7 @@ const TokenManager = () => {
       totalSupply,
       tokenAddress,
       onDataFetched,
+      hasBeenFetched,
     ]);
 
     return null; // This component doesn't render anything
@@ -148,6 +158,13 @@ const TokenManager = () => {
       }
     });
   }, []);
+
+  // Check if all tokens have been loaded and stop loading
+  useEffect(() => {
+    if (creatorTokens && tokens.length > 0 && tokens.length === creatorTokens.length) {
+      setLoading(false);
+    }
+  }, [tokens.length, creatorTokens]);
 
   const TokenCard = ({ token }: { token: TokenInfo }) => (
     <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-colors">
@@ -855,7 +872,7 @@ const TokenManager = () => {
         {creatorTokens &&
           creatorTokens.map((tokenAddress) => (
             <TokenDataFetcher
-              key={tokenAddress}
+              key={`${tokenAddress}-${creatorTokens.length}`}
               tokenAddress={tokenAddress as string}
               onDataFetched={handleTokenDataFetched}
             />

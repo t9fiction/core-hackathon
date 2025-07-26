@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { parseEther, parseUnits, Address } from 'viem';
 import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
@@ -26,6 +26,7 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
   
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formDataRef = useRef(formData);
 
   const contractAddresses = getContractAddresses(chainId);
   const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
@@ -38,7 +39,9 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
   ];
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+    formDataRef.current = newFormData;
     setError(null);
   };
 
@@ -116,17 +119,20 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
   // Handle successful pool creation
   useEffect(() => {
     if (isSuccess && hash && onPoolCreated) {
+      const currentFormData = formDataRef.current;
       onPoolCreated({
         hash,
         tokenAddress,
-        tokenAmount: formData.tokenAmount,
-        ethAmount: formData.ethAmount,
-        feeTier: formData.feeTier
+        tokenAmount: currentFormData.tokenAmount,
+        ethAmount: currentFormData.ethAmount,
+        feeTier: currentFormData.feeTier
       });
       // Reset form
-      setFormData({ tokenAmount: '', ethAmount: '', feeTier: '3000' });
+      const resetData = { tokenAmount: '', ethAmount: '', feeTier: '3000' };
+      setFormData(resetData);
+      formDataRef.current = resetData;
     }
-  }, [isSuccess, hash, onPoolCreated, tokenAddress, formData]);
+  }, [isSuccess, hash, onPoolCreated, tokenAddress]);
 
   const initialPrice = calculateInitialPrice();
 
