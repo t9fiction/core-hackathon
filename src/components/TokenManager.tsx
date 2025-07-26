@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   useAccount,
   useReadContract,
@@ -130,8 +130,8 @@ const TokenManager = () => {
     }
   }, [creatorTokens, address, chainId]);
 
-  // Handle individual token data
-  const handleTokenDataFetched = (tokenData: TokenInfo) => {
+  // Handle individual token data - memoized to prevent infinite re-renders
+  const handleTokenDataFetched = useCallback((tokenData: TokenInfo) => {
     setTokens((prevTokens) => {
       // Check if token already exists to avoid duplicates
       const existingIndex = prevTokens.findIndex(
@@ -144,15 +144,10 @@ const TokenManager = () => {
         return updatedTokens;
       } else {
         // Add new token
-        const newTokens = [...prevTokens, tokenData];
-        // If we have all tokens, stop loading
-        if (creatorTokens && newTokens.length === creatorTokens.length) {
-          setLoading(false);
-        }
-        return newTokens;
+        return [...prevTokens, tokenData];
       }
     });
-  };
+  }, []);
 
   const TokenCard = ({ token }: { token: TokenInfo }) => (
     <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-colors">

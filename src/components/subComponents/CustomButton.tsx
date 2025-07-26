@@ -1,4 +1,5 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import Image from 'next/image';
 import React from 'react'
 
 const CustomButton = () => {
@@ -75,9 +76,11 @@ const CustomButton = () => {
                         className="sm:w-6 sm:h-6"
                       >
                         {chain.iconUrl && (
-                          <img
+                          <Image
                             alt={chain.name ?? 'Chain icon'}
                             src={chain.iconUrl}
+                            width={40}
+                            height={40}
                             className="w-full h-full object-cover"
                           />
                         )}
