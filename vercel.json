@@ -2,11 +2,8 @@
   "builds": [
     {
       "src": "package.json",
-      "use": "@vercel/next",
-      "config": {
-        "includeFiles": ["src/**", "public/**", "next.config.js", ".next/**"],
-        "excludeFiles": ["backend/**"]
-      }
+      "use": "@vercel/next"
     }
-  ]
+  ],
+  "ignoreCommand": "echo 'Ignoring subfolders like /backend'"
 }
