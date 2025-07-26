@@ -5,5 +5,5 @@
       "use": "@vercel/next"
     }
   ],
-  "ignoreCommand": "echo 'Ignoring subfolders like /backend'"
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- . ':!/backend'"
 }
