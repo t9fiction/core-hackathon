@@ -51,7 +51,13 @@ const TokenManager = () => {
   });
 
   // Create a component for individual token data fetching
-  const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
+  const TokenDataFetcher = ({
+    tokenAddress,
+    onDataFetched,
+  }: {
+    tokenAddress: string;
+    onDataFetched: (data: TokenInfo) => void;
+  }) => {
     // Get token info from factory contract
     const { data: tokenInfo } = useReadContract({
       address: contractAddress,
@@ -81,7 +87,8 @@ const TokenManager = () => {
 
     useEffect(() => {
       if (tokenInfo && tokenName && tokenSymbol && totalSupply !== undefined) {
-        const [creator, deploymentTime, liquidityLockPeriodDays] = tokenInfo as [string, bigint, bigint];
+        const [creator, deploymentTime, liquidityLockPeriodDays] =
+          tokenInfo as [string, bigint, bigint];
         onDataFetched({
           tokenAddress,
           creator,
@@ -92,7 +99,14 @@ const TokenManager = () => {
           totalSupply: totalSupply as bigint,
         });
       }
-    }, [tokenInfo, tokenName, tokenSymbol, totalSupply, tokenAddress, onDataFetched]);
+    }, [
+      tokenInfo,
+      tokenName,
+      tokenSymbol,
+      totalSupply,
+      tokenAddress,
+      onDataFetched,
+    ]);
 
     return null; // This component doesn't render anything
   };
@@ -104,7 +118,9 @@ const TokenManager = () => {
     console.log("TokenManager: chainId:", chainId);
 
     if (creatorTokens && creatorTokens.length > 0) {
-      console.log("TokenManager: Found creator tokens, preparing to fetch details...");
+      console.log(
+        "TokenManager: Found creator tokens, preparing to fetch details..."
+      );
       setLoading(true);
       setTokens([]); // Reset tokens array
     } else {
@@ -116,9 +132,11 @@ const TokenManager = () => {
 
   // Handle individual token data
   const handleTokenDataFetched = (tokenData: TokenInfo) => {
-    setTokens(prevTokens => {
+    setTokens((prevTokens) => {
       // Check if token already exists to avoid duplicates
-      const existingIndex = prevTokens.findIndex(t => t.tokenAddress === tokenData.tokenAddress);
+      const existingIndex = prevTokens.findIndex(
+        (t) => t.tokenAddress === tokenData.tokenAddress
+      );
       if (existingIndex >= 0) {
         // Update existing token
         const updatedTokens = [...prevTokens];
@@ -181,15 +199,15 @@ const TokenManager = () => {
         >
           Manage
         </button>
-        <button className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded-lg text-sm transition-colors">
-          <Link
-            href={`https://sepolia.etherscan.io/token/${token.tokenAddress}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+        <Link
+          href={`https://sepolia.etherscan.io/token/${token.tokenAddress}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <button className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer">
             View on Explorer
-          </Link>
-        </button>
+          </button>
+        </Link>
       </div>
     </div>
   );
@@ -413,7 +431,9 @@ const TokenManager = () => {
                     </div>
                     <div className="bg-gray-600 rounded p-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-300">You&apos;ll receive:</span>
+                        <span className="text-gray-300">
+                          You&apos;ll receive:
+                        </span>
                         <span className="text-white font-medium">
                           ~1,234 {selectedTokenInfo?.symbol}
                         </span>
@@ -450,7 +470,9 @@ const TokenManager = () => {
                     </div>
                     <div className="bg-gray-600 rounded p-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-300">You&apos;ll receive:</span>
+                        <span className="text-gray-300">
+                          You&apos;ll receive:
+                        </span>
                         <span className="text-white font-medium">
                           ~0.081 ETH
                         </span>
@@ -835,13 +857,14 @@ const TokenManager = () => {
         </div>
 
         {/* Hidden TokenDataFetcher components for each creator token */}
-        {creatorTokens && creatorTokens.map((tokenAddress) => (
-          <TokenDataFetcher
-            key={tokenAddress}
-            tokenAddress={tokenAddress as string}
-            onDataFetched={handleTokenDataFetched}
-          />
-        ))}
+        {creatorTokens &&
+          creatorTokens.map((tokenAddress) => (
+            <TokenDataFetcher
+              key={tokenAddress}
+              tokenAddress={tokenAddress as string}
+              onDataFetched={handleTokenDataFetched}
+            />
+          ))}
 
         {selectedToken ? (
           <TokenManagement tokenAddress={selectedToken} />

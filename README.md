@@ -1,29 +1,200 @@
-This is a [RainbowKit](https://rainbowkit.com) + [wagmi](https://wagmi.sh) + [Next.js](https://nextjs.org/) project bootstrapped with [`create-rainbowkit`](/packages/create-rainbowkit).
+# PumpFun Factory 🚀
 
-## Getting Started
+**A comprehensive anti-rug pull meme token factory with built-in safety mechanisms, community governance, and tiered pricing.**
 
-First, run the development server:
+PumpFun Factory enables users to create sustainable meme tokens with advanced protection mechanisms against rug pulls, community governance systems, and automated liquidity management.
+
+## ✨ Key Features
+
+### 🔒 Anti-Rug Pull Protection
+- **Liquidity Locking**: Mandatory liquidity locks (minimum 30 days)
+- **Transfer Restrictions**: 1% max transfer, 5% max holding, 1-hour cooldowns
+- **Emergency Controls**: Pause/unpause functionality for crisis management
+- **Whitelist System**: Bypass restrictions for trusted addresses
+- **Creator Limits**: Controlled token allocation (10% creator, 20% liquidity, 70% community)
+
+### 🏛️ Community Governance
+- **Proposal System**: Token holders can create and vote on proposals
+- **Quorum Requirements**: 10% of total supply needed for valid votes
+- **Token-Weighted Voting**: Democratic decision making
+- **7-Day Voting Periods**: Adequate time for community participation
+
+### 💰 Tiered Pricing System
+- **Standard Tier**: Up to 100M tokens - 0.05 ETH
+- **Premium Tier**: Up to 500M tokens - 0.15 ETH
+- **Ultimate Tier**: Up to 1B tokens - 0.50 ETH
+
+### 📊 Stability Mechanisms
+- **Token Locking**: Users can lock tokens for rewards (1 day to 365 days)
+- **Mint/Burn Controls**: Price-reactive supply adjustments
+- **Target Price System**: Built-in price stabilization
+
+## 🏗️ Architecture
+
+### Frontend (Next.js + RainbowKit)
+- **Web3 Integration**: RainbowKit + wagmi for wallet connections
+- **Modern UI**: TailwindCSS with responsive design
+- **Token Management**: Deploy, manage, and trade tokens
+- **Governance Interface**: Participate in community decisions
+- **Trading Dashboard**: Monitor and trade tokens
+
+### Backend (Hardhat + Solidity)
+- **PumpFunFactoryLite**: Main factory contract for token deployment
+- **PumpFunToken**: Enhanced ERC20 with anti-rug pull features
+- **PumpFunDEXManager**: DEX integration and liquidity management
+- **PumpFunGovernance**: Community governance system
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js v16+
+- npm or yarn
+- MetaMask or compatible Web3 wallet
+
+### Frontend Setup
 
 ```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+### Backend Setup
 
-## Learn More
+```bash
+# Navigate to backend
+cd backend
 
-To learn more about this stack, take a look at the following resources:
+# Install dependencies
+npm install
 
-- [RainbowKit Documentation](https://rainbowkit.com) - Learn how to customize your wallet connection flow.
-- [wagmi Documentation](https://wagmi.sh) - Learn how to interact with Ethereum.
-- [Next.js Documentation](https://nextjs.org/docs) - Learn how to build a Next.js application.
+# Copy environment variables
+cp .env.example .env
+# Edit .env with your configuration
 
-You can check out [the RainbowKit GitHub repository](https://github.com/rainbow-me/rainbowkit) - your feedback and contributions are welcome!
+# Compile contracts
+npm run compile
 
-## Deploy on Vercel
+# Run tests
+npm test
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Deploy to testnet
+npm run deploy:sepolia
+```
 
-Check out the [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## 📱 Application Pages
+
+- **Homepage**: Overview and quick actions
+- **Deploy Token** (`/token`): Create new meme tokens
+- **My Tokens** (`/tokens`): Manage deployed tokens
+- **Governance** (`/governance`): Community proposals and voting
+- **Trading** (`/trading`): Token trading and liquidity management
+
+## 🛠️ Smart Contracts
+
+### PumpFunFactoryLite
+```solidity
+// Deploy a new token with anti-rug pull features
+function deployToken(
+    string memory name,
+    string memory symbol,
+    uint256 totalSupply,
+    uint256 liquidityLockPeriodDays
+) external payable
+```
+
+### PumpFunToken
+```solidity
+// Lock tokens for rewards
+function lockTokens(uint256 amount, uint256 duration) external
+
+// Governance voting
+function vote(uint256 proposalId, bool support) external
+```
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test suites
+npm run test:token
+npm run test:factory
+npm run test:integration
+
+# Generate coverage report
+npm run test:coverage
+```
+
+**Test Results**: 70/85 tests passing (82.4% success rate)
+
+## 🌐 Deployment
+
+### Supported Networks
+- Ethereum Mainnet
+- Ethereum Sepolia (Testnet)
+- Base Mainnet
+- Base Sepolia (Testnet)
+
+### Environment Variables
+```bash
+PRIVATE_KEY=your_private_key_here
+API_URL_sepolia=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
+API_URL_base=https://base-mainnet.g.alchemy.com/v2/YOUR_KEY
+ETHERSCAN_API_KEY=your_etherscan_api_key
+BASESCAN_API_KEY=your_basescan_api_key
+```
+
+## 🔐 Security Features
+
+- **Supply Locking**: Time-based token locking mechanism
+- **Transfer Limits**: Prevents large dumps and manipulation
+- **Emergency Controls**: Pause functionality for crisis management
+- **Liquidity Protection**: Mandatory liquidity locking
+- **Community Oversight**: Governance-based decision making
+
+## 📈 Token Economics
+
+### Supply Tiers
+| Tier | Max Supply | Fee | Features |
+|------|------------|-----|----------|
+| Standard | 100M | 0.05 ETH | Basic protection, 30-day liquidity lock |
+| Premium | 500M | 0.15 ETH | Enhanced features, priority support |
+| Ultimate | 1B | 0.50 ETH | Maximum supply, VIP support |
+
+### Token Distribution
+- **70%** Community/Public
+- **20%** Liquidity Pool
+- **10%** Creator/Team
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 Links
+
+- [Frontend Documentation](./src/README.md)
+- [Backend Documentation](./backend/README.md)
+- [Smart Contract Tests](./backend/TEST_README.md)
+- [Goal Analysis](./backend/GOAL_ANALYSIS.md)
+
+## ⚠️ Disclaimer
+
+This is experimental software. Use at your own risk. Always do your own research before deploying tokens or providing liquidity.
+
+---
+
+**Built with ❤️ for the meme token community**

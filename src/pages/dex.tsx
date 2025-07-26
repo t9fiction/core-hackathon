@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
-import { Address } from 'viem';
+import { Address, formatEther } from 'viem';
 import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from '../lib/contracts/addresses';
 import DEXPoolCreator from '../components/DEX/DEXPoolCreator';
@@ -199,7 +199,7 @@ const DEXPage = () => {
                               {token.symbol || 'N/A'}
                             </td>
                             <td className="py-4 px-4 text-gray-300 text-sm">
-                              {token.totalSupply ? Number(token.totalSupply).toLocaleString() : 'N/A'}
+                              {token.totalSupply ? formatEther(token.totalSupply) : 'N/A'}
                             </td>
                             <td className="py-4 px-4 text-gray-400 font-mono text-xs">
                               {token.address.slice(0, 8)}...{token.address.slice(-6)}
@@ -316,7 +316,7 @@ const DEXPage = () => {
                               {token.symbol || 'N/A'}
                             </td>
                             <td className="py-4 px-4 text-gray-300 text-sm">
-                              {token.totalSupply ? Number(token.totalSupply).toLocaleString() : 'N/A'}
+                              {token.totalSupply ? formatEther(token.totalSupply) : 'N/A'}
                             </td>
                             <td className="py-4 px-4 text-gray-400 font-mono text-xs">
                               {token.address.slice(0, 8)}...{token.address.slice(-6)}

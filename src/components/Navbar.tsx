@@ -1,5 +1,6 @@
 import React from 'react';
 import CustomButton from './subComponents/CustomButton';
+import Link from 'next/link';
 
 const Navbar = () => {
   return (
@@ -21,36 +22,36 @@ const Navbar = () => {
           {/* Center Navigation - Fixed Position */}
           <div className='absolute left-1/2 transform -translate-x-1/2'>
             <div className='flex items-center space-x-8'>
-              <a 
+              <Link 
                 href='/' 
                 className='text-white hover:text-cyan-800 transition-colors duration-200 font-medium'
               >
                 HOME
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href='/token' 
                 className='text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
               >
                 TOKEN
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href='/dex' 
                 className='text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
               >
                 DEX
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href='/governance' 
                 className='text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
               >
                 GOVERNANCE
-              </a>
-              <a 
+              </Link>
+              <Link 
                 href='/docs' 
                 className='text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
               >
                 DOCS
-              </a>
+              </Link>
             </div>
           </div>
           
@@ -67,30 +68,30 @@ const Navbar = () => {
       {/* Mobile Menu - Hidden by default, can be toggled */}
       <div className='md:hidden'>
         <div className='px-4 pt-2 pb-4 space-y-2 bg-gray-900/95 backdrop-blur-md border-t border-gray-800'>
-          <a 
+          <Link 
             href='/' 
             className='block px-3 py-2 text-white hover:text-cyan-800 transition-colors duration-200 font-medium'
           >
             HOME
-          </a>
-          <a 
+          </Link>
+          <Link 
             href='/token' 
             className='block px-3 py-2 text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
           >
             TOKEN
-          </a>
-          <a 
+          </Link>
+          <Link 
             href='/governance' 
             className='block px-3 py-2 text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
           >
             GOVERNANCE
-          </a>
-          <a 
+          </Link>
+          <Link 
             href='/docs' 
             className='block px-3 py-2 text-gray-300 hover:text-cyan-800 transition-colors duration-200 font-medium'
           >
             DOCS
-          </a>
+          </Link>
         </div>
       </div>
     </nav>
