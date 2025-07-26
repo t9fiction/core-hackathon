@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { Address } from 'viem';
-import { PUMPFUN_FACTORY_ABI } from '../lib/contracts/abis';
+import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from '../lib/contracts/addresses';
 import DEXPoolCreator from '../components/DEX/DEXPoolCreator';
 import PoolInformation from '../components/PoolInfo/PoolInformation';
 import LiquidityManager from '../components/LiquidityManagement/LiquidityManager';
+
+interface TokenInfo {
+  address: string;
+  name: string;
+  symbol: string;
+  totalSupply: string;
+}
 
 const DEXPage = () => {
   const [activeTab, setActiveTab] = useState<'create' | 'info' | 'liquidity'>('create');
@@ -45,42 +53,69 @@ const DEXPage = () => {
     args: [address]
   });
 
+  // Fetch token data directly using hooks
   useEffect(() => {
-    const fetchTokenDetails = async () => {
-      if (!tokenAddresses || !Array.isArray(tokenAddresses) || tokenAddresses.length === 0) {
-        setUserTokens([]);
-        return;
-      }
+    console.log("TokenManager: Address List:", tokenAddresses);
+    console.log("TokenManager: chainId:", chainId);
 
+    if (tokenAddresses && tokenAddresses.length > 0) {
+      console.log("TokenManager: Found tokens, preparing to fetch details...");
       setIsLoadingTokens(true);
-      try {
-        console.log("TokenAddresses:", tokenAddresses);
-        console.log("ChainId:", chainId);
-        const url = `/api/token-info?chainId=${chainId}&addresses=${tokenAddresses.join(',')}`;
-        console.log("Fetching URL:", url);
-        
-        const response = await fetch(url);
-        console.log("Response status:", response.status);
-        console.log("Response ok:", response.ok);
-        
-        const data = await response.json();
-        console.log("Response data:", data);
-        
-        if (data.success && data.tokens) {
-          setUserTokens(data.tokens);
-        } else {
-          setUserTokens([]);
-        }
-      } catch (error) {
-        console.error('Error fetching token details:', error);
-        setUserTokens([]);
-      } finally {
-        setIsLoadingTokens(false);
-      }
-    };
-
-    fetchTokenDetails();
+      setUserTokens([]); // Reset token array
+    } else {
+      console.log("TokenManager: No tokens found");
+      setUserTokens([]);
+      setIsLoadingTokens(false);
+    }
   }, [tokenAddresses, chainId]);
+
+  const handleTokenDataFetched = (data: TokenInfo) => {
+    setUserTokens(prevTokens => {
+      const exists = prevTokens.find((token) => token.address === data.address);
+      if (exists) {
+        return prevTokens.map((token) => token.address === data.address ? data : token);
+      } else {
+        const newTokens = [...prevTokens, data];
+        if (tokenAddresses && newTokens.length === tokenAddresses.length) {
+          setIsLoadingTokens(false);
+        }
+        return newTokens;
+      }
+    });
+  };
+
+  // TokenDataFetcher component for each token
+  const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
+    // Fetch name, symbol, totalSupply from token contract
+    const { data: name } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "name",
+    });
+    const { data: symbol } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "symbol",
+    });
+    const { data: totalSupply } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "totalSupply",
+    });
+
+    useEffect(() => {
+      if (name && symbol && totalSupply !== undefined) {
+        onDataFetched({
+          address: tokenAddress,
+          name: name as string,
+          symbol: symbol as string,
+          totalSupply: totalSupply.toString(),
+        })
+      }
+    }, [name, symbol, totalSupply, onDataFetched, tokenAddress]);
+
+    return null; // Component doesn't render anything
+  };
 
   const tabs = [
     { id: 'create' as const, label: 'Create Pool', icon: '🏗️' },
@@ -196,13 +231,13 @@ const DEXPage = () => {
                     <p className="text-gray-400 mb-4">
                       You haven't deployed any tokens yet. Create your first token to get started!
                     </p>
-                    <a
+                    <Link
                       href="/token"
                       className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
                     >
                       Deploy Token
                       <span className="ml-2">🚀</span>
-                    </a>
+                    </Link>
                   </div>
                 )}
               </div>
@@ -313,13 +348,13 @@ const DEXPage = () => {
                     <p className="text-gray-400 mb-4">
                       You haven't deployed any tokens yet. Create your first token to get started!
                     </p>
-                    <a
+                    <Link
                       href="/token"
                       className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
                     >
                       Deploy Token
                       <span className="ml-2">🚀</span>
-                    </a>
+                    </Link>
                   </div>
                 )}
               </div>
@@ -349,6 +384,14 @@ const DEXPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-cyan-900">
+        {/* Hidden TokenDataFetcher components for each token */}
+        {tokenAddresses && tokenAddresses.map((tokenAddress) => (
+          <TokenDataFetcher
+            key={tokenAddress}
+            tokenAddress={tokenAddress as string}
+            onDataFetched={handleTokenDataFetched}
+          />
+        ))}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Header */}
           <div className="text-center mb-12">
@@ -423,13 +466,13 @@ const DEXPage = () => {
               <p className="text-gray-300 mb-6">
                 Create your token first, then return here to set up trading pools and manage liquidity
               </p>
-              <a
+              <Link
                 href="/token"
                 className="inline-flex items-center px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
               >
                 Deploy Token
                 <span className="ml-2">🚀</span>
-              </a>
+              </Link>
             </div>
           </div>
         </div>

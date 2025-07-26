@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Address } from 'viem';
-import { useChainId } from 'wagmi';
+import { useChainId, useReadContract } from 'wagmi';
 import { CONTRACT_ADDRESSES as ADDRESSES } from "../../lib/contracts/addresses"
+import { PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
+import { getContractAddresses } from '../../lib/contracts/addresses';
 
 interface PoolData {
   tokenAddress: string;
@@ -37,59 +39,105 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
   refreshTrigger = 0
 }) => {
   const [poolData, setPoolData] = useState<PoolData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   const chainId = useChainId();
   const addresses = ADDRESSES[chainId];
+  const contractAddresses = getContractAddresses(chainId);
   const WETH_ADDRESS = addresses?.WETH || "0xfff9976782d46cc05630d1f6ebab18b2324d6b14"; // fallback to Sepolia WETH
 
-  const fetchPoolData = async () => {
-    if (!tokenAddress) return;
+  // Get pool info for different fee tiers
+  const { data: poolInfo500, isLoading: loading500 } = useReadContract({
+    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: "getPoolInfo",
+    args: [tokenAddress!, WETH_ADDRESS as Address, 500],
+    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+  });
 
-    setLoading(true);
-    setError(null);
+  const { data: poolInfo3000, isLoading: loading3000 } = useReadContract({
+    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: "getPoolInfo",
+    args: [tokenAddress!, WETH_ADDRESS as Address, 3000],
+    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+  });
 
-    try {
-      const response = await fetch(
-        `/api/pool-info?tokenAddress=${tokenAddress}&ethAddress=${WETH_ADDRESS}&chainId=${chainId}`
-      );
+  const { data: poolInfo10000, isLoading: loading10000 } = useReadContract({
+    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: "getPoolInfo",
+    args: [tokenAddress!, WETH_ADDRESS as Address, 10000],
+    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+  });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch pool data: ${response.status}`);
+  // Get token stats
+  const { data: tokenStats, isLoading: loadingStats } = useReadContract({
+    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: "getTokenStats",
+    args: [tokenAddress!],
+    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+  });
+
+  // Check if token is authorized
+  const { data: isAuthorized, isLoading: loadingAuth } = useReadContract({
+    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: "authorizedTokens",
+    args: [tokenAddress!],
+    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+  });
+
+  const loading = loading500 || loading3000 || loading10000 || loadingStats || loadingAuth;
+
+  // Process pool data when all requests complete
+  useEffect(() => {
+    if (!tokenAddress || loading) return;
+
+    const pools: PoolData['pools'] = [];
+    const feesTiers = [
+      { fee: 500, data: poolInfo500 },
+      { fee: 3000, data: poolInfo3000 },
+      { fee: 10000, data: poolInfo10000 }
+    ];
+
+    feesTiers.forEach(({ fee, data }) => {
+      if (data && Array.isArray(data) && data.length >= 5 && data[3]) { // isActive is at index 3
+        pools.push({
+          fee,
+          tokenId: data[0]?.toString() || '0',
+          liquidity: data[1]?.toString() || '0',
+          lockExpiry: data[2]?.toString() || '0',
+          isActive: Boolean(data[3]),
+          createdAt: data[4]?.toString() || '0',
+        });
       }
+    });
 
-      const data = await response.json();
-      setPoolData(data);
-      setLastUpdated(new Date());
-    } catch (error: any) {
-      console.error('Error fetching pool data:', error);
-      setError(error.message || 'Failed to fetch pool information');
-    } finally {
-      setLoading(false);
+    let processedTokenStats = null;
+    if (tokenStats && Array.isArray(tokenStats) && tokenStats.length >= 5) {
+      processedTokenStats = {
+        price: tokenStats[0]?.toString() || '0',
+        marketCap: tokenStats[1]?.toString() || '0',
+        volume24h: tokenStats[2]?.toString() || '0',
+        liquidity: tokenStats[3]?.toString() || '0',
+        isActive: Boolean(tokenStats[4]),
+      };
     }
-  };
 
-  // Fetch data on mount and when tokenAddress changes
-  useEffect(() => {
-    fetchPoolData();
-  }, [tokenAddress]);
+    const newPoolData: PoolData = {
+      tokenAddress: tokenAddress as string,
+      ethAddress: WETH_ADDRESS,
+      pools,
+      tokenStats: processedTokenStats,
+      isAuthorized: Boolean(isAuthorized),
+      hasActivePools: pools.length > 0,
+    };
 
-  // Refresh data when refreshTrigger changes
-  useEffect(() => {
-    if (refreshTrigger > 0) {
-      fetchPoolData();
-    }
-  }, [refreshTrigger]);
-
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    if (!tokenAddress) return;
-
-    const interval = setInterval(fetchPoolData, 30000);
-    return () => clearInterval(interval);
-  }, [tokenAddress]);
+    setPoolData(newPoolData);
+    setLastUpdated(new Date());
+  }, [tokenAddress, poolInfo500, poolInfo3000, poolInfo10000, tokenStats, isAuthorized, loading, WETH_ADDRESS]);
 
   const formatCurrency = (value: string, symbol: string = '$') => {
     const num = parseFloat(value || '0');
@@ -165,24 +213,6 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-gray-700 rounded-lg p-6">
-        <h4 className="text-lg font-semibold text-white mb-4">
-          💧 Pool Information
-        </h4>
-        <div className="text-center py-8">
-          <div className="text-red-400 mb-4">⚠️ {error}</div>
-          <button
-            onClick={fetchPoolData}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-gray-700 rounded-lg p-6">
@@ -213,13 +243,6 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
               ></path>
             </svg>
           )}
-          <button
-            onClick={fetchPoolData}
-            className="text-blue-400 hover:text-blue-300 text-sm"
-            disabled={loading}
-          >
-            🔄 Refresh
-          </button>
         </div>
       </div>
 

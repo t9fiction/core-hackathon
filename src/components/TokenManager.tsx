@@ -33,18 +33,6 @@ const TokenManager = () => {
   const [selectedToken, setSelectedToken] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  if (chainId !== 11155111) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <h2 className="text-2xl font-bold mb-4">Unsupported Network</h2>
-          <p className="text-gray-400">
-            Please switch to the Sepolia testnet to use this feature.
-          </p>
-        </div>
-      </div>
-    );
-  }
   const contractAddress = getContractAddresses(chainId).PUMPFUN_FACTORY;
 
   // Get all tokens created by the user
@@ -62,87 +50,91 @@ const TokenManager = () => {
     functionName: "getAllDeployedTokens",
   });
 
+  // Create a component for individual token data fetching
+  const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
+    // Get token info from factory contract
+    const { data: tokenInfo } = useReadContract({
+      address: contractAddress,
+      abi: PUMPFUN_FACTORY_ABI,
+      functionName: "getTokenInfo",
+      args: [tokenAddress as Address],
+    });
+
+    // Get token details from the token contract
+    const { data: tokenName } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "name",
+    });
+
+    const { data: tokenSymbol } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "symbol",
+    });
+
+    const { data: totalSupply } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "totalSupply",
+    });
+
+    useEffect(() => {
+      if (tokenInfo && tokenName && tokenSymbol && totalSupply !== undefined) {
+        const [creator, deploymentTime, liquidityLockPeriodDays] = tokenInfo as [string, bigint, bigint];
+        onDataFetched({
+          tokenAddress,
+          creator,
+          deploymentTime,
+          liquidityLockPeriodDays,
+          name: tokenName as string,
+          symbol: tokenSymbol as string,
+          totalSupply: totalSupply as bigint,
+        });
+      }
+    }, [tokenInfo, tokenName, tokenSymbol, totalSupply, tokenAddress, onDataFetched]);
+
+    return null; // This component doesn't render anything
+  };
+
+  // Handle token data collection
   useEffect(() => {
     console.log("TokenManager: creatorTokens data:", creatorTokens);
     console.log("TokenManager: address:", address);
     console.log("TokenManager: chainId:", chainId);
 
     if (creatorTokens && creatorTokens.length > 0) {
-      console.log("TokenManager: Found creator tokens, fetching details...");
+      console.log("TokenManager: Found creator tokens, preparing to fetch details...");
       setLoading(true);
-      const fetchTokenDetails = async () => {
-        const tokenDetails: TokenInfo[] = [];
-
-        for (const tokenAddress of creatorTokens) {
-          try {
-            console.log(
-              "TokenManager: Fetching details for token:",
-              tokenAddress
-            );
-            // Call the API endpoint to get token info
-            const response = await fetch(
-              `/api/token-info?address=${tokenAddress}`
-            );
-
-            if (!response.ok) {
-              // If API fails, create a basic token info object
-              console.warn(
-                `Failed to fetch details for token ${tokenAddress}:`,
-                response.status,
-                response.statusText
-              );
-              tokenDetails.push({
-                tokenAddress: tokenAddress as string,
-                creator: address as string,
-                deploymentTime: BigInt(0),
-                liquidityLockPeriodDays: BigInt(30),
-                name: "Unknown Token",
-                symbol: "UNK",
-                totalSupply: BigInt(0),
-              });
-              continue;
-            }
-
-            const tokenInfo = await response.json();
-            console.log("TokenManager: Token info received:", tokenInfo);
-            tokenDetails.push({
-              tokenAddress: tokenAddress as string,
-              creator: tokenInfo.creator || address as string,
-              deploymentTime: tokenInfo.deploymentTime ? BigInt(tokenInfo.deploymentTime) : BigInt(Math.floor(Date.now() / 1000)),
-              liquidityLockPeriodDays: tokenInfo.liquidityLockPeriodDays ? BigInt(
-                tokenInfo.liquidityLockPeriodDays
-              ) : BigInt(30),
-              name: tokenInfo.name || "Unknown Token",
-              symbol: tokenInfo.symbol || "UNK",
-              totalSupply: tokenInfo.totalSupply ? BigInt(tokenInfo.totalSupply) : BigInt(0),
-            });
-          } catch (error) {
-            console.error("Error fetching token details:", error);
-            // Add a fallback token entry
-            tokenDetails.push({
-              tokenAddress: tokenAddress as string,
-              creator: address as string,
-              deploymentTime: BigInt(Math.floor(Date.now() / 1000)),
-              liquidityLockPeriodDays: BigInt(30),
-              name: "Error Loading Token",
-              symbol: "ERR",
-              totalSupply: BigInt(0),
-            });
-          }
-        }
-
-        console.log("TokenManager: Final token details:", tokenDetails);
-        setTokens(tokenDetails);
-        setLoading(false);
-      };
-
-      fetchTokenDetails();
+      setTokens([]); // Reset tokens array
     } else {
       console.log("TokenManager: No creator tokens found");
       setTokens([]);
       setLoading(false);
     }
   }, [creatorTokens, address, chainId]);
+
+  // Handle individual token data
+  const handleTokenDataFetched = (tokenData: TokenInfo) => {
+    setTokens(prevTokens => {
+      // Check if token already exists to avoid duplicates
+      const existingIndex = prevTokens.findIndex(t => t.tokenAddress === tokenData.tokenAddress);
+      if (existingIndex >= 0) {
+        // Update existing token
+        const updatedTokens = [...prevTokens];
+        updatedTokens[existingIndex] = tokenData;
+        return updatedTokens;
+      } else {
+        // Add new token
+        const newTokens = [...prevTokens, tokenData];
+        // If we have all tokens, stop loading
+        if (creatorTokens && newTokens.length === creatorTokens.length) {
+          setLoading(false);
+        }
+        return newTokens;
+      }
+    });
+  };
 
   const TokenCard = ({ token }: { token: TokenInfo }) => (
     <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-colors">
@@ -817,6 +809,19 @@ const TokenManager = () => {
     );
   }
 
+  if (chainId !== 11155111) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <h2 className="text-2xl font-bold mb-4">Unsupported Network</h2>
+          <p className="text-gray-400">
+            Please switch to the Sepolia testnet to use this feature.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-8">
       <div className="max-w-6xl mx-auto px-4">
@@ -829,11 +834,30 @@ const TokenManager = () => {
           </p>
         </div>
 
+        {/* Hidden TokenDataFetcher components for each creator token */}
+        {creatorTokens && creatorTokens.map((tokenAddress) => (
+          <TokenDataFetcher
+            key={tokenAddress}
+            tokenAddress={tokenAddress as string}
+            onDataFetched={handleTokenDataFetched}
+          />
+        ))}
+
         {selectedToken ? (
           <TokenManagement tokenAddress={selectedToken} />
         ) : (
           <>
-            {tokens.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">⏳</div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Loading Tokens...
+                </h3>
+                <p className="text-gray-400 mb-6">
+                  Fetching your token details from the blockchain
+                </p>
+              </div>
+            ) : tokens.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🪙</div>
                 <h3 className="text-xl font-bold text-white mb-2">
