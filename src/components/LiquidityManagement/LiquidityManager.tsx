@@ -36,7 +36,6 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
     abi: PUMPFUN_FACTORY_ABI,
     functionName: 'tokenLiquidityPoolBalance',
     args: tokenAddress ? [tokenAddress] : undefined,
-    enabled: !!tokenAddress,
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -139,7 +138,7 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
                 {parseFloat(formatUnits(availableTokenBalance as bigint, 18)).toFixed(2)} {tokenSymbol}
               </div>
               <div className="text-xs text-blue-300 mt-1">
-                (From factory's allocated pool balance)
+                (From factory&apos;s allocated pool balance)
               </div>
             </div>
           </div>

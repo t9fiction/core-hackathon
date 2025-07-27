@@ -558,140 +558,33 @@ const TokenManager = () => {
 
           {activeTab === "liquidity" && (
             <div className="space-y-6">
-              {/* Create DEX Pool Section */}
-              <div className="bg-gray-700 rounded-lg p-6">
-                <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  🚀 Create DEX Pool
-                  <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-1 rounded">
-                    Factory Function
-                  </span>
-                </h4>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-gray-300 text-sm mb-1">
-                      Token Amount
-                    </label>
-                    <input
-                      type="number"
-                      value={poolTokenAmount}
-                      onChange={(e) => setPoolTokenAmount(e.target.value)}
-                      className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                      placeholder="5000"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-300 text-sm mb-1">
-                      ETH Amount
-                    </label>
-                    <input
-                      type="number"
-                      value={poolEthAmount}
-                      onChange={(e) => setPoolEthAmount(e.target.value)}
-                      className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                      placeholder="1.0"
-                      step="0.01"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-300 text-sm mb-1">
-                      Fee Tier
-                    </label>
-                    <select
-                      value={poolFee}
-                      onChange={(e) => setPoolFee(Number(e.target.value))}
-                      className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                    >
-                      <option value={500}>0.05% (500)</option>
-                      <option value={3000}>0.3% (3000)</option>
-                      <option value={10000}>1% (10000)</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="mt-4 p-3 bg-gray-600 rounded">
-                  <div className="text-sm space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">Pool Type:</span>
-                      <span className="text-white">
-                        Token/{selectedTokenInfo?.symbol} - ETH
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">Fee Tier:</span>
-                      <span className="text-white">{poolFee / 10000}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">Initial Price:</span>
-                      <span className="text-white">
-                        {poolTokenAmount && poolEthAmount
-                          ? `1 ETH = ${(
-                              Number(poolTokenAmount) / Number(poolEthAmount)
-                            ).toFixed(2)} ${selectedTokenInfo?.symbol}`
-                          : "Enter amounts"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={dexHash}
-                  disabled={
-                    !isConnected ||
-                    !poolTokenAmount ||
-                    !poolEthAmount ||
-                    dex.isCreatingPool
-                  }
-                  className="w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 text-white py-3 px-4 rounded transition-colors font-medium"
-                >
-                  {dex.isCreatingPool ? (
-                    <span className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Creating DEX Pool...
+              {/* Conditional Pool Creation */}
+              {!dex.poolInfo ? (
+                <div className="bg-gray-700 rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    🚀 Create DEX Pool
+                    <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-1 rounded">
+                      Uniswap V3
                     </span>
-                  ) : (
-                    "Create DEX Pool"
-                  )}
-                </button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Add Liquidity */}
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">
-                    Add Liquidity
                   </h4>
-                  {dex.error && (
-                    <div className="text-red-400 text-sm mb-4">{dex.error}</div>
-                  )}
-                  <div className="space-y-3">
+                  <div className="mb-4 p-3 bg-blue-900/30 border border-blue-500/50 rounded">
+                    <p className="text-blue-200 text-sm">
+                      ℹ️ No liquidity pool exists for this token yet. Create one to enable trading on Uniswap.
+                    </p>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-gray-300 text-sm mb-1">
                         Token Amount
                       </label>
                       <input
                         type="number"
-                        value={liquidityAmount}
-                        onChange={(e) => setLiquidityAmount(e.target.value)}
+                        value={poolTokenAmount}
+                        onChange={(e) => setPoolTokenAmount(e.target.value)}
                         className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                        placeholder="10000"
+                        placeholder="5000"
                       />
+                      <p className="text-xs text-gray-400 mt-1">Initial tokens for the pool</p>
                     </div>
                     <div>
                       <label className="block text-gray-300 text-sm mb-1">
@@ -699,73 +592,230 @@ const TokenManager = () => {
                       </label>
                       <input
                         type="number"
-                        value={ethAmount}
-                        onChange={(e) => setEthAmount(e.target.value)}
+                        value={poolEthAmount}
+                        onChange={(e) => setPoolEthAmount(e.target.value)}
                         className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
                         placeholder="1.0"
                         step="0.01"
                       />
+                      <p className="text-xs text-gray-400 mt-1">Initial ETH for the pool</p>
                     </div>
-                    <button
-                      disabled={
-                        !isConnected ||
-                        !dex.poolInfo ||
-                        !liquidityAmount ||
-                        !ethAmount
-                      }
-                      onClick={async () => {
-                        try {
-                          await dex.addLiquidity(
-                            liquidityAmount,
-                            ethAmount,
-                            poolFee
-                          );
-                        } catch (error) {
-                          console.error("Error adding liquidity:", error);
-                        }
-                      }}
-                      className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
-                    >
-                      Add Liquidity
-                    </button>
+                    <div>
+                      <label className="block text-gray-300 text-sm mb-1">
+                        Fee Tier
+                      </label>
+                      <select
+                        value={poolFee}
+                        onChange={(e) => setPoolFee(Number(e.target.value))}
+                        className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
+                      >
+                        <option value={500}>0.05% (Low)</option>
+                        <option value={3000}>0.3% (Standard)</option>
+                        <option value={10000}>1% (High)</option>
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">Swap fee percentage</p>
+                    </div>
                   </div>
-                </div>
-
-                {/* Liquidity Pool Info */}
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">
-                    Pool Information
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">Pool Status:</span>
-                      <span className="text-green-400 font-medium">Active</span>
+                  <div className="mt-4 p-3 bg-gray-600 rounded">
+                    <div className="text-sm space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Pool Pair:</span>
+                        <span className="text-white font-medium">
+                          {selectedTokenInfo?.symbol || 'TOKEN'}/ETH
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Fee Tier:</span>
+                        <span className="text-white">{poolFee / 10000}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Initial Price:</span>
+                        <span className="text-white">
+                          {poolTokenAmount && poolEthAmount
+                            ? `1 ETH = ${(
+                                Number(poolTokenAmount) / Number(poolEthAmount)
+                              ).toFixed(2)} ${selectedTokenInfo?.symbol}`
+                            : "Enter amounts"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">Total Liquidity:</span>
-                      <span className="text-white font-medium">$89,450</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">My Share:</span>
-                      <span className="text-white font-medium">2.3%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">Lock Period:</span>
-                      <span className="text-yellow-400 font-medium">
-                        28 days remaining
+                  </div>
+                  <button
+                    onClick={dexHash}
+                    disabled={
+                      !isConnected ||
+                      !poolTokenAmount ||
+                      !poolEthAmount ||
+                      dex.isCreatingPool
+                    }
+                    className="w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 text-white py-3 px-4 rounded transition-colors font-medium"
+                  >
+                    {dex.isCreatingPool ? (
+                      <span className="flex items-center justify-center">
+                        <svg
+                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Creating DEX Pool...
                       </span>
+                    ) : (
+                      "Create DEX Pool on Uniswap"
+                    )}
+                  </button>
+                </div>
+              ) : (
+                /* Pool exists - Show liquidity management */
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Add Liquidity to Existing Pool */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
+                      💧 Add Liquidity
+                      <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded">
+                        Pool Active
+                      </span>
+                    </h4>
+                    {dex.error && (
+                      <div className="text-red-400 text-sm mb-4 p-2 bg-red-900/30 border border-red-500/50 rounded">
+                        {dex.error}
+                      </div>
+                    )}
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-1">
+                          Token Amount
+                        </label>
+                        <input
+                          type="number"
+                          value={liquidityAmount}
+                          onChange={(e) => setLiquidityAmount(e.target.value)}
+                          className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
+                          placeholder="10000"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Your {selectedTokenInfo?.symbol} tokens</p>
+                      </div>
+                      <div>
+                        <label className="block text-gray-300 text-sm mb-1">
+                          ETH Amount
+                        </label>
+                        <input
+                          type="number"
+                          value={ethAmount}
+                          onChange={(e) => setEthAmount(e.target.value)}
+                          className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
+                          placeholder="1.0"
+                          step="0.01"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">ETH to provide as liquidity</p>
+                      </div>
+                      <div className="bg-gray-600 rounded p-3">
+                        <div className="text-sm space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-300">Current Pool Ratio:</span>
+                            <span className="text-white">~1 ETH : 12,340 {selectedTokenInfo?.symbol}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-300">LP Tokens to Receive:</span>
+                            <span className="text-green-400">~0.05 LP</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        disabled={
+                          !isConnected ||
+                          !liquidityAmount ||
+                          !ethAmount
+                        }
+                        onClick={async () => {
+                          try {
+                            await dex.addLiquidity(
+                              liquidityAmount,
+                              ethAmount,
+                              poolFee
+                            );
+                          } catch (error) {
+                            console.error("Error adding liquidity:", error);
+                          }
+                        }}
+                        className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
+                      >
+                        Add Liquidity
+                      </button>
                     </div>
-                    <button
-                      disabled={!isConnected}
-                      className="w-full bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors mt-3"
-                    >
-                      <Link href={`https://sepolia.etherscan.io/tx/${dexHash}`}>
-                        View Pool on DEX
-                      </Link>
-                    </button>
+                  </div>
+
+                  {/* Pool Information */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-white mb-3">
+                      📊 Pool Information
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Pool Status:</span>
+                        <span className="text-green-400 font-medium flex items-center">
+                          <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                          Active
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Total Liquidity:</span>
+                        <span className="text-white font-medium">
+                          Loading...
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">My Position:</span>
+                        <span className="text-white font-medium">
+                          No position
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Pool Share:</span>
+                        <span className="text-white font-medium">
+                          0%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Fee Tier:</span>
+                        <span className="text-white font-medium">{poolFee / 10000}%</span>
+                      </div>
+                      <div className="pt-3 border-t border-gray-600">
+                        <button
+                          disabled={!isConnected}
+                          className="w-full bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors mb-2"
+                        >
+                          Remove Liquidity
+                        </button>
+                        <Link
+                          href={`https://app.uniswap.org/pools/${tokenAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full"
+                        >
+                          <button className="w-full bg-purple-600 hover:bg-purple-500 text-white py-2 px-4 rounded transition-colors">
+                            View on Uniswap
+                          </button>
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -901,60 +951,72 @@ const TokenManager = () => {
             />
           ))}
 
-        {selectedToken ? (
-          <TokenManagement tokenAddress={selectedToken} />
-        ) : (
-          <>
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">⏳</div>
-                <h3 className="text-xl font-bold text-white mb-2">
-                  Loading Tokens...
-                </h3>
-                <p className="text-gray-400 mb-6">
-                  Fetching your token details from the blockchain
-                </p>
-              </div>
-            ) : tokens.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🪙</div>
-                <h3 className="text-xl font-bold text-white mb-2">
-                  No Tokens Found
-                </h3>
-                <p className="text-gray-400 mb-6">
-                  You haven&apos;t deployed any tokens yet
-                </p>
-                <button
-                  onClick={() => (window.location.href = "/deploy")}
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
-                >
-                  Deploy Your First Token
-                </button>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {tokens.map((token) => (
-                  <TokenCard key={token.tokenAddress} token={token} />
-                ))}
-              </div>
-            )}
+{tokens.length > 0 && (
+  <div className="mb-6">
+    <label className="block text-gray-300 text-sm mb-1">Select a Token</label>
+    <select
+      value={selectedToken}
+      onChange={(e) => setSelectedToken(e.target.value)}
+      className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
+    >
+      <option value="">-- Select a Token --</option>
+      {tokens.map((token) => (
+        <option key={token.tokenAddress} value={token.tokenAddress}>
+          {token.name || "Unknown Token"}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
 
-            {allTokens && allTokens.length > 0 && (
-              <div className="mt-12">
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  All Deployed Tokens
-                </h2>
-                <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                  <p className="text-gray-300">
-                    Total tokens deployed on the platform:{" "}
-                    <span className="text-blue-400 font-bold">
-                      {allTokens.length}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            )}
-          </>
+{selectedToken ? (
+  <TokenManagement tokenAddress={selectedToken} />
+) : (
+  <>
+    {loading ? (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">⏳</div>
+        <h3 className="text-xl font-bold text-white mb-2">
+          Loading Tokens...
+        </h3>
+        <p className="text-gray-400 mb-6">
+          Fetching your token details from the blockchain
+        </p>
+      </div>
+    ) : tokens.length === 0 ? (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">🪙</div>
+        <h3 className="text-xl font-bold text-white mb-2">
+          No Tokens Found
+        </h3>
+        <p className="text-gray-400 mb-6">
+          You haven&apos;t deployed any tokens yet
+        </p>
+        <button
+          onClick={() => (window.location.href = "/deploy")}
+          className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition-colors"
+        >
+          Deploy Your First Token
+        </button>
+      </div>
+    ) : null}
+  </>
+)}
+
+        {allTokens && allTokens.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-white mb-6">
+              All Deployed Tokens
+            </h2>
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+              <p className="text-gray-300">
+                Total tokens deployed on the platform:{" "}
+                <span className="text-blue-400 font-bold">
+                  {allTokens.length}
+                </span>
+              </p>
+            </div>
+          </div>
         )}
       </div>
     </div>

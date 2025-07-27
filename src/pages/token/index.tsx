@@ -1,14 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useAccount } from 'wagmi';
-import { Address } from 'viem';
+import { useAccount, useChainId, useReadContract } from 'wagmi';
+import { Address, formatEther } from 'viem';
 import { TokenDeploymentForm } from '../../components/TokenDeployment';
 import { DEXPoolCreator } from '../../components/DEX';
 import { PoolInformation } from '../../components/PoolInfo';
 import { LiquidityManager } from '../../components/LiquidityManagement';
+import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
+import { getContractAddresses } from '../../lib/contracts/addresses';
+
+interface TokenInfo {
+  address: string;
+  name: string;
+  symbol: string;
+  totalSupply: string;
+}
 
 const Token = () => {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+  const contractAddresses = getContractAddresses(chainId);
   
   // State for managing token operations
   const [selectedTokenAddress, setSelectedTokenAddress] = useState<Address | undefined>();
@@ -16,6 +27,94 @@ const Token = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tokenAddressInput, setTokenAddressInput] = useState('');
   const [activeTab, setActiveTab] = useState<'deploy' | 'pool' | 'lock'>('deploy');
+  const [userTokens, setUserTokens] = useState<any[]>([]);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+
+  // Fetch user's deployed tokens
+  const { data: tokenAddresses } = useReadContract({
+    address: contractAddresses?.PUMPFUN_FACTORY as `0x${string}`,
+    abi: PUMPFUN_FACTORY_ABI,
+    functionName: 'getTokensByCreator',
+    args: [address!],
+    query: {
+      enabled: isConnected && !!address && !!contractAddresses?.PUMPFUN_FACTORY,
+    },
+  });
+
+  // Fetch token data directly using hooks
+  useEffect(() => {
+    if (tokenAddresses && tokenAddresses.length > 0) {
+      setIsLoadingTokens(true);
+      setUserTokens([]); // Reset token array
+    } else {
+      setUserTokens([]);
+      setIsLoadingTokens(false);
+    }
+  }, [tokenAddresses, chainId]);
+
+  const handleTokenDataFetched = useCallback((data: TokenInfo) => {
+    setUserTokens(prevTokens => {
+      const existingIndex = prevTokens.findIndex((token) => token.address === data.address);
+      
+      if (existingIndex >= 0) {
+        // Check if the data has actually changed before updating
+        const existingToken = prevTokens[existingIndex];
+        const hasChanged = JSON.stringify(existingToken) !== JSON.stringify(data);
+        
+        if (hasChanged) {
+          // Update existing token only if data has changed
+          return prevTokens.map((token) => 
+            token.address === data.address ? data : token
+          );
+        }
+        // Return the same array if no changes to prevent re-render
+        return prevTokens;
+      } else {
+        // Add new token
+        return [...prevTokens, data];
+      }
+    });
+  }, []);
+
+  // Separate useEffect to handle loading state management
+  useEffect(() => {
+    if (tokenAddresses && userTokens.length === tokenAddresses.length && userTokens.length > 0) {
+      setIsLoadingTokens(false);
+    }
+  }, [tokenAddresses, userTokens.length]);
+
+  // TokenDataFetcher component for each token
+  const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
+    // Fetch name, symbol, totalSupply from token contract
+    const { data: name } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "name",
+    });
+    const { data: symbol } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "symbol",
+    });
+    const { data: totalSupply } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: "totalSupply",
+    });
+
+    useEffect(() => {
+      if (name && symbol && totalSupply !== undefined) {
+        onDataFetched({
+          address: tokenAddress,
+          name: name as string,
+          symbol: symbol as string,
+          totalSupply: formatEther(totalSupply),
+        })
+      }
+    }, [name, symbol, totalSupply, onDataFetched, tokenAddress]);
+
+    return null; // Component doesn't render anything
+  };
 
   // Callback functions for component interactions
   const handleTokenDeploymentSuccess = (hash: string) => {
@@ -55,6 +154,14 @@ const Token = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-8">
+      {/* Hidden TokenDataFetcher components for each token */}
+      {tokenAddresses && tokenAddresses.map((tokenAddress) => (
+        <TokenDataFetcher
+          key={tokenAddress}
+          tokenAddress={tokenAddress as string}
+          onDataFetched={handleTokenDataFetched}
+        />
+      ))}
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
@@ -76,20 +183,28 @@ const Token = () => {
                 Select Token for Management
               </h3>
               <div className="flex gap-4">
-                <input
-                  type="text"
-                  value={tokenAddressInput}
-                  onChange={(e) => setTokenAddressInput(e.target.value)}
-                  placeholder="Enter token address (e.g., 0x123...abc:SYMBOL)"
-                  className="flex-1 p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
-                />
-                <button
-                  onClick={handleTokenSelection}
-                  disabled={!tokenAddressInput}
-                  className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-6 py-3 rounded-lg transition-colors"
-                >
-                  Select
-                </button>
+                {
+                  isConnected && userTokens.length > 0 ? (
+                    <select
+                      value={selectedTokenAddress}
+                      onChange={(e) => {
+                        const selectedToken = userTokens.find(token => token.address === e.target.value);
+                        setSelectedTokenAddress(selectedToken?.address);
+                        setSelectedTokenSymbol(selectedToken?.symbol);
+                      }}
+                      className="flex-1 p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                    >
+                      <option value="">-- Select a Token --</option>
+                      {userTokens.map((token) => (
+                        <option key={token.address} value={token.address}>
+                          {token.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-gray-400">No Tokens Available</p>
+                  )
+                }
               </div>
               {selectedTokenAddress && (
                 <div className="mt-3 p-3 bg-green-900/30 border border-green-500/50 rounded">

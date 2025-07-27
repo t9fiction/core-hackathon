@@ -6,7 +6,7 @@ import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from '../lib/contracts/addresses';
 import DEXPoolCreator from '../components/DEX/DEXPoolCreator';
 import PoolInformation from '../components/PoolInfo/PoolInformation';
-import LiquidityManager from '../components/LiquidityManagement/LiquidityManager';
+import BuySellTokens from '../components/BuySellTokens/BuySellTokens';
 
 interface TokenInfo {
   address: string;
@@ -16,7 +16,7 @@ interface TokenInfo {
 }
 
 const DEXPage = () => {
-  const [activeTab, setActiveTab] = useState<'create' | 'info' | 'liquidity'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'info' | 'buysell'>('create');
   const [selectedToken, setSelectedToken] = useState<Address | ''>('');
   const [userTokens, setUserTokens] = useState<any[]>([]);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
@@ -136,7 +136,7 @@ const DEXPage = () => {
   const tabs = [
     { id: 'create' as const, label: 'Create Pool', icon: '🏗️' },
     { id: 'info' as const, label: 'Pool Info', icon: '📊' },
-    { id: 'liquidity' as const, label: 'Lock Tokens', icon: '🔒' }
+    { id: 'buysell' as const, label: 'Buy/Sell', icon: '💱' }
   ];
 
   const renderTabContent = () => {
@@ -178,68 +178,18 @@ const DEXPage = () => {
                     <span className="ml-3 text-gray-300">Loading your tokens...</span>
                   </div>
                 ) : userTokens.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b border-gray-600">
-                          <th className="text-left py-3 px-4 text-gray-300 font-medium">Token</th>
-                          <th className="text-left py-3 px-4 text-gray-300 font-medium">Symbol</th>
-                          <th className="text-left py-3 px-4 text-gray-300 font-medium">Total Supply</th>
-                          <th className="text-left py-3 px-4 text-gray-300 font-medium">Address</th>
-                          <th className="text-center py-3 px-4 text-gray-300 font-medium">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userTokens.map((token) => (
-                          <tr 
-                            key={token.address} 
-                            className={`
-                              border-b border-gray-700/50 transition-all duration-300
-                              ${selectedToken === token.address 
-                                ? 'bg-gradient-to-r from-cyan-600/10 to-purple-600/10' 
-                                : 'hover:bg-gray-700/30'
-                              }
-                            `}
-                          >
-                            <td className="py-4 px-4">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 bg-gradient-to-r from-cyan-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                  {token.symbol?.charAt(0) || '?'}
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-white text-sm">{token.name || 'Unknown Token'}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-4 px-4 text-gray-300 font-mono text-sm">
-                              {token.symbol || 'N/A'}
-                            </td>
-                            <td className="py-4 px-4 text-gray-300 text-sm">
-                              {token.totalSupply ? token.totalSupply : 'N/A'}
-                            </td>
-                            <td className="py-4 px-4 text-gray-400 font-mono text-xs">
-                              {token.address.slice(0, 8)}...{token.address.slice(-6)}
-                            </td>
-                            <td className="py-4 px-4 text-center">
-                              <button
-                                onClick={() => setSelectedToken(token.address)}
-                                className={`
-                                  px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300
-                                  ${selectedToken === token.address
-                                    ? 'bg-gradient-to-r from-green-600 to-green-500 text-white cursor-default'
-                                    : 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white hover:shadow-lg hover:shadow-cyan-500/25'
-                                  }
-                                `}
-                                disabled={selectedToken === token.address}
-                              >
-                                {selectedToken === token.address ? 'Selected ✓' : 'Select'}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <select
+                    value={selectedToken}
+                    onChange={(e) => setSelectedToken(e.target.value as Address)}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                  >
+                    <option value="">-- Select a Token --</option>
+                    {userTokens.map((token) => (
+                      <option key={token.address} value={token.address}>
+                        {token.name} ({token.symbol})
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-4">🪙</div>
@@ -274,13 +224,13 @@ const DEXPage = () => {
           </div>
         );
 
-      case 'liquidity':
+      case 'buysell':
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Lock Tokens for Trust</h2>
+              <h2 className="text-3xl font-bold text-white mb-4">Buy/Sell Tokens</h2>
               <p className="text-gray-300 max-w-2xl mx-auto">
-                Lock your tokens and ETH in the factory contract for a specified period. This anti-rug pull mechanism builds community trust by preventing immediate token dumps.
+                Buy and sell tokens directly on the DEX with instant execution and competitive pricing.
               </p>
             </div>
             
@@ -295,68 +245,18 @@ const DEXPage = () => {
                     <span className="ml-3 text-gray-300">Loading your tokens...</span>
                   </div>
                 ) : userTokens.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b border-gray-600">
-                          <th className="text-left py-3 px-4 text-gray-300 font-medium">Token</th>
-                          <th className="text-left py-3 px-4 text-gray-300 font-medium">Symbol</th>
-                          <th className="text-left py-3 px-4 text-gray-300 font-medium">Total Supply</th>
-                          <th className="text-left py-3 px-4 text-gray-300 font-medium">Address</th>
-                          <th className="text-center py-3 px-4 text-gray-300 font-medium">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userTokens.map((token) => (
-                          <tr 
-                            key={token.address} 
-                            className={`
-                              border-b border-gray-700/50 transition-all duration-300
-                              ${selectedToken === token.address 
-                                ? 'bg-gradient-to-r from-cyan-600/10 to-purple-600/10' 
-                                : 'hover:bg-gray-700/30'
-                              }
-                            `}
-                          >
-                            <td className="py-4 px-4">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 bg-gradient-to-r from-cyan-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                  {token.symbol?.charAt(0) || '?'}
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-white text-sm">{token.name || 'Unknown Token'}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-4 px-4 text-gray-300 font-mono text-sm">
-                              {token.symbol || 'N/A'}
-                            </td>
-                            <td className="py-4 px-4 text-gray-300 text-sm">
-                              {token.totalSupply ? token.totalSupply : 'N/A'}
-                            </td>
-                            <td className="py-4 px-4 text-gray-400 font-mono text-xs">
-                              {token.address.slice(0, 8)}...{token.address.slice(-6)}
-                            </td>
-                            <td className="py-4 px-4 text-center">
-                              <button
-                                onClick={() => setSelectedToken(token.address)}
-                                className={`
-                                  px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300
-                                  ${selectedToken === token.address
-                                    ? 'bg-gradient-to-r from-green-600 to-green-500 text-white cursor-default'
-                                    : 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white hover:shadow-lg hover:shadow-cyan-500/25'
-                                  }
-                                `}
-                                disabled={selectedToken === token.address}
-                              >
-                                {selectedToken === token.address ? 'Selected ✓' : 'Select'}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <select
+                    value={selectedToken}
+                    onChange={(e) => setSelectedToken(e.target.value as Address)}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                  >
+                    <option value="">-- Select a Token --</option>
+                    {userTokens.map((token) => (
+                      <option key={token.address} value={token.address}>
+                        {token.name} ({token.symbol})
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-4">🪙</div>
@@ -379,16 +279,14 @@ const DEXPage = () => {
                 <div className="text-4xl mb-4">🔐</div>
                 <h4 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h4>
                 <p className="text-gray-300">
-                  Please connect your wallet to view your tokens and lock them for trust building.
+                  Please connect your wallet to view your tokens and trade.
                 </p>
               </div>
             )}
             
-            {/* Liquidity Manager Component */}
+            {/* Buy/Sell Component */}
             {selectedToken && (
-              <LiquidityManager 
-                tokenAddress={selectedToken as Address}
-              />
+              <BuySellTokens tokenAddress={selectedToken as Address} />
             )}
           </div>
         );
