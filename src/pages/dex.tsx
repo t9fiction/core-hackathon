@@ -71,12 +71,24 @@ const DEXPage = () => {
 
   const handleTokenDataFetched = useCallback((data: TokenInfo) => {
     setUserTokens(prevTokens => {
-      const exists = prevTokens.find((token) => token.address === data.address);
-      if (exists) {
-        return prevTokens.map((token) => token.address === data.address ? data : token);
+      const existingIndex = prevTokens.findIndex((token) => token.address === data.address);
+      
+      if (existingIndex >= 0) {
+        // Check if the data has actually changed before updating
+        const existingToken = prevTokens[existingIndex];
+        const hasChanged = JSON.stringify(existingToken) !== JSON.stringify(data);
+        
+        if (hasChanged) {
+          // Update existing token only if data has changed
+          return prevTokens.map((token) => 
+            token.address === data.address ? data : token
+          );
+        }
+        // Return the same array if no changes to prevent re-render
+        return prevTokens;
       } else {
-        const newTokens = [...prevTokens, data];
-        return newTokens;
+        // Add new token
+        return [...prevTokens, data];
       }
     });
   }, []);

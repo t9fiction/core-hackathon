@@ -114,8 +114,8 @@ const TokenManager = () => {
       tokenSymbol,
       totalSupply,
       tokenAddress,
-      onDataFetched,
       hasBeenFetched,
+      onDataFetched,
     ]);
 
     return null; // This component doesn't render anything
@@ -140,6 +140,20 @@ const TokenManager = () => {
     }
   }, [creatorTokens, address, chainId]);
 
+  // Compare TokenInfo objects without JSON.stringify
+  const areTokenInfosEqual = (a: TokenInfo, b: TokenInfo): boolean => {
+    return (
+      a.tokenAddress === b.tokenAddress &&
+      a.creator === b.creator &&
+      a.deploymentTime.toString() === b.deploymentTime.toString() &&
+      a.liquidityLockPeriodDays.toString() === b.liquidityLockPeriodDays.toString() &&
+      a.name === b.name &&
+      a.symbol === b.symbol &&
+      (a.totalSupply?.toString() || undefined) === (b.totalSupply?.toString() || undefined) &&
+      (a.balance?.toString() || undefined) === (b.balance?.toString() || undefined)
+    );
+  };
+
   // Handle individual token data - memoized to prevent infinite re-renders
   const handleTokenDataFetched = useCallback((tokenData: TokenInfo) => {
     setTokens((prevTokens) => {
@@ -147,11 +161,20 @@ const TokenManager = () => {
       const existingIndex = prevTokens.findIndex(
         (t) => t.tokenAddress === tokenData.tokenAddress
       );
+
       if (existingIndex >= 0) {
-        // Update existing token
-        const updatedTokens = [...prevTokens];
-        updatedTokens[existingIndex] = tokenData;
-        return updatedTokens;
+        // Check if the data has actually changed before updating
+        const existingToken = prevTokens[existingIndex];
+        const hasChanged = !areTokenInfosEqual(existingToken, tokenData);
+
+        if (hasChanged) {
+          // Update existing token only if data has changed
+          const updatedTokens = [...prevTokens];
+          updatedTokens[existingIndex] = tokenData;
+          return updatedTokens;
+        }
+        // Return the same array if no changes to prevent re-render
+        return prevTokens;
       } else {
         // Add new token
         return [...prevTokens, tokenData];
