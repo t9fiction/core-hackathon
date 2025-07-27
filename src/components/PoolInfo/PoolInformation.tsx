@@ -310,7 +310,7 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
                     Market Cap
                   </div>
                   <div className="text-white font-bold text-lg">
-                    {formatCurrency(poolData.tokenStats.marketCap)}
+                    {formatCurrency(BigInt(poolData.tokenStats.marketCap) / (10n ** 18n))}
                   </div>
                 </div>
                 <div className="bg-black/20 rounded-lg p-4 border border-gray-500/20">

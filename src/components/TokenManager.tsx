@@ -9,7 +9,6 @@ import { formatEther, Address } from "viem";
 import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from "../lib/contracts/abis";
 import { getContractAddresses } from "../lib/contracts/addresses";
 import {
-  useTokenGovernance,
   useTokenDEX,
   useTokenLock,
 } from "../lib/hooks/useTokenContracts";
@@ -248,16 +247,11 @@ const TokenManager = () => {
   );
 
   const TokenManagement = ({ tokenAddress }: { tokenAddress: string }) => {
-    const [activeTab, setActiveTab] = useState("governance");
+    const [activeTab, setActiveTab] = useState("dex");
     const [lockAmount, setLockAmount] = useState("");
     const [lockDuration, setLockDuration] = useState(30);
     const [liquidityAmount, setLiquidityAmount] = useState("");
     const [ethAmount, setEthAmount] = useState("");
-    const [proposalDescription, setProposalDescription] = useState("");
-    const [proposalType, setProposalType] = useState(1);
-    const [proposedValue, setProposedValue] = useState("");
-    const [buyEthAmount, setBuyEthAmount] = useState("");
-    const [sellTokenAmount, setSellTokenAmount] = useState("");
     const [poolTokenAmount, setPoolTokenAmount] = useState("");
     const [poolEthAmount, setPoolEthAmount] = useState("");
     const [poolFee, setPoolFee] = useState(3000);
@@ -271,12 +265,10 @@ const TokenManager = () => {
     );
 
     // Initialize hooks for blockchain interactions
-    const governance = useTokenGovernance(tokenAddress as Address);
     const dex = useTokenDEX(tokenAddress as Address);
     const lock = useTokenLock(tokenAddress as Address);
 
     const tabs = [
-      { id: "governance", label: "🏛️ Governance", icon: "🏛️" },
       { id: "dex", label: "💱 DEX Trading", icon: "💱" },
       { id: "liquidity", label: "💧 Liquidity", icon: "💧" },
       { id: "lock", label: "🔐 Token Lock", icon: "🔐" },
@@ -337,113 +329,6 @@ const TokenManager = () => {
 
         {/* Tab Content */}
         <div className="space-y-6">
-          {activeTab === "governance" && (
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Create Proposal */}
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">
-                    Create Proposal
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-gray-300 text-sm mb-1">
-                        Proposal Type
-                      </label>
-                      <select
-                        value={proposalType}
-                        onChange={(e) =>
-                          setProposalType(Number(e.target.value))
-                        }
-                        className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                      >
-                        <option value={1}>Update Max Transfer</option>
-                        <option value={2}>Update Max Holding</option>
-                        <option value={3}>Toggle Transfer Limits</option>
-                        <option value={4}>Execute Airdrop</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-gray-300 text-sm mb-1">
-                        Description
-                      </label>
-                      <textarea
-                        value={proposalDescription}
-                        onChange={(e) => setProposalDescription(e.target.value)}
-                        className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                        rows={3}
-                        placeholder="Describe your proposal..."
-                      />
-                    </div>
-                    {proposalType !== 4 && (
-                      <div>
-                        <label className="block text-gray-300 text-sm mb-1">
-                          Proposed Value
-                        </label>
-                        <input
-                          type="number"
-                          value={proposedValue}
-                          onChange={(e) => setProposedValue(e.target.value)}
-                          className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                          placeholder="Enter value"
-                        />
-                      </div>
-                    )}
-                    <button
-                      disabled={!isConnected}
-                      className="w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
-                    >
-                      Create Proposal
-                    </button>
-                  </div>
-                </div>
-
-                {/* Active Proposals */}
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">
-                    Active Proposals
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="bg-gray-600 rounded p-3">
-                      <p className="text-sm text-white mb-2">
-                        Update transfer cooldown
-                      </p>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">
-                          Proposal #1
-                        </span>
-                        <div className="flex gap-1">
-                          <button className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs">
-                            Vote Yes
-                          </button>
-                          <button className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs">
-                            Vote No
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>For: 1,250 votes</span>
-                          <span>Against: 300 votes</span>
-                        </div>
-                        <div className="w-full bg-gray-500 rounded-full h-2 mt-1">
-                          <div
-                            className="bg-green-500 h-2 rounded-full"
-                            style={{ width: "80%" }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="text-center text-gray-400 text-sm py-4">
-                      No other active proposals
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {activeTab === "dex" && (
             <div className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
