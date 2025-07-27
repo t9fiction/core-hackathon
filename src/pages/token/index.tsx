@@ -15,6 +15,7 @@ const Token = () => {
   const [selectedTokenSymbol, setSelectedTokenSymbol] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [tokenAddressInput, setTokenAddressInput] = useState('');
+  const [activeTab, setActiveTab] = useState<'deploy' | 'pool' | 'lock'>('deploy');
 
   // Callback functions for component interactions
   const handleTokenDeploymentSuccess = (hash: string) => {
@@ -68,9 +69,6 @@ const Token = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Token Operations */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Token Deployment Section */}
-            <TokenDeploymentForm onDeploymentSuccess={handleTokenDeploymentSuccess} />
-
             {/* Token Selection for Management */}
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
               <h3 className="text-xl font-bold mb-4 flex items-center">
@@ -102,21 +100,92 @@ const Token = () => {
               )}
             </div>
 
-            {/* DEX and Liquidity Management */}
-            {selectedTokenAddress && (
-              <div className="grid md:grid-cols-2 gap-8">
-                <DEXPoolCreator 
-                  tokenAddress={selectedTokenAddress}
-                  tokenSymbol={selectedTokenSymbol}
-                  onPoolCreated={handlePoolCreated}
-                />
-                <LiquidityManager 
-                  tokenAddress={selectedTokenAddress}
-                  tokenSymbol={selectedTokenSymbol}
-                  onLiquidityAdded={handleLiquidityAdded}
-                />
+            {/* Tabbed Management Interface */}
+            <div className="bg-gray-800 rounded-xl border border-gray-700">
+              {/* Tab Navigation */}
+              <div className="flex border-b border-gray-700">
+                <button
+                  onClick={() => setActiveTab('deploy')}
+                  className={`px-6 py-4 text-sm font-medium transition-colors ${
+                    activeTab === 'deploy'
+                      ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700/50'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <span className="mr-2">🚀</span>
+                  Deploy Token
+                </button>
+                <button
+                  onClick={() => setActiveTab('pool')}
+                  className={`px-6 py-4 text-sm font-medium transition-colors ${
+                    activeTab === 'pool'
+                      ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700/50'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <span className="mr-2">💧</span>
+                  DEX Pools
+                </button>
+                <button
+                  onClick={() => setActiveTab('lock')}
+                  className={`px-6 py-4 text-sm font-medium transition-colors ${
+                    activeTab === 'lock'
+                      ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700/50'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <span className="mr-2">🔒</span>
+                  Token Lock
+                </button>
               </div>
-            )}
+
+              {/* Tab Content */}
+              <div className="p-6">
+                {activeTab === 'deploy' && (
+                  <TokenDeploymentForm onDeploymentSuccess={handleTokenDeploymentSuccess} />
+                )}
+                
+                {activeTab === 'pool' && (
+                  <div>
+                    {selectedTokenAddress ? (
+                      <DEXPoolCreator 
+                        tokenAddress={selectedTokenAddress}
+                        tokenSymbol={selectedTokenSymbol}
+                        onPoolCreated={handlePoolCreated}
+                      />
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-4">💧</div>
+                        <h3 className="text-xl font-bold mb-2">No Token Selected</h3>
+                        <p className="text-gray-400">
+                          Please select a token above to create DEX pools
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {activeTab === 'lock' && (
+                  <div>
+                    {selectedTokenAddress ? (
+                      <LiquidityManager 
+                        tokenAddress={selectedTokenAddress}
+                        tokenSymbol={selectedTokenSymbol}
+                        onLiquidityAdded={handleLiquidityAdded}
+                      />
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-4">🔒</div>
+                        <h3 className="text-xl font-bold mb-2">No Token Selected</h3>
+                        <p className="text-gray-400">
+                          Please select a token above to lock tokens for trust building
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Right Column - Information and Stats */}

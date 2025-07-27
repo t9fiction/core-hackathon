@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Address } from 'viem';
+import { Address, formatEther } from 'viem';
 import { useChainId, useReadContract } from 'wagmi';
 import { CONTRACT_ADDRESSES as ADDRESSES } from "../../lib/contracts/addresses"
 import { PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
@@ -139,19 +139,46 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
     setLastUpdated(new Date());
   }, [tokenAddress, poolInfo500, poolInfo3000, poolInfo10000, tokenStats, isAuthorized, loading, WETH_ADDRESS]);
 
-  const formatCurrency = (value: string, symbol: string = '$') => {
-    const num = parseFloat(value || '0');
-    if (num === 0) return `${symbol}0`;
-    if (num < 0.001) return `< ${symbol}0.001`;
+  const formatCurrency = (value: string | bigint, symbol: string = '$') => {
+    let num: number;
+    if (typeof value === 'bigint') {
+      num = parseFloat(formatEther(value));
+    } else {
+      // Try to parse as wei first, then as normal number
+      try {
+        const bigIntValue = BigInt(value || '0');
+        num = parseFloat(formatEther(bigIntValue));
+      } catch {
+        num = parseFloat(value || '0');
+      }
+    }
+    
+    if (num === 0) return `${symbol}0.00`;
+    if (num < 0.000001) return `< ${symbol}0.000001`;
+    if (num < 0.01) return `${symbol}${num.toFixed(6)}`;
     if (num < 1) return `${symbol}${num.toFixed(4)}`;
     if (num < 1000) return `${symbol}${num.toFixed(2)}`;
     if (num < 1000000) return `${symbol}${(num / 1000).toFixed(1)}K`;
-    return `${symbol}${(num / 1000000).toFixed(1)}M`;
+    if (num < 1000000000) return `${symbol}${(num / 1000000).toFixed(1)}M`;
+    return `${symbol}${(num / 1000000000).toFixed(1)}B`;
   };
 
-  const formatTokenAmount = (value: string) => {
-    const num = parseFloat(value || '0');
-    if (num === 0) return '0';
+  const formatTokenAmount = (value: string | bigint) => {
+    let num: number;
+    if (typeof value === 'bigint') {
+      num = parseFloat(formatEther(value));
+    } else {
+      // Try to parse as wei first, then as normal number
+      try {
+        const bigIntValue = BigInt(value || '0');
+        num = parseFloat(formatEther(bigIntValue));
+      } catch {
+        num = parseFloat(value || '0');
+      }
+    }
+    
+    if (num === 0) return '0.00';
+    if (num < 1) return num.toFixed(4);
     if (num < 1000) return num.toFixed(2);
     if (num < 1000000) return `${(num / 1000).toFixed(1)}K`;
     if (num < 1000000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -173,8 +200,16 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
         <h4 className="text-lg font-semibold text-white mb-4">
           💧 Pool Information
         </h4>
-        <div className="text-center text-gray-400 py-8">
-          Select a token to view pool information
+        <div className="text-center py-12">
+          <div className="mb-4">
+            <svg className="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-white mb-2">No Token Selected</h3>
+          <p className="text-gray-400 text-sm">
+            Please select a token to view its pool information and trading statistics.
+          </p>
         </div>
       </div>
     );
@@ -250,30 +285,49 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
         <div className="space-y-4">
           {/* Token Stats */}
           {poolData.tokenStats && (
-            <div className="bg-gray-600 rounded p-4">
-              <h5 className="text-white font-medium mb-3">Token Statistics</h5>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-gray-300 text-sm">Price</div>
-                  <div className="text-white font-bold">
+            <div className="bg-gradient-to-r from-gray-600/80 to-gray-600/60 backdrop-blur-sm rounded-lg p-6 border border-gray-500/30">
+              <div className="flex items-center mb-4">
+                <div className="bg-blue-500/20 p-2 rounded-lg mr-3">
+                  <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h5 className="text-white font-semibold text-lg">Token Statistics</h5>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-black/20 rounded-lg p-4 border border-gray-500/20">
+                  <div className="text-gray-300 text-sm mb-1 flex items-center">
+                    <span className="text-green-400 mr-2">💰</span>
+                    Token Price
+                  </div>
+                  <div className="text-white font-bold text-lg">
                     {formatCurrency(poolData.tokenStats.price)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-gray-300 text-sm">Market Cap</div>
-                  <div className="text-white font-bold">
+                <div className="bg-black/20 rounded-lg p-4 border border-gray-500/20">
+                  <div className="text-gray-300 text-sm mb-1 flex items-center">
+                    <span className="text-purple-400 mr-2">📊</span>
+                    Market Cap
+                  </div>
+                  <div className="text-white font-bold text-lg">
                     {formatCurrency(poolData.tokenStats.marketCap)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-gray-300 text-sm">24h Volume</div>
-                  <div className="text-white font-bold">
+                <div className="bg-black/20 rounded-lg p-4 border border-gray-500/20">
+                  <div className="text-gray-300 text-sm mb-1 flex items-center">
+                    <span className="text-blue-400 mr-2">📈</span>
+                    24h Volume
+                  </div>
+                  <div className="text-white font-bold text-lg">
                     {formatCurrency(poolData.tokenStats.volume24h)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-gray-300 text-sm">Total Liquidity</div>
-                  <div className="text-white font-bold">
+                <div className="bg-black/20 rounded-lg p-4 border border-gray-500/20">
+                  <div className="text-gray-300 text-sm mb-1 flex items-center">
+                    <span className="text-cyan-400 mr-2">💧</span>
+                    Total Liquidity
+                  </div>
+                  <div className="text-white font-bold text-lg">
                     {formatCurrency(poolData.tokenStats.liquidity)}
                   </div>
                 </div>
@@ -309,11 +363,19 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
               ))}
             </div>
           ) : (
-            <div className="bg-gray-600 rounded p-4 text-center">
-              <div className="text-gray-300 mb-2">No Active Pools</div>
-              <div className="text-gray-400 text-sm">
-                Create a DEX pool to enable trading for this token
+            <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-lg p-6 text-center">
+              <div className="mb-3">
+                <svg className="mx-auto h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
               </div>
+              <h4 className="text-yellow-400 font-medium mb-2">No Trading Pools Available</h4>
+              <p className="text-gray-300 text-sm mb-4">
+                This token doesn't have any active liquidity pools yet. Trading is not currently enabled.
+              </p>
+              <p className="text-gray-400 text-xs">
+                💡 Create a DEX pool to enable decentralized trading for this token
+              </p>
             </div>
           )}
 
@@ -335,8 +397,16 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
           )}
         </div>
       ) : (
-        <div className="text-center text-gray-400 py-8">
-          No pool data available
+        <div className="text-center py-12">
+          <div className="mb-4">
+            <svg className="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-white mb-2">Unable to Load Pool Data</h3>
+          <p className="text-gray-400 text-sm">
+            We couldn't retrieve pool information for this token. Please try again or check if the token address is valid.
+          </p>
         </div>
       )}
     </div>

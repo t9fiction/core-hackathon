@@ -125,7 +125,7 @@ const DEXPage = () => {
           address: tokenAddress,
           name: name as string,
           symbol: symbol as string,
-          totalSupply: totalSupply.toString(),
+          totalSupply: formatEther(totalSupply),
         })
       }
     }, [name, symbol, totalSupply, onDataFetched, tokenAddress]);
@@ -136,7 +136,7 @@ const DEXPage = () => {
   const tabs = [
     { id: 'create' as const, label: 'Create Pool', icon: '🏗️' },
     { id: 'info' as const, label: 'Pool Info', icon: '📊' },
-    { id: 'liquidity' as const, label: 'Manage Liquidity', icon: '💧' }
+    { id: 'liquidity' as const, label: 'Lock Tokens', icon: '🔒' }
   ];
 
   const renderTabContent = () => {
@@ -215,7 +215,7 @@ const DEXPage = () => {
                               {token.symbol || 'N/A'}
                             </td>
                             <td className="py-4 px-4 text-gray-300 text-sm">
-                              {token.totalSupply ? formatEther(token.totalSupply) : 'N/A'}
+                              {token.totalSupply ? token.totalSupply : 'N/A'}
                             </td>
                             <td className="py-4 px-4 text-gray-400 font-mono text-xs">
                               {token.address.slice(0, 8)}...{token.address.slice(-6)}
@@ -278,9 +278,9 @@ const DEXPage = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Manage Liquidity</h2>
+              <h2 className="text-3xl font-bold text-white mb-4">Lock Tokens for Trust</h2>
               <p className="text-gray-300 max-w-2xl mx-auto">
-                Add or remove liquidity from existing pools. Lock liquidity to build trust and stabilize your token&apos;s trading environment.
+                Lock your tokens and ETH in the factory contract for a specified period. This anti-rug pull mechanism builds community trust by preventing immediate token dumps.
               </p>
             </div>
             
@@ -332,7 +332,7 @@ const DEXPage = () => {
                               {token.symbol || 'N/A'}
                             </td>
                             <td className="py-4 px-4 text-gray-300 text-sm">
-                              {token.totalSupply ? formatEther(token.totalSupply) : 'N/A'}
+                              {token.totalSupply ? token.totalSupply : 'N/A'}
                             </td>
                             <td className="py-4 px-4 text-gray-400 font-mono text-xs">
                               {token.address.slice(0, 8)}...{token.address.slice(-6)}
@@ -379,7 +379,7 @@ const DEXPage = () => {
                 <div className="text-4xl mb-4">🔐</div>
                 <h4 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h4>
                 <p className="text-gray-300">
-                  Please connect your wallet to view your tokens and manage liquidity.
+                  Please connect your wallet to view your tokens and lock them for trust building.
                 </p>
               </div>
             )}
@@ -460,9 +460,9 @@ const DEXPage = () => {
             
             <div className="bg-gray-800/30 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
               <div className="text-3xl mb-4">🔒</div>
-              <h3 className="text-xl font-bold text-white mb-2">Secure Liquidity</h3>
+              <h3 className="text-xl font-bold text-white mb-2">Anti-Rug Pull Protection</h3>
               <p className="text-gray-300">
-                Lock your liquidity with customizable time periods to build community trust
+                Lock tokens and ETH in the factory contract to prevent immediate dumps and build community trust
               </p>
             </div>
             
@@ -480,7 +480,7 @@ const DEXPage = () => {
             <div className="bg-gradient-to-r from-cyan-600/20 to-purple-600/20 backdrop-blur-md rounded-2xl p-8 border border-cyan-500/30">
               <h3 className="text-2xl font-bold text-white mb-4">Ready to Launch Your Token?</h3>
               <p className="text-gray-300 mb-6">
-                Create your token first, then return here to set up trading pools and manage liquidity
+                Create your token first, then return here to set up trading pools and lock tokens for trust building
               </p>
               <Link
                 href="/token"

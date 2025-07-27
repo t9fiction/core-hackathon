@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
-import { parseEther, parseUnits, Address } from 'viem';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useReadContract } from 'wagmi';
+import { parseEther, parseUnits, Address, formatUnits } from 'viem';
+import { PUMPFUN_FACTORY_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 
 interface LiquidityManagerProps {
@@ -29,6 +29,15 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
   const contractAddresses = getContractAddresses(chainId);
   const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  // Fetch available token balance from factory pool
+  const { data: availableTokenBalance, refetch: refetchBalance } = useReadContract({
+    address: contractAddresses.PUMPFUN_FACTORY,
+    abi: PUMPFUN_FACTORY_ABI,
+    functionName: 'tokenLiquidityPoolBalance',
+    args: tokenAddress ? [tokenAddress] : undefined,
+    enabled: !!tokenAddress,
+  });
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -62,6 +71,15 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
       return;
     }
 
+    // Check if requested amount exceeds available balance
+    if (availableTokenBalance) {
+      const availableBalance = parseFloat(formatUnits(availableTokenBalance as bigint, 18));
+      if (tokenAmount > availableBalance) {
+        setError(`Requested amount (${tokenAmount}) exceeds available balance (${availableBalance.toFixed(2)})`);
+        return;
+      }
+    }
+
     setIsAdding(true);
     setError(null);
 
@@ -69,25 +87,14 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
       const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
       const ethAmountWei = parseEther(formData.ethAmount);
 
-      console.log('Adding liquidity:', {
+      console.log('Locking tokens:', {
         tokenAddress,
         tokenAmount: tokenAmountWei.toString(),
         ethAmount: ethAmountWei.toString(),
         contractAddress: contractAddresses.PUMPFUN_FACTORY
       });
 
-      // First approve the factory to spend tokens
-      await writeContract({
-        address: tokenAddress,
-        abi: PUMPFUN_TOKEN_ABI,
-        functionName: 'approve',
-        args: [contractAddresses.PUMPFUN_FACTORY, tokenAmountWei],
-      });
-
-      // Wait a bit for the approval to be mined
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Add liquidity via factory
+      // Lock tokens and ETH via factory (no approval needed - tokens come from factory pool)
       await writeContract({
         address: contractAddresses.PUMPFUN_FACTORY,
         abi: PUMPFUN_FACTORY_ABI,
@@ -97,31 +104,47 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
       });
 
     } catch (error: any) {
-      console.error('Error adding liquidity:', error);
-      setError(error?.message || error?.reason || 'Failed to add liquidity');
+      console.error('Error locking tokens:', error);
+      setError(error?.message || error?.reason || 'Failed to lock tokens');
     } finally {
       setIsAdding(false);
     }
   };
 
-  // Handle successful liquidity addition
+  // Handle successful token locking
   useEffect(() => {
     if (isSuccess && hash && onLiquidityAdded) {
       onLiquidityAdded(hash);
-      // Reset form
+      // Reset form and refresh balance
       setFormData({ tokenAmount: '', ethAmount: '' });
+      refetchBalance();
     }
-  }, [isSuccess, hash, onLiquidityAdded]);
+  }, [isSuccess, hash, onLiquidityAdded, refetchBalance]);
 
   const ratio = calculateRatio();
 
   return (
     <div className="bg-gray-700 rounded-lg p-6">
       <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
-        💧 Add Liquidity
+        🔒 Lock Tokens for Trust Building
       </h4>
 
       <div className="space-y-4">
+        {/* Available Balance Display */}
+        {availableTokenBalance && (
+          <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg">
+            <div className="text-blue-200 text-sm">
+              <div className="font-medium text-blue-300 mb-1">📊 Available for Locking:</div>
+              <div className="text-lg font-semibold">
+                {parseFloat(formatUnits(availableTokenBalance as bigint, 18)).toFixed(2)} {tokenSymbol}
+              </div>
+              <div className="text-xs text-blue-300 mt-1">
+                (From factory's allocated pool balance)
+              </div>
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-gray-300 text-sm mb-1">
             Token Amount ({tokenSymbol})
@@ -131,8 +154,14 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
             value={formData.tokenAmount}
             onChange={(e) => handleInputChange('tokenAmount', e.target.value)}
             placeholder="10000"
+            max={availableTokenBalance ? formatUnits(availableTokenBalance as bigint, 18) : undefined}
             className="w-full p-3 rounded bg-gray-600 border border-gray-500 text-white focus:border-blue-500 focus:outline-none"
           />
+          {availableTokenBalance && (
+            <div className="text-xs text-gray-400 mt-1">
+              Max: {parseFloat(formatUnits(availableTokenBalance as bigint, 18)).toFixed(2)} {tokenSymbol}
+            </div>
+          )}
         </div>
 
         <div>
@@ -162,13 +191,15 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
         )}
 
         {/* Important Notice */}
-        <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded">
-          <div className="text-blue-300 text-sm">
-            <div className="font-medium mb-1">📝 Important:</div>
+        <div className="p-4 bg-gradient-to-r from-orange-900/30 to-yellow-900/30 border border-orange-500/50 rounded-lg">
+          <div className="text-orange-200 text-sm">
+            <div className="font-medium mb-2 text-orange-300">🛡️ Anti-Rug Pull Mechanism:</div>
             <ul className="list-disc list-inside space-y-1 text-xs">
-              <li>Liquidity will be automatically locked for the token&apos;s lock period</li>
-              <li>You will receive LP tokens representing your share</li>
-              <li>Both tokens will be deposited at the current market ratio</li>
+              <li><strong>This is NOT adding liquidity to Uniswap</strong></li>
+              <li>Tokens will be locked in the factory contract for the specified period</li>
+              <li>This builds community trust by preventing immediate token dumps</li>
+              <li>Locked tokens cannot be accessed until the lock period expires</li>
+              <li>ETH sent will be held alongside the locked tokens</li>
             </ul>
           </div>
         </div>
@@ -220,16 +251,17 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              {isAdding ? 'Approving...' : isPending ? 'Confirming...' : 'Adding Liquidity...'}
+              {isAdding ? 'Processing...' : isPending ? 'Confirming...' : 'Locking Tokens...'}
             </span>
           ) : (
-            'Add & Lock Liquidity'
+            'Lock Tokens & ETH'
           )}
         </button>
 
         {isSuccess && (
           <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg">
-            <p className="text-green-300 text-sm">✅ Liquidity added successfully!</p>
+            <p className="text-green-300 text-sm">✅ Tokens and ETH locked successfully!</p>
+            <p className="text-green-200 text-xs mt-1">Your tokens are now locked to build community trust</p>
             {hash && (
               <p className="text-xs text-gray-400 mt-1 break-all">
                 Transaction: {hash}
