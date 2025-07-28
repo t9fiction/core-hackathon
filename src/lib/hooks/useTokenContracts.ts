@@ -69,6 +69,13 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
     functionName: "proposalCount",
   });
 
+  // Reset isCreatingProposal when transaction is confirmed or failed
+  useEffect(() => {
+    if (isConfirmed || error) {
+      setIsCreatingProposal(false);
+    }
+  }, [isConfirmed, error]);
+
   // These hooks need to be created in the component that uses them
   // We'll provide helper functions to create the hook configurations
   const getProposalConfig = (proposalId: number) => ({
@@ -98,7 +105,7 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
     try {
       const amountsBigInt = amounts.map((amount) => parseEther(amount));
 
-      await writeContract({
+      const txHash = await writeContract({
         address: contractAddresses.PUMPFUN_GOVERNANCE,
         abi: PUMPFUN_GOVERNANCE_ABI,
         functionName: "createProposal",
@@ -111,8 +118,11 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
           amountsBigInt,
         ],
       });
-    } finally {
+      
+      return txHash;
+    } catch (error) {
       setIsCreatingProposal(false);
+      throw error;
     }
   };
 

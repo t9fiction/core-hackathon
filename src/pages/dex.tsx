@@ -317,24 +317,36 @@ const DEXPage = () => {
             </p>
           </div>
 
-          {/* Tab Navigation */}
+          {/* Switch-style Tab Navigation */}
           <div className="flex justify-center mb-8">
-            <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-2 border border-gray-700">
-              <div className="flex space-x-1">
+            <div className="relative bg-gray-800/50 backdrop-blur-md rounded-2xl p-1 border border-gray-700 shadow-xl">
+              <div className="flex relative">
+                {/* Active tab background slider */}
+                <div 
+                  className="absolute top-1 bottom-1 bg-gradient-to-r from-cyan-600 to-purple-600 rounded-xl transition-all duration-300 ease-in-out shadow-lg shadow-cyan-500/25"
+                  style={{
+                    width: `${100 / tabs.length}%`,
+                    left: `${(tabs.findIndex(tab => tab.id === activeTab) * 100) / tabs.length}%`
+                  }}
+                />
+                
+                {/* Tab buttons */}
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`
-                      flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-300
+                      relative z-10 flex items-center justify-center space-x-2 px-8 py-4 font-semibold transition-all duration-300
+                      rounded-xl min-w-[160px] flex-1
                       ${activeTab === tab.id
-                        ? 'bg-gradient-to-r from-cyan-600 to-purple-600 text-white shadow-lg shadow-cyan-500/25'
-                        : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+                        ? 'text-white'
+                        : 'text-gray-300 hover:text-white'
                       }
                     `}
+                    style={{ width: `${100 / tabs.length}%` }}
                   >
                     <span className="text-lg">{tab.icon}</span>
-                    <span>{tab.label}</span>
+                    <span className="whitespace-nowrap">{tab.label}</span>
                   </button>
                 ))}
               </div>
