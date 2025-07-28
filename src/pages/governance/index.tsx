@@ -4,7 +4,7 @@ import { Address, formatEther } from 'viem';
 import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI, PUMPFUN_GOVERNANCE_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { useTokenGovernance } from '../../lib/hooks/useTokenContracts';
-import Swal from 'sweetalert2';
+import { showLoadingAlert, showSuccessAlert, showErrorAlert, updateAlert } from '../../lib/swal-config';
 
 interface TokenInfo {
   address: string;
@@ -239,27 +239,13 @@ const Governance = () => {
   // Handle proposal creation
   const handleCreateProposal = async () => {
     if (!selectedToken || !proposalDescription.trim()) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Missing Information',
-        text: 'Please select a token and enter a description',
-      });
+      showErrorAlert('Missing Information', 'Please select a token and enter a description');
       return;
     }
 
     try {
       // Show loading alert
-      Swal.fire({
-        title: 'Creating Proposal',
-        text: 'Please confirm the transaction in your wallet...',
-        icon: 'info',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
+      showLoadingAlert('Creating Proposal', 'Please confirm the transaction in your wallet...');
 
       // Create proposal and get transaction hash
       await governance.createProposal(
@@ -269,7 +255,7 @@ const Governance = () => {
       );
 
       // Update loading message
-      Swal.update({
+      updateAlert({
         title: 'Transaction Submitted',
         text: 'Waiting for transaction confirmation...',
         icon: 'info',
@@ -277,11 +263,7 @@ const Governance = () => {
 
     } catch (error) {
       console.error('Error creating proposal:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Transaction Failed',
-        text: 'Failed to create proposal: ' + (error as Error).message,
-      });
+      showErrorAlert('Transaction Failed', 'Failed to create proposal: ' + (error as Error).message);
     }
   };
 
@@ -293,13 +275,7 @@ const Governance = () => {
       setProposedValue('');
 
       // Show success message and refresh
-      Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: 'Proposal created successfully!',
-        timer: 2000,
-        showConfirmButton: false,
-      }).then(() => {
+      showSuccessAlert('Success!', 'Proposal created successfully!', 2000).then(() => {
         window.location.reload();
       });
     }
@@ -309,34 +285,14 @@ const Governance = () => {
   const handleVote = async (proposalId: number, support: boolean) => {
     try {
       // Show loading alert
-      Swal.fire({
-        title: 'Submitting Vote',
-        text: 'Please confirm the transaction in your wallet...',
-        icon: 'info',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
+      showLoadingAlert('Submitting Vote', 'Please confirm the transaction in your wallet...');
 
       await governance.vote(proposalId, support);
       
-      Swal.fire({
-        icon: 'success',
-        title: 'Vote Submitted!',
-        text: `Your vote ${support ? 'for' : 'against'} proposal #${proposalId} has been submitted!`,
-        timer: 3000,
-        showConfirmButton: false,
-      });
+      showSuccessAlert('Vote Submitted!', `Your vote ${support ? 'for' : 'against'} proposal #${proposalId} has been submitted!`);
     } catch (error) {
       console.error('Error voting:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Vote Failed',
-        text: 'Failed to vote: ' + (error as Error).message,
-      });
+      showErrorAlert('Vote Failed', 'Failed to vote: ' + (error as Error).message);
     }
   };
 
