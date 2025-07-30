@@ -117,25 +117,25 @@ const Token = () => {
   };
 
   // Callback functions for component interactions
-  const handleTokenDeploymentSuccess = (hash: string) => {
+  const handleTokenDeploymentSuccess = useCallback((hash: string) => {
     console.log('Token deployed successfully:', hash);
     // Refresh pool information
     setRefreshTrigger(prev => prev + 1);
-  };
+  }, []);
 
-  const handlePoolCreated = (poolInfo: any) => {
+  const handlePoolCreated = useCallback((poolInfo: any) => {
     console.log('Pool created:', poolInfo);
     // Refresh pool information
     setRefreshTrigger(prev => prev + 1);
-  };
+  }, []);
 
-  const handleLiquidityAdded = (txHash: string) => {
+  const handleLiquidityAdded = useCallback((txHash: string) => {
     console.log('Liquidity added:', txHash);
     // Refresh pool information
     setRefreshTrigger(prev => prev + 1);
-  };
+  }, []);
 
-  const handleTokenSelection = () => {
+  const handleTokenSelection = useCallback(() => {
     if (tokenAddressInput) {
       try {
         setSelectedTokenAddress(tokenAddressInput as Address);
@@ -150,7 +150,7 @@ const Token = () => {
         alert('Invalid token address format');
       }
     }
-  };
+  }, [tokenAddressInput]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-8">
