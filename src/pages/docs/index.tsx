@@ -5,7 +5,7 @@ const Docs = () => {
     <div className='px-8 py-6 space-y-8'>
       <section className='text-center'>
         <h1 className='text-4xl font-bold mb-4'>Documentation</h1>
-        <p className='text-lg text-gray-300'>Welcome to the PumpFun Documentation. Here you'll find comprehensive guides and documentation to help you start working with PumpFun as quickly as possible.</p>
+        <p className='text-lg text-gray-300'>Welcome to the PumpFun Documentation. Here you&apos;ll find comprehensive guides and documentation to help you start working with PumpFun as quickly as possible.</p>
       </section>
 
       <section>

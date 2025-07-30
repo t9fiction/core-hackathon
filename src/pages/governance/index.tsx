@@ -392,7 +392,7 @@ const Governance = () => {
               <div className="text-4xl mb-4">🪙</div>
               <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
               <p className="text-gray-400 mb-4">
-                You haven't deployed any tokens yet. Deploy a token first to create governance proposals.
+                You haven&apos;t deployed any tokens yet. Deploy a token first to create governance proposals.
               </p>
             </div>
           )}

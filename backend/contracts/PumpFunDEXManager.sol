@@ -25,10 +25,15 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     error PumpFunDEXManager__DeadlineExpired();
     error PumpFunDEXManager__UnauthorizedToken();
     error PumpFunDEXManager__LiquidityLocked();
+    error PumpFunDEXManager__InvalidFactoryAddress();
+    error PumpFunDEXManager__InsufficientBalance(uint256 available, uint256 requested);
+    error PumpFunDEXManager__InvalidPathLength();
+    error PumpFunDEXManager__PathFeesLengthMismatch();
+    error PumpFunDEXManager__TransferFailed();
 
     // Modifiers
     modifier onlyFactory() {
-        require(msg.sender == factory, "Caller is not the factory");
+        if (msg.sender != factory) revert PumpFunDEXManager__InvalidFactoryAddress();
         _;
     }
 
@@ -81,7 +86,6 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     address public immutable WETH;
     address public factory;
 
-    // Updated mapping to store pool info by token pair and fee
     mapping(address => mapping(address => mapping(uint24 => PoolInfo))) public tokenPools;
     mapping(address => PriceInfo) public tokenPrices;
     mapping(address => bool) public authorizedTokens;
@@ -110,7 +114,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @dev Set the factory contract address (only owner)
      */
     function setFactory(address _factory) external onlyOwner {
-        require(_factory != address(0), "Invalid factory address");
+        if (_factory == address(0)) revert PumpFunDEXManager__InvalidFactoryAddress();
         factory = _factory;
     }
 
@@ -135,23 +139,18 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      */
     function createLiquidityPoolWithETH(address token, uint24 fee, uint256 tokenAmount) external payable nonReentrant {
         if (!authorizedTokens[token]) revert PumpFunDEXManager__UnauthorizedToken();
-        if (msg.value == 0) revert PumpFunDEXManager__InvalidAmount();
+        if (msg.value < MIN_LIQUIDITY_ETH) revert PumpFunDEXManager__InvalidAmount();
         if (tokenAmount == 0) revert PumpFunDEXManager__InvalidAmount();
 
-        // Check if pool for this token pair and fee already exists
         address token0 = token < WETH ? token : WETH;
         address token1 = token < WETH ? WETH : token;
         if (tokenPools[token0][token1][fee].isActive) revert PumpFunDEXManager__PairAlreadyExists();
 
         uint256 ethAmount = msg.value;
 
-        // Convert ETH to WETH
         IWETH(WETH).deposit{value: ethAmount}();
-
-        // Transfer tokens from sender
         IERC20(token).transferFrom(msg.sender, address(this), tokenAmount);
 
-        // Create the liquidity pool with proper token-amount mapping
         _createLiquidityPoolWithProperMapping(token, WETH, fee, tokenAmount, ethAmount, token);
     }
 
@@ -169,16 +168,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         if (!authorizedTokens[tokenA] && !authorizedTokens[tokenB]) revert PumpFunDEXManager__UnauthorizedToken();
         if (amountA == 0 || amountB == 0) revert PumpFunDEXManager__InvalidAmount();
 
-        // Check if pool for this token pair and fee already exists
         address token0 = tokenA < tokenB ? tokenA : tokenB;
         address token1 = tokenA < tokenB ? tokenB : tokenA;
         if (tokenPools[token0][token1][fee].isActive) revert PumpFunDEXManager__PairAlreadyExists();
 
-        // Transfer tokens from sender
         IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
         IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
 
-        // Create the liquidity pool with proper token-amount mapping
         address trackingToken = authorizedTokens[tokenA] ? tokenA : tokenB;
         _createLiquidityPoolWithProperMapping(tokenA, tokenB, fee, amountA, amountB, trackingToken);
     }
@@ -194,37 +190,28 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint256 amountB,
         address trackingToken
     ) internal {
-        // Determine Uniswap V3 token ordering
         address token0 = tokenA < tokenB ? tokenA : tokenB;
         address token1 = tokenA < tokenB ? tokenB : tokenA;
         
-        // Map amounts to the correctly ordered tokens
         uint256 amount0Desired;
         uint256 amount1Desired;
         
         if (tokenA < tokenB) {
-            // tokenA is token0, tokenB is token1
             amount0Desired = amountA;
             amount1Desired = amountB;
         } else {
-            // tokenB is token0, tokenA is token1
             amount0Desired = amountB;
             amount1Desired = amountA;
         }
 
-        // Check if pool already exists
         address poolAddress = uniswapV3Factory.getPool(token0, token1, fee);
 
-        // Create pool if it doesn't exist
         if (poolAddress == address(0)) {
             poolAddress = uniswapV3Factory.createPool(token0, token1, fee);
-
-            // Calculate initial price based on token amounts
             uint160 sqrtPriceX96 = _encodeSqrtRatioX96(amount1Desired, amount0Desired);
             IUniswapV3Pool(poolAddress).initialize(sqrtPriceX96);
         }
 
-        // Approve position manager to spend tokens
         IERC20(token0).approve(address(positionManager), amount0Desired);
         IERC20(token1).approve(address(positionManager), amount1Desired);
 
@@ -234,20 +221,15 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint256 amount1;
 
         {
-            // Get pool state
             IUniswapV3Pool pool = IUniswapV3Pool(poolAddress);
-
-            // Retrieve pool state
             uint160 sqrtPriceX96;
             int24 tick;
             (sqrtPriceX96, tick,,,,,) = pool.slot0();
 
-            // Calculate tick spacing
             int24 tickSpacing = _getTickSpacing(fee);
             int24 tickLower = ((tick - tickSpacing * 2) / tickSpacing) * tickSpacing;
             int24 tickUpper = ((tick + tickSpacing * 2) / tickSpacing) * tickSpacing;
 
-            // Mint new position using calculated ticks
             INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
                 token0: token0,
                 token1: token1,
@@ -265,7 +247,6 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             (tokenId, liquidity, amount0, amount1) = positionManager.mint(params);
         }
 
-        // Store pool information using the token pair and fee
         tokenPools[token0][token1][fee] = PoolInfo({
             tokenId: tokenId,
             liquidity: liquidity,
@@ -282,15 +263,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @dev Internal function to update token price
      */
     function _updateTokenPrice(address token) internal {
-        // Since tokenPools is now a nested mapping, we don't check isActive here
-        // Simulate a simple price update logic here
-        uint256 price = 1000 * 1e18; // Placeholder logic
+        uint256 price = 1000 * 1e18; // TODO: Implement actual price fetching from pool
         uint256 marketCap = price * IERC20(token).totalSupply();
 
         tokenPrices[token] = PriceInfo({
             price: price,
             lastUpdated: block.timestamp,
-            volume24h: tokenPrices[token].volume24h, // Preserve existing volume
+            volume24h: tokenPrices[token].volume24h,
             marketCap: marketCap
         });
         emit PriceUpdated(token, price, block.timestamp);
@@ -304,21 +283,17 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         payable
         nonReentrant
     {
-        // Check if pool exists for the token pair and fee
         address orderedToken0 = token0 < token1 ? token0 : token1;
         address orderedToken1 = token0 < token1 ? token1 : token0;
         if (!tokenPools[orderedToken0][orderedToken1][fee].isActive) revert PumpFunDEXManager__PairAlreadyExists();
         if (tokenAmount0 == 0 || tokenAmount1 == 0) revert PumpFunDEXManager__InvalidAmount();
 
-        // Transfer tokens from sender
         IERC20(token0).transferFrom(msg.sender, address(this), tokenAmount0);
         IERC20(token1).transferFrom(msg.sender, address(this), tokenAmount1);
 
-        // Approve position manager
         IERC20(token0).approve(address(positionManager), tokenAmount0);
         IERC20(token1).approve(address(positionManager), tokenAmount1);
 
-        // Increase liquidity on the token position
         PoolInfo storage poolInfo = tokenPools[orderedToken0][orderedToken1][fee];
         INonfungiblePositionManager.IncreaseLiquidityParams memory increaseParams = INonfungiblePositionManager
             .IncreaseLiquidityParams({
@@ -345,9 +320,12 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         nonReentrant
     {
         if (!authorizedTokens[tokenOut]) revert PumpFunDEXManager__UnauthorizedToken();
-        if (msg.value == 0) revert PumpFunDEXManager__InvalidAmount();
+        if (msg.value < MIN_LIQUIDITY_ETH) revert PumpFunDEXManager__InvalidAmount();
 
-        // Get expected output amount using quoter
+        bool isWETHLower = WETH < tokenOut;
+        address token0 = isWETHLower ? WETH : tokenOut;
+        address token1 = isWETHLower ? tokenOut : WETH;
+
         uint256 expectedAmountOut;
         try quoter.quoteExactInputSingle(WETH, tokenOut, fee, msg.value, 0) returns (uint256 quote) {
             expectedAmountOut = quote;
@@ -355,8 +333,10 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             revert PumpFunDEXManager__InsufficientLiquidity();
         }
 
-        // Apply slippage tolerance (5% by default)
         uint256 amountOutMinimum = (expectedAmountOut * (10000 - SLIPPAGE_TOLERANCE)) / 10000;
+
+        IWETH(WETH).deposit{value: msg.value}();
+        IERC20(WETH).approve(address(swapRouter), msg.value);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: WETH,
@@ -366,7 +346,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             deadline: block.timestamp + 300,
             amountIn: msg.value,
             amountOutMinimum: amountOutMinimum,
-            sqrtPriceLimitX96: 0
+            sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
         uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(params);
@@ -386,10 +366,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         nonReentrant
     {
         if (!authorizedTokens[tokenOut]) revert PumpFunDEXManager__UnauthorizedToken();
-        if (msg.value == 0) revert PumpFunDEXManager__InvalidAmount();
-        if (slippageTolerance > 5000) revert PumpFunDEXManager__SlippageExceeded(); // Max 50% slippage
+        if (msg.value < MIN_LIQUIDITY_ETH) revert PumpFunDEXManager__InvalidAmount();
+        if (slippageTolerance > 5000) revert PumpFunDEXManager__SlippageExceeded();
 
-        // Get expected output amount using quoter
+        bool isWETHLower = WETH < tokenOut;
+        address token0 = isWETHLower ? WETH : tokenOut;
+        address token1 = isWETHLower ? tokenOut : WETH;
+
         uint256 expectedAmountOut;
         try quoter.quoteExactInputSingle(WETH, tokenOut, fee, msg.value, 0) returns (uint256 quote) {
             expectedAmountOut = quote;
@@ -397,8 +380,10 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             revert PumpFunDEXManager__InsufficientLiquidity();
         }
 
-        // Apply custom slippage tolerance
         uint256 amountOutMinimum = (expectedAmountOut * (10000 - slippageTolerance)) / 10000;
+
+        IWETH(WETH).deposit{value: msg.value}();
+        IERC20(WETH).approve(address(swapRouter), msg.value);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: WETH,
@@ -408,7 +393,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             deadline: block.timestamp + 300,
             amountIn: msg.value,
             amountOutMinimum: amountOutMinimum,
-            sqrtPriceLimitX96: 0
+            sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
         uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(params);
@@ -429,7 +414,10 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         if (!authorizedTokens[tokenIn]) revert PumpFunDEXManager__UnauthorizedToken();
         if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
 
-        // Get expected output amount using quoter
+        bool isTokenInLower = tokenIn < WETH;
+        address token0 = isTokenInLower ? tokenIn : WETH;
+        address token1 = isTokenInLower ? WETH : tokenIn;
+
         uint256 expectedAmountOut;
         try quoter.quoteExactInputSingle(tokenIn, WETH, fee, amountIn, 0) returns (uint256 quote) {
             expectedAmountOut = quote;
@@ -437,13 +425,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             revert PumpFunDEXManager__InsufficientLiquidity();
         }
 
-        // Apply slippage tolerance (5% by default)
         uint256 amountOutMinimum = (expectedAmountOut * (10000 - SLIPPAGE_TOLERANCE)) / 10000;
 
-        // Transfer tokens from user
-        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+        if (IERC20(tokenIn).balanceOf(address(this)) < amountIn) {
+            revert PumpFunDEXManager__InsufficientBalance(IERC20(tokenIn).balanceOf(address(this)), amountIn);
+        }
 
-        // Approve router to spend tokens
+        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenIn).approve(address(swapRouter), amountIn);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
@@ -454,7 +442,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             deadline: block.timestamp + 300,
             amountIn: amountIn,
             amountOutMinimum: amountOutMinimum,
-            sqrtPriceLimitX96: 0
+            sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
         uint256 amountOut = swapRouter.exactInputSingle(params);
@@ -474,9 +462,12 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     {
         if (!authorizedTokens[tokenIn]) revert PumpFunDEXManager__UnauthorizedToken();
         if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
-        if (slippageTolerance > 5000) revert PumpFunDEXManager__SlippageExceeded(); // Max 50% slippage
+        if (slippageTolerance > 5000) revert PumpFunDEXManager__SlippageExceeded();
 
-        // Get expected output amount using quoter
+        bool isTokenInLower = tokenIn < WETH;
+        address token0 = isTokenInLower ? tokenIn : WETH;
+        address token1 = isTokenInLower ? WETH : tokenIn;
+
         uint256 expectedAmountOut;
         try quoter.quoteExactInputSingle(tokenIn, WETH, fee, amountIn, 0) returns (uint256 quote) {
             expectedAmountOut = quote;
@@ -484,13 +475,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             revert PumpFunDEXManager__InsufficientLiquidity();
         }
 
-        // Apply custom slippage tolerance
         uint256 amountOutMinimum = (expectedAmountOut * (10000 - slippageTolerance)) / 10000;
 
-        // Transfer tokens from user
-        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+        if (IERC20(tokenIn).balanceOf(address(this)) < amountIn) {
+            revert PumpFunDEXManager__InsufficientBalance(IERC20(tokenIn).balanceOf(address(this)), amountIn);
+        }
 
-        // Approve router to spend tokens
+        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenIn).approve(address(swapRouter), amountIn);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
@@ -501,7 +492,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             deadline: block.timestamp + 300,
             amountIn: amountIn,
             amountOutMinimum: amountOutMinimum,
-            sqrtPriceLimitX96: 0
+            sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
         uint256 amountOut = swapRouter.exactInputSingle(params);
@@ -529,8 +520,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         returns (uint256 price, uint256 marketCap, uint256 volume24h, uint256 liquidity, bool isActive)
     {
         PriceInfo memory priceInfo = tokenPrices[token];
-        // Since tokenPools is now nested, we can't directly check isActive for a single token
-        // Return priceInfo data and zero liquidity as a fallback
+        // TODO: Implement actual liquidity calculation by iterating through tokenPools
         return (priceInfo.price, priceInfo.marketCap, priceInfo.volume24h, 0, false);
     }
 
@@ -559,10 +549,9 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      */
     function withdrawETH() external onlyOwner {
         uint256 balance = address(this).balance;
-        if (balance > 0) {
-            (bool success,) = payable(owner()).call{value: balance}("");
-            require(success, "ETH withdrawal failed");
-        }
+        if (balance == 0) revert PumpFunDEXManager__InvalidAmount();
+        (bool success,) = payable(owner()).call{value: balance}("");
+        if (!success) revert PumpFunDEXManager__TransferFailed();
     }
 
     /**
@@ -576,7 +565,9 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @dev Get pool address for a token pair
      */
     function getPoolAddress(address token0, address token1, uint24 fee) external view returns (address) {
-        return uniswapV3Factory.getPool(token0, token1, fee);
+        address orderedToken0 = token0 < token1 ? token0 : token1;
+        address orderedToken1 = token0 < token1 ? token1 : token0;
+        return uniswapV3Factory.getPool(orderedToken0, orderedToken1, fee);
     }
 
     /**
@@ -613,7 +604,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         if (fee == 10000) return 200; // 1%
         return 60; // Default to 0.3% spacing
     }
-    
+
     /**
      * @dev Get expected output amounts for a swap
      * @param amountIn Input amount
@@ -626,27 +617,36 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         view 
         returns (uint256[] memory amounts) 
     {
-        require(path.length >= 2, "Invalid path length");
-        require(path.length - 1 == fees.length, "Path and fees length mismatch");
+        if (path.length < 2) revert PumpFunDEXManager__InvalidPathLength();
+        if (path.length - 1 != fees.length) revert PumpFunDEXManager__PathFeesLengthMismatch();
         
+        for (uint256 i = 0; i < path.length; i++) {
+            if (!authorizedTokens[path[i]] && path[i] != WETH) {
+                revert PumpFunDEXManager__UnauthorizedToken();
+            }
+        }
+
         amounts = new uint256[](path.length);
         amounts[0] = amountIn;
 
         for (uint256 i = 0; i < path.length - 1; i++) {
-            // Check if pool exists for this pair and fee
-            address poolAddress = uniswapV3Factory.getPool(path[i], path[i + 1], fees[i]);
+            address tokenIn = path[i];
+            address tokenOut = path[i + 1];
+            bool isTokenInLower = tokenIn < tokenOut;
+            address orderedToken0 = isTokenInLower ? tokenIn : tokenOut;
+            address orderedToken1 = isTokenInLower ? tokenOut : tokenIn;
+
+            address poolAddress = uniswapV3Factory.getPool(orderedToken0, orderedToken1, fees[i]);
             if (poolAddress == address(0)) {
-                // Pool doesn't exist, return 0 for remaining amounts
                 for (uint256 j = i + 1; j < path.length; j++) {
                     amounts[j] = 0;
                 }
                 return amounts;
             }
             
-            try quoter.quoteExactInputSingle(path[i], path[i + 1], fees[i], amounts[i], 0) returns (uint256 amountOut) {
+            try quoter.quoteExactInputSingle(tokenIn, tokenOut, fees[i], amounts[i], 0) returns (uint256 amountOut) {
                 amounts[i + 1] = amountOut;
             } catch {
-                // If quote fails, return 0 for remaining amounts
                 for (uint256 j = i + 1; j < path.length; j++) {
                     amounts[j] = 0;
                 }
@@ -654,7 +654,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             }
         }
     }
-    
+
     /**
      * @dev Get expected output amount for a simple swap (single hop)
      * @param tokenIn Input token address
@@ -668,15 +668,18 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         view 
         returns (uint256 amountOut) 
     {
-        require(tokenIn != address(0) && tokenOut != address(0), "Invalid token addresses");
-        require(amountIn > 0, "Invalid amount");
-        
-        // Check if pool exists
-        address poolAddress = uniswapV3Factory.getPool(tokenIn, tokenOut, fee);
+        if (tokenIn == address(0) || tokenOut == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
+        if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
+
+        bool isTokenInLower = tokenIn < tokenOut;
+        address orderedToken0 = isTokenInLower ? tokenIn : tokenOut;
+        address orderedToken1 = isTokenInLower ? tokenOut : tokenIn;
+
+        address poolAddress = uniswapV3Factory.getPool(orderedToken0, orderedToken1, fee);
         if (poolAddress == address(0)) {
             return 0;
         }
-        
+
         try quoter.quoteExactInputSingle(tokenIn, tokenOut, fee, amountIn, 0) returns (uint256 quote) {
             return quote;
         } catch {

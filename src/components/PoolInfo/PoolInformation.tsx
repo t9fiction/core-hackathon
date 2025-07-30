@@ -371,7 +371,7 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
               </div>
               <h4 className="text-yellow-400 font-medium mb-2">No Trading Pools Available</h4>
               <p className="text-gray-300 text-sm mb-4">
-                This token doesn't have any active liquidity pools yet. Trading is not currently enabled.
+                This token doesn&apos;t have any active liquidity pools yet. Trading is not currently enabled.
               </p>
               <p className="text-gray-400 text-xs">
                 💡 Create a DEX pool to enable decentralized trading for this token
@@ -405,7 +405,7 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
           </div>
           <h3 className="text-lg font-medium text-white mb-2">Unable to Load Pool Data</h3>
           <p className="text-gray-400 text-sm">
-            We couldn't retrieve pool information for this token. Please try again or check if the token address is valid.
+            We couldn&apos;t retrieve pool information for this token. Please try again or check if the token address is valid.
           </p>
         </div>
       )}

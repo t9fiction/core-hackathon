@@ -17,7 +17,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   
   const { address, isConnected } = useAccount();
-  const { writeContract } = useWriteContract();
+  const { writeContract, data: hash, isPending } = useWriteContract();
   
   const chainId = useChainId();
 
@@ -72,8 +72,8 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
   const { data: buyEstimate } = useReadContract({
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: 'getAmountsOut',
-    args: [parseEther(buyAmount || '0'), [process.env.NEXT_PUBLIC_WETH_ADDRESS as Address, tokenAddress]],
+    functionName: 'getAmountsOutSingleHop',
+    args: [tokenAddress, contractAddresses.WETH, 3000, parseEther(buyAmount || '0')],
     query: {
       enabled: !!buyAmount && parseFloat(buyAmount) > 0,
     },
@@ -83,12 +83,26 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
   const { data: sellEstimate } = useReadContract({
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: 'getAmountsOut',
-    args: [parseEther(sellAmount || '0'), [tokenAddress, process.env.NEXT_PUBLIC_WETH_ADDRESS as Address]],
+    functionName: 'getAmountsOutSingleHop',
+    args: [contractAddresses.WETH, tokenAddress, 3000, parseEther(sellAmount || '0')],
     query: {
       enabled: !!sellAmount && parseFloat(sellAmount) > 0,
     },
   });
+
+  // Set transaction hash when available
+  useEffect(() => {
+    if (hash) {
+      setTxHash(hash);
+    }
+  }, [hash]);
+
+  // Reset transaction state when confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      setTxHash(undefined);
+    }
+  }, [isConfirmed]);
 
   const handleBuyTokens = async () => {
     if (!tokenAddress || !buyAmount || !address) return;
@@ -96,18 +110,17 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     
     try {
       const amountIn = parseEther(buyAmount);
-      const minAmountOut = buyEstimate ? (buyEstimate as bigint[])[1] * 95n / 100n : 0n; // 5% slippage
+      const minAmountOut = buyEstimate ? (buyEstimate as bigint) * 95n / 100n : 0n; // 5% slippage
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
       
-      const hash = await writeContract({
+      await writeContract({
         address: contractAddresses.PUMPFUN_DEX_MANAGER,
         abi: PUMPFUN_DEX_MANAGER_ABI,
-        functionName: 'swapExactETHForTokens',
-        args: [minAmountOut, [process.env.NEXT_PUBLIC_WETH_ADDRESS as Address, tokenAddress], address, deadline],
+        functionName: 'swapExactETHForTokensWithSlippage',
+        args: [tokenAddress, 3000, minAmountOut],
         value: amountIn,
       });
       
-      setTxHash(hash);
       setBuyAmount('');
     } catch (error: any) {
       console.error('Error buying tokens:', error);
@@ -122,14 +135,12 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     setIsLoading(true);
     
     try {
-      const hash = await writeContract({
+      await writeContract({
         address: tokenAddress,
         abi: PUMPFUN_TOKEN_ABI,
         functionName: 'approve',
         args: [contractAddresses.PUMPFUN_DEX_MANAGER, parseEther('1000000')], // Approve large amount
       });
-      
-      setTxHash(hash);
     } catch (error: any) {
       console.error('Error approving tokens:', error);
       alert('Failed to approve tokens: ' + (error.shortMessage || error.message || 'Unknown error'));
@@ -144,17 +155,16 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     
     try {
       const amountIn = parseEther(sellAmount);
-      const minAmountOut = sellEstimate ? (sellEstimate as bigint[])[1] * 95n / 100n : 0n; // 5% slippage
+      const minAmountOut = sellEstimate ? (sellEstimate as bigint) * 95n / 100n : 0n; // 5% slippage
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
       
-      const hash = await writeContract({
+      await writeContract({
         address: contractAddresses.PUMPFUN_DEX_MANAGER,
         abi: PUMPFUN_DEX_MANAGER_ABI,
-        functionName: 'swapExactTokensForETH',
-        args: [amountIn, minAmountOut, [tokenAddress, process.env.NEXT_PUBLIC_WETH_ADDRESS as Address], address, deadline],
+        functionName: 'swapExactTokensForETHWithSlippage',
+        args: [tokenAddress, 3000, amountIn, minAmountOut],
       });
       
-      setTxHash(hash);
       setSellAmount('');
     } catch (error: any) {
       console.error('Error selling tokens:', error);
@@ -177,27 +187,21 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
 
   const calculateBuyOutput = () => {
     if (!buyAmount || !buyEstimate) return '0';
-    const estimate = buyEstimate as bigint[];
-    return formatEther(estimate[1]);
+    const estimate = buyEstimate as bigint;
+    return formatEther(estimate);
   };
 
   const calculateSellOutput = () => {
     if (!sellAmount || !sellEstimate) return '0';
-    const estimate = sellEstimate as bigint[];
-    return formatEther(estimate[1]);
+    const estimate = sellEstimate as bigint;
+    return formatEther(estimate);
   };
+
 
   const needsApproval = () => {
     if (!sellAmount || !tokenAllowance) return false;
     return parseEther(sellAmount) > (tokenAllowance as bigint);
   };
-
-  // Reset transaction state when confirmed
-  useEffect(() => {
-    if (isConfirmed) {
-      setTxHash(undefined);
-    }
-  }, [isConfirmed]);
 
   return (
     <div className="space-y-6">
