@@ -1946,6 +1946,7 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
       { internalType: "address", name: "_swapRouter", type: "address" },
       { internalType: "address", name: "_positionManager", type: "address" },
       { internalType: "address", name: "_uniswapV3Factory", type: "address" },
+      { internalType: "address", name: "_quoter", type: "address" },
       { internalType: "address", name: "_weth", type: "address" },
     ],
     stateMutability: "nonpayable",
@@ -2254,6 +2255,31 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
   },
   {
     inputs: [
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+      { internalType: "address[]", name: "path", type: "address[]" },
+      { internalType: "uint24[]", name: "fees", type: "uint24[]" },
+    ],
+    name: "getAmountsOutMultiHop",
+    outputs: [
+      { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "tokenIn", type: "address" },
+      { internalType: "address", name: "tokenOut", type: "address" },
+      { internalType: "uint24", name: "fee", type: "uint24" },
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+    ],
+    name: "getAmountsOutSingleHop",
+    outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
       { internalType: "address", name: "token0", type: "address" },
       { internalType: "address", name: "token1", type: "address" },
       { internalType: "uint24", name: "fee", type: "uint24" },
@@ -2325,6 +2351,13 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
   },
   {
     inputs: [],
+    name: "quoter",
+    outputs: [{ internalType: "contract IQuoter", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "renounceOwnership",
     outputs: [],
     stateMutability: "nonpayable",
@@ -2341,9 +2374,19 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
     inputs: [
       { internalType: "address", name: "tokenOut", type: "address" },
       { internalType: "uint24", name: "fee", type: "uint24" },
-      { internalType: "uint256", name: "amountOutMinimum", type: "uint256" },
     ],
     name: "swapExactETHForTokens",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "tokenOut", type: "address" },
+      { internalType: "uint24", name: "fee", type: "uint24" },
+      { internalType: "uint256", name: "slippageTolerance", type: "uint256" },
+    ],
+    name: "swapExactETHForTokensWithSlippage",
     outputs: [],
     stateMutability: "payable",
     type: "function",
@@ -2353,9 +2396,20 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
       { internalType: "address", name: "tokenIn", type: "address" },
       { internalType: "uint24", name: "fee", type: "uint24" },
       { internalType: "uint256", name: "amountIn", type: "uint256" },
-      { internalType: "uint256", name: "amountOutMinimum", type: "uint256" },
     ],
     name: "swapExactTokensForETH",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "tokenIn", type: "address" },
+      { internalType: "uint24", name: "fee", type: "uint24" },
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+      { internalType: "uint256", name: "slippageTolerance", type: "uint256" },
+    ],
+    name: "swapExactTokensForETHWithSlippage",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
