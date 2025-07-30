@@ -94,9 +94,13 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     uint256 public constant PRICE_UPDATE_INTERVAL = 300; // 5 minutes
     uint256 public constant MIN_LIQUIDITY_ETH = 0.1 ether;
 
-    constructor(address _swapRouter, address _positionManager, address _uniswapV3Factory, address _quoter, address _weth)
-        Ownable(msg.sender)
-    {
+    constructor(
+        address _swapRouter,
+        address _positionManager,
+        address _uniswapV3Factory,
+        address _quoter,
+        address _weth
+    ) Ownable(msg.sender) {
         if (
             _swapRouter == address(0) || _positionManager == address(0) || _uniswapV3Factory == address(0)
                 || _quoter == address(0) || _weth == address(0)
@@ -157,13 +161,10 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     /**
      * @dev Create initial liquidity pool for a token - requires both token amounts
      */
-    function createLiquidityPool(
-        address tokenA,
-        address tokenB,
-        uint24 fee,
-        uint256 amountA,
-        uint256 amountB
-    ) external nonReentrant {
+    function createLiquidityPool(address tokenA, address tokenB, uint24 fee, uint256 amountA, uint256 amountB)
+        external
+        nonReentrant
+    {
         if (tokenA == address(0) || tokenB == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
         if (!authorizedTokens[tokenA] && !authorizedTokens[tokenB]) revert PumpFunDEXManager__UnauthorizedToken();
         if (amountA == 0 || amountB == 0) revert PumpFunDEXManager__InvalidAmount();
@@ -192,10 +193,10 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     ) internal {
         address token0 = tokenA < tokenB ? tokenA : tokenB;
         address token1 = tokenA < tokenB ? tokenB : tokenA;
-        
+
         uint256 amount0Desired;
         uint256 amount1Desired;
-        
+
         if (tokenA < tokenB) {
             amount0Desired = amountA;
             amount1Desired = amountB;
@@ -263,9 +264,14 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @dev Internal function to update token price
      */
     function _updateTokenPrice(address token) internal {
-        uint256 price = 1000 * 1e18; // TODO: Implement actual price fetching from pool
-        uint256 marketCap = price * IERC20(token).totalSupply();
-
+        address poolAddress = uniswapV3Factory.getPool(token < WETH ? token : WETH, token < WETH ? WETH : token, 3000); // Example fee tier
+        if (poolAddress == address(0)) return; // Handle non-existent pool
+        IUniswapV3Pool pool = IUniswapV3Pool(poolAddress);
+        (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
+        uint256 price = token < WETH
+            ? (uint256(sqrtPriceX96) * uint256(sqrtPriceX96) * 1e18) >> 192
+            : (1e18 << 192) / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96));
+        uint256 marketCap = price * IERC20(token).totalSupply() / 1e18;
         tokenPrices[token] = PriceInfo({
             price: price,
             lastUpdated: block.timestamp,
@@ -314,11 +320,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     /**
      * @dev Swap exact ETH for tokens using V3 with automatic slippage protection
      */
-    function swapExactETHForTokens(address tokenOut, uint24 fee)
-        external
-        payable
-        nonReentrant
-    {
+    function swapExactETHForTokens(address tokenOut, uint24 fee) external payable nonReentrant {
         if (!authorizedTokens[tokenOut]) revert PumpFunDEXManager__UnauthorizedToken();
         if (msg.value < MIN_LIQUIDITY_ETH) revert PumpFunDEXManager__InvalidAmount();
 
@@ -407,10 +409,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     /**
      * @dev Swap exact tokens for ETH using V3 with automatic slippage protection
      */
-    function swapExactTokensForETH(address tokenIn, uint24 fee, uint256 amountIn)
-        external
-        nonReentrant
-    {
+    function swapExactTokensForETH(address tokenIn, uint24 fee, uint256 amountIn) external nonReentrant {
         if (!authorizedTokens[tokenIn]) revert PumpFunDEXManager__UnauthorizedToken();
         if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
 
@@ -535,13 +534,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         address orderedToken0 = token0 < token1 ? token0 : token1;
         address orderedToken1 = token0 < token1 ? token1 : token0;
         PoolInfo memory poolInfo = tokenPools[orderedToken0][orderedToken1][fee];
-        return (
-            poolInfo.tokenId,
-            poolInfo.liquidity,
-            poolInfo.lockExpiry,
-            poolInfo.isActive,
-            poolInfo.createdAt
-        );
+        return (poolInfo.tokenId, poolInfo.liquidity, poolInfo.lockExpiry, poolInfo.isActive, poolInfo.createdAt);
     }
 
     /**
@@ -612,14 +605,14 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @param fees An array of pool fees corresponding to each hop in the path
      * @return amounts Array of output amounts at each step
      */
-    function getAmountsOutMultiHop(uint256 amountIn, address[] calldata path, uint24[] calldata fees) 
-        external 
-        view 
-        returns (uint256[] memory amounts) 
+    function getAmountsOutMultiHop(uint256 amountIn, address[] calldata path, uint24[] calldata fees)
+        external
+        view
+        returns (uint256[] memory amounts)
     {
         if (path.length < 2) revert PumpFunDEXManager__InvalidPathLength();
         if (path.length - 1 != fees.length) revert PumpFunDEXManager__PathFeesLengthMismatch();
-        
+
         for (uint256 i = 0; i < path.length; i++) {
             if (!authorizedTokens[path[i]] && path[i] != WETH) {
                 revert PumpFunDEXManager__UnauthorizedToken();
@@ -643,7 +636,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
                 }
                 return amounts;
             }
-            
+
             try quoter.quoteExactInputSingle(tokenIn, tokenOut, fees[i], amounts[i], 0) returns (uint256 amountOut) {
                 amounts[i + 1] = amountOut;
             } catch {
@@ -664,9 +657,9 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      * @return amountOut Expected output amount
      */
     function getAmountsOutSingleHop(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn)
-        external 
-        view 
-        returns (uint256 amountOut) 
+        external
+        view
+        returns (uint256 amountOut)
     {
         if (tokenIn == address(0) || tokenOut == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
         if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
