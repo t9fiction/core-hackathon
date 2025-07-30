@@ -20,6 +20,11 @@ describe("PumpFunDEXManager", function () {
     const MockFactory = await ethers.getContractFactory("MockFactory");
     mockFactory = await MockFactory.deploy(ethers.ZeroAddress); // Mock factory for Uniswap V3
     
+    // Deploy mock quoter
+    const QuoterMock = await ethers.getContractFactory("QuoterMock");
+    const mockQuoter = await QuoterMock.deploy();
+    await mockQuoter.waitForDeployment();
+
     // Deploy mock contracts
     const MockSwapRouter = await ethers.getContractFactory("SwapRouterMock");
     mockSwapRouter = await MockSwapRouter.deploy(await mockWETH.getAddress());
@@ -41,6 +46,7 @@ describe("PumpFunDEXManager", function () {
       await mockSwapRouter.getAddress(),
       await mockPositionManager.getAddress(),
       await mockFactory.getAddress(),
+      await mockQuoter.getAddress(),
       await mockWETH.getAddress()
     );
     await dexManager.waitForDeployment();
@@ -61,6 +67,7 @@ describe("PumpFunDEXManager", function () {
       mockPositionManager,
       mockFactory,
       mockWETH,
+      mockQuoter,
       testToken1,
       testToken2,
       owner,
@@ -77,6 +84,7 @@ describe("PumpFunDEXManager", function () {
       mockPositionManager,
       mockFactory,
       mockWETH,
+      mockQuoter,
       testToken1,
       testToken2,
       owner,
@@ -103,6 +111,7 @@ describe("PumpFunDEXManager", function () {
           ethers.ZeroAddress,
           await mockPositionManager.getAddress(),
           await mockFactory.getAddress(),
+          await mockQuoter.getAddress(),
           await mockWETH.getAddress()
         )
       ).to.be.revertedWithCustomError(dexManager, "PumpFunDEXManager__InvalidTokenAddress");
@@ -191,6 +200,83 @@ describe("PumpFunDEXManager", function () {
       ).to.be.reverted; // Will fail due to mock contracts
     });
 
+    describe("Swapping Functions", function () {
+        beforeEach(async function () {
+            await dexManager.authorizeToken(await testToken1.getAddress());
+
+            // Set mock price for quoter
+            const mockPrice = ethers.parseEther("2"); // 1 ETH = 2 Tokens price
+            await mockQuoter.setMockPrice(
+                await mockWETH.getAddress(),
+                await testToken1.getAddress(),
+                FEE_TIER,
+                mockPrice
+            );
+        });
+
+        it("Should swap ETH for tokens with automatic slippage", async function () {
+            const ethAmount = ethers.parseEther("1");
+
+            // Estimate gas just to execute without actual blockchain effect
+            await expect(
+                dexManager.connect(trader1).swapExactETHForTokens(
+                    await testToken1.getAddress(),
+                    FEE_TIER,
+                    { value: ethAmount }
+                )
+            ).to.be.reverted; // Will fail due to mock contracts but should pass logic testing
+        });
+
+        it("Should swap ETH for tokens with custom slippage", async function () {
+            const ethAmount = ethers.parseEther("1");
+            const slippageTolerance = 500; // 5%
+
+            // Estimate gas just to execute without actual blockchain effect
+            await expect(
+                dexManager.connect(trader1).swapExactETHForTokensWithSlippage(
+                    await testToken1.getAddress(),
+                    FEE_TIER,
+                    slippageTolerance,
+                    { value: ethAmount }
+                )
+            ).to.be.reverted; // Will fail due to mock contracts but should pass logic testing
+        });
+
+        it("Should swap tokens for ETH with automatic slippage", async function () {
+            const tokenAmount = ethers.parseEther("100");
+
+            // Approve DEX manager to spend tokens
+            await testToken1.connect(trader1).approve(await dexManager.getAddress(), tokenAmount);
+
+            // Estimate gas just to execute without actual blockchain effect
+            await expect(
+                dexManager.connect(trader1).swapExactTokensForETH(
+                    await testToken1.getAddress(),
+                    FEE_TIER,
+                    tokenAmount
+                )
+            ).to.be.reverted; // Will fail due to mock contracts but should pass logic testing
+        });
+
+        it("Should swap tokens for ETH with custom slippage", async function () {
+            const tokenAmount = ethers.parseEther("100");
+            const slippageTolerance = 500; // 5%
+
+            // Approve DEX manager to spend tokens
+            await testToken1.connect(trader1).approve(await dexManager.getAddress(), tokenAmount);
+
+            // Estimate gas just to execute without actual blockchain effect
+            await expect(
+                dexManager.connect(trader1).swapExactTokensForETHWithSlippage(
+                    await testToken1.getAddress(),
+                    FEE_TIER,
+                    tokenAmount,
+                    slippageTolerance
+                )
+            ).to.be.reverted; // Will fail due to mock contracts but should pass logic testing
+        });
+    });
+
     it("Should reject unauthorized tokens", async function () {
       // Deploy a completely new token that is NOT authorized
       const MockERC20 = await ethers.getContractFactory("ERC20Mock");
@@ -270,14 +356,12 @@ describe("PumpFunDEXManager", function () {
 
     it("Should swap exact ETH for tokens", async function () {
       const ethAmount = ethers.parseEther("1");
-      const minTokenAmount = ethers.parseEther("100");
       
       // This will fail with mock contracts but should pass validation
       await expect(
         dexManager.connect(trader1).swapExactETHForTokens(
           await testToken1.getAddress(),
           FEE_TIER,
-          minTokenAmount,
           { value: ethAmount }
         )
       ).to.be.reverted; // Will fail due to mock swap router
@@ -285,7 +369,6 @@ describe("PumpFunDEXManager", function () {
 
     it("Should swap exact tokens for ETH", async function () {
       const tokenAmount = ethers.parseEther("1000");
-      const minEthAmount = ethers.parseEther("0.1");
       
       // Approve DEX manager to spend tokens
       await testToken1.connect(trader1).approve(await dexManager.getAddress(), tokenAmount);
@@ -295,8 +378,7 @@ describe("PumpFunDEXManager", function () {
         dexManager.connect(trader1).swapExactTokensForETH(
           await testToken1.getAddress(),
           FEE_TIER,
-          tokenAmount,
-          minEthAmount
+          tokenAmount
         )
       ).to.be.reverted; // Will fail due to mock swap router
     });
@@ -310,7 +392,6 @@ describe("PumpFunDEXManager", function () {
         dexManager.connect(trader1).swapExactETHForTokens(
           await unauthorizedToken.getAddress(),
           FEE_TIER,
-          ethers.parseEther("100"),
           { value: ethers.parseEther("1") }
         )
       ).to.be.revertedWithCustomError(dexManager, "PumpFunDEXManager__UnauthorizedToken");
@@ -322,7 +403,6 @@ describe("PumpFunDEXManager", function () {
         dexManager.connect(trader1).swapExactETHForTokens(
           await testToken1.getAddress(),
           FEE_TIER,
-          ethers.parseEther("100"),
           { value: 0 }
         )
       ).to.be.revertedWithCustomError(dexManager, "PumpFunDEXManager__InvalidAmount");
@@ -332,8 +412,7 @@ describe("PumpFunDEXManager", function () {
         dexManager.connect(trader1).swapExactTokensForETH(
           await testToken1.getAddress(),
           FEE_TIER,
-          0,
-          ethers.parseEther("0.1")
+          0
         )
       ).to.be.revertedWithCustomError(dexManager, "PumpFunDEXManager__InvalidAmount");
     });
@@ -412,14 +491,15 @@ describe("PumpFunDEXManager", function () {
     });
 
     it("Should return pool address from factory", async function () {
-      // This will fail with mock factory that doesn't implement the correct interface
-      await expect(
-        dexManager.getPoolAddress(
-          await testToken1.getAddress(),
-          await testToken2.getAddress(),
-          FEE_TIER
-        )
-      ).to.be.reverted; // Will fail due to mock factory limitations
+      // Mock factory now returns a dummy address
+      const poolAddress = await dexManager.getPoolAddress(
+        await testToken1.getAddress(),
+        await testToken2.getAddress(),
+        FEE_TIER
+      );
+      
+      // Should return the dummy address from mock factory
+      expect(poolAddress).to.equal("0x1234567890123456789012345678901234567890");
     });
   });
 

@@ -3,6 +3,7 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 const SWAP_ROUTER = process.env.UNISWAP_V3_SWAP_ROUTER || "0xE592427A0AEce92De3Edee1F18E0157C05861564";
 const POSITION_MANAGER = process.env.UNISWAP_V3_POSITION_MANAGER || "0x1238536071E1c677A632429e3655c799b22cDA52";
 const UNISWAP_V3_FACTORY = process.env.UNISWAP_V3_FACTORY || "0x0227628f3F023bb0B980b67D528571c95c6DaC1c";
+const _quoter = process.env.UNISWAP_V3_QUOTER || '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
 const WETH = process.env.WETH_ADDRESS || "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
 
 // const TOKEN_NAME = "DemoMeme";
@@ -14,7 +15,7 @@ const DeployAllContracts = buildModule("DeployAllContracts", (m:any) => {
   const governance = m.contract("PumpFunGovernance");
   const airdrop = m.contract("PumpFunGovernanceAirdrop", [governance]);
   const factory = m.contract("PumpFunFactoryLite");
-  const dexManager = m.contract("PumpFunDEXManager", [SWAP_ROUTER, POSITION_MANAGER, UNISWAP_V3_FACTORY, WETH]);
+  const dexManager = m.contract("PumpFunDEXManager", [SWAP_ROUTER, POSITION_MANAGER, UNISWAP_V3_FACTORY, _quoter, WETH]);
 
   m.call(dexManager,"setFactory", [factory], { after: [factory, dexManager] });
   m.call(factory, "setGovernanceManager", [governance], { after: [governance, factory] });

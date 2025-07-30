@@ -311,7 +311,7 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
 
 const DEXPage = () => {
   const [activeTab, setActiveTab] = useState<'create' | 'info' | 'buysell' | 'liquidity'>('create');
-  const [selectedToken, setSelectedToken] = useState<Address | ''>('');
+  const [selectedToken, setSelectedToken] = useState<Address | undefined>(undefined);
   const [userTokens, setUserTokens] = useState<any[]>([]);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   
@@ -466,8 +466,8 @@ const DEXPage = () => {
                   </div>
                 ) : userTokens.length > 0 ? (
                   <select
-                    value={selectedToken}
-                    onChange={(e) => setSelectedToken(e.target.value as Address)}
+                    value={selectedToken || ''}
+                    onChange={(e) => setSelectedToken(e.target.value ? (e.target.value as Address) : undefined)}
                     className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
                   >
                     <option value="">-- Select a Token --</option>
@@ -533,8 +533,8 @@ const DEXPage = () => {
                   </div>
                 ) : userTokens.length > 0 ? (
                   <select
-                    value={selectedToken}
-                    onChange={(e) => setSelectedToken(e.target.value as Address)}
+                    value={selectedToken || ''}
+                    onChange={(e) => setSelectedToken(e.target.value ? (e.target.value as Address) : undefined)}
                     className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
                   >
                     <option value="">-- Select a Token --</option>

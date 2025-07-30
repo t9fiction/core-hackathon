@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useBalance } from 'wagmi';
-import { Address, formatEther } from 'viem';
-import { PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
+import { useAccount, useReadContract, useBalance, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
+import { Address, formatEther, parseEther } from 'viem';
+import { PUMPFUN_TOKEN_ABI, PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
+// import { PUMPFUN_DEX_MANAGER } from '../../lib/contracts/addresses';
+import { getContractAddresses } from '../../lib/contracts/addresses';
 
 interface BuySellTokensProps {
   tokenAddress: Address;
@@ -12,8 +14,19 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
   const [sellAmount, setSellAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   
   const { address, isConnected } = useAccount();
+  const { writeContract } = useWriteContract();
+  
+  const chainId = useChainId();
+
+  const contractAddresses = getContractAddresses(chainId);
+
+  // Wait for transaction confirmation
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
 
   // Get ETH balance
   const { data: ethBalance } = useBalance({
@@ -44,33 +57,108 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     },
   });
 
+  // Get token allowance for DEX Manager
+  const { data: tokenAllowance } = useReadContract({
+    address: tokenAddress,
+    abi: PUMPFUN_TOKEN_ABI,
+    functionName: 'allowance',
+    args: [address!, contractAddresses.PUMPFUN_DEX_MANAGER],
+    query: {
+      enabled: !!address,
+    },
+  });
+
+  // Get estimated output for buying tokens (ETH -> Token)
+  const { data: buyEstimate } = useReadContract({
+    address: contractAddresses.PUMPFUN_DEX_MANAGER,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: 'getAmountsOut',
+    args: [parseEther(buyAmount || '0'), [process.env.NEXT_PUBLIC_WETH_ADDRESS as Address, tokenAddress]],
+    query: {
+      enabled: !!buyAmount && parseFloat(buyAmount) > 0,
+    },
+  });
+
+  // Get estimated output for selling tokens (Token -> ETH)
+  const { data: sellEstimate } = useReadContract({
+    address: contractAddresses.PUMPFUN_DEX_MANAGER,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: 'getAmountsOut',
+    args: [parseEther(sellAmount || '0'), [tokenAddress, process.env.NEXT_PUBLIC_WETH_ADDRESS as Address]],
+    query: {
+      enabled: !!sellAmount && parseFloat(sellAmount) > 0,
+    },
+  });
+
   const handleBuyTokens = async () => {
-    if (!tokenAddress || !buyAmount) return;
+    if (!tokenAddress || !buyAmount || !address) return;
     setIsLoading(true);
     
     try {
-      // Buy/sell functionality would need to be implemented in the contract
-      console.log('Buy tokens functionality not yet implemented in contract');
-      alert('Buy functionality needs to be implemented in the smart contract');
+      const amountIn = parseEther(buyAmount);
+      const minAmountOut = buyEstimate ? (buyEstimate as bigint[])[1] * 95n / 100n : 0n; // 5% slippage
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
+      
+      const hash = await writeContract({
+        address: contractAddresses.PUMPFUN_DEX_MANAGER,
+        abi: PUMPFUN_DEX_MANAGER_ABI,
+        functionName: 'swapExactETHForTokens',
+        args: [minAmountOut, [process.env.NEXT_PUBLIC_WETH_ADDRESS as Address, tokenAddress], address, deadline],
+        value: amountIn,
+      });
+      
+      setTxHash(hash);
+      setBuyAmount('');
     } catch (error: any) {
       console.error('Error buying tokens:', error);
-      alert('Failed to buy tokens: ' + (error.message || 'Unknown error'));
+      alert('Failed to buy tokens: ' + (error.shortMessage || error.message || 'Unknown error'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveToken = async () => {
+    if (!tokenAddress || !address) return;
+    setIsLoading(true);
+    
+    try {
+      const hash = await writeContract({
+        address: tokenAddress,
+        abi: PUMPFUN_TOKEN_ABI,
+        functionName: 'approve',
+        args: [contractAddresses.PUMPFUN_DEX_MANAGER, parseEther('1000000')], // Approve large amount
+      });
+      
+      setTxHash(hash);
+    } catch (error: any) {
+      console.error('Error approving tokens:', error);
+      alert('Failed to approve tokens: ' + (error.shortMessage || error.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSellTokens = async () => {
-    if (!tokenAddress || !sellAmount) return;
+    if (!tokenAddress || !sellAmount || !address) return;
     setIsLoading(true);
     
     try {
-      // Buy/sell functionality would need to be implemented in the contract
-      console.log('Sell tokens functionality not yet implemented in contract');
-      alert('Sell functionality needs to be implemented in the smart contract');
+      const amountIn = parseEther(sellAmount);
+      const minAmountOut = sellEstimate ? (sellEstimate as bigint[])[1] * 95n / 100n : 0n; // 5% slippage
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
+      
+      const hash = await writeContract({
+        address: contractAddresses.PUMPFUN_DEX_MANAGER,
+        abi: PUMPFUN_DEX_MANAGER_ABI,
+        functionName: 'swapExactTokensForETH',
+        args: [amountIn, minAmountOut, [tokenAddress, process.env.NEXT_PUBLIC_WETH_ADDRESS as Address], address, deadline],
+      });
+      
+      setTxHash(hash);
+      setSellAmount('');
     } catch (error: any) {
       console.error('Error selling tokens:', error);
-      alert('Failed to sell tokens: ' + (error.message || 'Unknown error'));
+      alert('Failed to sell tokens: ' + (error.shortMessage || error.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
     }
@@ -88,16 +176,28 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
   }
 
   const calculateBuyOutput = () => {
-    if (!buyAmount) return '0';
-    // Placeholder calculation - would need actual price from DEX
-    return (parseFloat(buyAmount) / 0.001).toFixed(6);
+    if (!buyAmount || !buyEstimate) return '0';
+    const estimate = buyEstimate as bigint[];
+    return formatEther(estimate[1]);
   };
 
   const calculateSellOutput = () => {
-    if (!sellAmount) return '0';
-    // Placeholder calculation - would need actual price from DEX
-    return (parseFloat(sellAmount) * 0.001).toFixed(6);
+    if (!sellAmount || !sellEstimate) return '0';
+    const estimate = sellEstimate as bigint[];
+    return formatEther(estimate[1]);
   };
+
+  const needsApproval = () => {
+    if (!sellAmount || !tokenAllowance) return false;
+    return parseEther(sellAmount) > (tokenAllowance as bigint);
+  };
+
+  // Reset transaction state when confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      setTxHash(undefined);
+    }
+  }, [isConfirmed]);
 
   return (
     <div className="space-y-6">
@@ -107,7 +207,9 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
             Trade {tokenSymbol as string || 'Token'}
           </h3>
           <div className="bg-gray-700 px-3 py-1 rounded-lg">
-            <span className="text-sm text-gray-300">Price: ~0.001 ETH</span>
+            <span className="text-sm text-gray-300">
+              {isConfirming ? 'Transaction Pending...' : isConfirmed ? 'Transaction Confirmed!' : 'Ready to Trade'}
+            </span>
           </div>
         </div>
 
@@ -166,16 +268,16 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
                 className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white"
               />
               <div className="text-sm text-gray-400 mt-1">
-                You will receive: ~{calculateBuyOutput()} {tokenSymbol as string || 'tokens'}
+                You will receive: ~{parseFloat(calculateBuyOutput()).toFixed(6)} {tokenSymbol as string || 'tokens'}
               </div>
             </div>
             
             <button
               onClick={handleBuyTokens}
-              disabled={isLoading || !buyAmount || parseFloat(buyAmount) > parseFloat(formatEther(ethBalance?.value || 0n))}
+              disabled={isLoading || isConfirming || !buyAmount || parseFloat(buyAmount) > parseFloat(formatEther(ethBalance?.value || 0n))}
               className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
             >
-              {isLoading ? 'Buying...' : `Buy ${tokenSymbol as string || 'Tokens'}`}
+              {isLoading || isConfirming ? 'Processing...' : `Buy ${tokenSymbol as string || 'Tokens'}`}
             </button>
           </div>
         )}
@@ -195,26 +297,50 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
                 className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-white"
               />
               <div className="text-sm text-gray-400 mt-1">
-                You will receive: ~{calculateSellOutput()} ETH
+                You will receive: ~{parseFloat(calculateSellOutput()).toFixed(6)} ETH
               </div>
             </div>
             
+            {needsApproval() ? (
+              <button
+                onClick={handleApproveToken}
+                disabled={isLoading || isConfirming}
+                className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors mb-2"
+              >
+                {isLoading || isConfirming ? 'Approving...' : `Approve ${tokenSymbol as string || 'Tokens'}`}
+              </button>
+            ) : null}
+            
             <button
               onClick={handleSellTokens}
-              disabled={isLoading || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n))}
+              disabled={isLoading || isConfirming || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n)) || needsApproval()}
               className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
             >
-              {isLoading ? 'Selling...' : `Sell ${tokenSymbol as string || 'Tokens'}`}
+              {isLoading || isConfirming ? 'Processing...' : `Sell ${tokenSymbol as string || 'Tokens'}`}
             </button>
           </div>
         )}
       </div>
 
-      {/* Notice */}
-      <div className="bg-yellow-600/10 border border-yellow-600/20 rounded-2xl p-4">
-        <div className="text-yellow-200">
-          <strong>Note:</strong> This trading interface requires buy/sell functions to be implemented in the PumpFun contract. 
-          Currently, only basic token functionality is available.
+      {/* Transaction Status */}
+      {txHash && (
+        <div className="bg-blue-600/10 border border-blue-600/20 rounded-2xl p-4">
+          <div className="text-blue-200">
+            <strong>Transaction Status:</strong> 
+            {isConfirming && ' Confirming transaction...'}
+            {isConfirmed && ' Transaction confirmed successfully!'}
+            <div className="text-sm mt-1 font-mono break-all">
+              Tx Hash: {txHash}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Trading Info */}
+      <div className="bg-blue-600/10 border border-blue-600/20 rounded-2xl p-4">
+        <div className="text-blue-200">
+          <strong>Trading Info:</strong> This interface connects to the PumpFun DEX for real token trading. 
+          Prices are fetched from the liquidity pool and include a 5% slippage tolerance.
         </div>
       </div>
     </div>

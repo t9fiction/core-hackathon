@@ -9,6 +9,7 @@ import "./interfaces/INonfungiblePositionManager.sol";
 import "./interfaces/IUniswapV3Factory.sol";
 import "./interfaces/IUniswapV3Pool.sol";
 import "./interfaces/IWETH.sol";
+import "./interfaces/IQuoter.sol";
 
 /**
  * @title PumpFunDEXManager
@@ -76,6 +77,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     ISwapRouter public immutable swapRouter;
     INonfungiblePositionManager public immutable positionManager;
     IUniswapV3Factory public immutable uniswapV3Factory;
+    IQuoter public immutable quoter;
     address public immutable WETH;
     address public factory;
 
@@ -88,18 +90,19 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     uint256 public constant PRICE_UPDATE_INTERVAL = 300; // 5 minutes
     uint256 public constant MIN_LIQUIDITY_ETH = 0.1 ether;
 
-    constructor(address _swapRouter, address _positionManager, address _uniswapV3Factory, address _weth)
+    constructor(address _swapRouter, address _positionManager, address _uniswapV3Factory, address _quoter, address _weth)
         Ownable(msg.sender)
     {
         if (
             _swapRouter == address(0) || _positionManager == address(0) || _uniswapV3Factory == address(0)
-                || _weth == address(0)
+                || _quoter == address(0) || _weth == address(0)
         ) {
             revert PumpFunDEXManager__InvalidTokenAddress();
         }
         swapRouter = ISwapRouter(_swapRouter);
         positionManager = INonfungiblePositionManager(_positionManager);
         uniswapV3Factory = IUniswapV3Factory(_uniswapV3Factory);
+        quoter = IQuoter(_quoter);
         WETH = _weth;
     }
 
@@ -334,15 +337,26 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Swap exact ETH for tokens using V3
+     * @dev Swap exact ETH for tokens using V3 with automatic slippage protection
      */
-    function swapExactETHForTokens(address tokenOut, uint24 fee, uint256 amountOutMinimum)
+    function swapExactETHForTokens(address tokenOut, uint24 fee)
         external
         payable
         nonReentrant
     {
         if (!authorizedTokens[tokenOut]) revert PumpFunDEXManager__UnauthorizedToken();
         if (msg.value == 0) revert PumpFunDEXManager__InvalidAmount();
+
+        // Get expected output amount using quoter
+        uint256 expectedAmountOut;
+        try quoter.quoteExactInputSingle(WETH, tokenOut, fee, msg.value, 0) returns (uint256 quote) {
+            expectedAmountOut = quote;
+        } catch {
+            revert PumpFunDEXManager__InsufficientLiquidity();
+        }
+
+        // Apply slippage tolerance (5% by default)
+        uint256 amountOutMinimum = (expectedAmountOut * (10000 - SLIPPAGE_TOLERANCE)) / 10000;
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: WETH,
@@ -364,14 +378,114 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Swap exact tokens for ETH using V3
+     * @dev Swap exact ETH for tokens using V3 with custom slippage tolerance
      */
-    function swapExactTokensForETH(address tokenIn, uint24 fee, uint256 amountIn, uint256 amountOutMinimum)
+    function swapExactETHForTokensWithSlippage(address tokenOut, uint24 fee, uint256 slippageTolerance)
+        external
+        payable
+        nonReentrant
+    {
+        if (!authorizedTokens[tokenOut]) revert PumpFunDEXManager__UnauthorizedToken();
+        if (msg.value == 0) revert PumpFunDEXManager__InvalidAmount();
+        if (slippageTolerance > 5000) revert PumpFunDEXManager__SlippageExceeded(); // Max 50% slippage
+
+        // Get expected output amount using quoter
+        uint256 expectedAmountOut;
+        try quoter.quoteExactInputSingle(WETH, tokenOut, fee, msg.value, 0) returns (uint256 quote) {
+            expectedAmountOut = quote;
+        } catch {
+            revert PumpFunDEXManager__InsufficientLiquidity();
+        }
+
+        // Apply custom slippage tolerance
+        uint256 amountOutMinimum = (expectedAmountOut * (10000 - slippageTolerance)) / 10000;
+
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: WETH,
+            tokenOut: tokenOut,
+            fee: fee,
+            recipient: msg.sender,
+            deadline: block.timestamp + 300,
+            amountIn: msg.value,
+            amountOutMinimum: amountOutMinimum,
+            sqrtPriceLimitX96: 0
+        });
+
+        uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(params);
+
+        _updateTokenPrice(tokenOut);
+        tokenPrices[tokenOut].volume24h += msg.value;
+
+        emit TokenSwapped(msg.sender, WETH, tokenOut, msg.value, amountOut);
+    }
+
+    /**
+     * @dev Swap exact tokens for ETH using V3 with automatic slippage protection
+     */
+    function swapExactTokensForETH(address tokenIn, uint24 fee, uint256 amountIn)
         external
         nonReentrant
     {
         if (!authorizedTokens[tokenIn]) revert PumpFunDEXManager__UnauthorizedToken();
         if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
+
+        // Get expected output amount using quoter
+        uint256 expectedAmountOut;
+        try quoter.quoteExactInputSingle(tokenIn, WETH, fee, amountIn, 0) returns (uint256 quote) {
+            expectedAmountOut = quote;
+        } catch {
+            revert PumpFunDEXManager__InsufficientLiquidity();
+        }
+
+        // Apply slippage tolerance (5% by default)
+        uint256 amountOutMinimum = (expectedAmountOut * (10000 - SLIPPAGE_TOLERANCE)) / 10000;
+
+        // Transfer tokens from user
+        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+
+        // Approve router to spend tokens
+        IERC20(tokenIn).approve(address(swapRouter), amountIn);
+
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: WETH,
+            fee: fee,
+            recipient: msg.sender,
+            deadline: block.timestamp + 300,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMinimum,
+            sqrtPriceLimitX96: 0
+        });
+
+        uint256 amountOut = swapRouter.exactInputSingle(params);
+
+        _updateTokenPrice(tokenIn);
+        tokenPrices[tokenIn].volume24h += amountOut;
+
+        emit TokenSwapped(msg.sender, tokenIn, WETH, amountIn, amountOut);
+    }
+
+    /**
+     * @dev Swap exact tokens for ETH using V3 with custom slippage tolerance
+     */
+    function swapExactTokensForETHWithSlippage(address tokenIn, uint24 fee, uint256 amountIn, uint256 slippageTolerance)
+        external
+        nonReentrant
+    {
+        if (!authorizedTokens[tokenIn]) revert PumpFunDEXManager__UnauthorizedToken();
+        if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
+        if (slippageTolerance > 5000) revert PumpFunDEXManager__SlippageExceeded(); // Max 50% slippage
+
+        // Get expected output amount using quoter
+        uint256 expectedAmountOut;
+        try quoter.quoteExactInputSingle(tokenIn, WETH, fee, amountIn, 0) returns (uint256 quote) {
+            expectedAmountOut = quote;
+        } catch {
+            revert PumpFunDEXManager__InsufficientLiquidity();
+        }
+
+        // Apply custom slippage tolerance
+        uint256 amountOutMinimum = (expectedAmountOut * (10000 - slippageTolerance)) / 10000;
 
         // Transfer tokens from user
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
@@ -498,6 +612,76 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         if (fee == 3000) return 60; // 0.3%
         if (fee == 10000) return 200; // 1%
         return 60; // Default to 0.3% spacing
+    }
+    
+    /**
+     * @dev Get expected output amounts for a swap
+     * @param amountIn Input amount
+     * @param path An array of token addresses (path) to exchange through
+     * @param fees An array of pool fees corresponding to each hop in the path
+     * @return amounts Array of output amounts at each step
+     */
+    function getAmountsOutMultiHop(uint256 amountIn, address[] calldata path, uint24[] calldata fees) 
+        external 
+        view 
+        returns (uint256[] memory amounts) 
+    {
+        require(path.length >= 2, "Invalid path length");
+        require(path.length - 1 == fees.length, "Path and fees length mismatch");
+        
+        amounts = new uint256[](path.length);
+        amounts[0] = amountIn;
+
+        for (uint256 i = 0; i < path.length - 1; i++) {
+            // Check if pool exists for this pair and fee
+            address poolAddress = uniswapV3Factory.getPool(path[i], path[i + 1], fees[i]);
+            if (poolAddress == address(0)) {
+                // Pool doesn't exist, return 0 for remaining amounts
+                for (uint256 j = i + 1; j < path.length; j++) {
+                    amounts[j] = 0;
+                }
+                return amounts;
+            }
+            
+            try quoter.quoteExactInputSingle(path[i], path[i + 1], fees[i], amounts[i], 0) returns (uint256 amountOut) {
+                amounts[i + 1] = amountOut;
+            } catch {
+                // If quote fails, return 0 for remaining amounts
+                for (uint256 j = i + 1; j < path.length; j++) {
+                    amounts[j] = 0;
+                }
+                return amounts;
+            }
+        }
+    }
+    
+    /**
+     * @dev Get expected output amount for a simple swap (single hop)
+     * @param tokenIn Input token address
+     * @param tokenOut Output token address
+     * @param fee Pool fee tier
+     * @param amountIn Input amount
+     * @return amountOut Expected output amount
+     */
+    function getAmountsOutSingleHop(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn)
+        external 
+        view 
+        returns (uint256 amountOut) 
+    {
+        require(tokenIn != address(0) && tokenOut != address(0), "Invalid token addresses");
+        require(amountIn > 0, "Invalid amount");
+        
+        // Check if pool exists
+        address poolAddress = uniswapV3Factory.getPool(tokenIn, tokenOut, fee);
+        if (poolAddress == address(0)) {
+            return 0;
+        }
+        
+        try quoter.quoteExactInputSingle(tokenIn, tokenOut, fee, amountIn, 0) returns (uint256 quote) {
+            return quote;
+        } catch {
+            return 0;
+        }
     }
 
     // Receive function to accept ETH
