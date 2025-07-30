@@ -12,10 +12,10 @@ export interface ContractAddresses {
 export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
   // Sepolia Testnet
   11155111: {
-    PUMPFUN_FACTORY: '0xe73C3F591b31682e36189c1e54116E04a23ba775', // Actual deployed address
-    PUMPFUN_GOVERNANCE: '0x447A1f57cA29DAaaB76c6C318c3849A555aEC887', // Actual deployed address
-    PUMPFUN_DEX_MANAGER: '0xd73C93dFF490dBeb0c303220e2d69EADfd88c6C2', // Actual deployed address
-    PUMPFUN_AIRDROP: '0x61A1222d4767accb41d1eDe1a3001fd3adC5e733', // Replace with actual deployed address
+    PUMPFUN_FACTORY: '0xBc333399dDb0D27ea19C7fB2EaA78f2F0975B06a', // Actual deployed address
+    PUMPFUN_GOVERNANCE: '0xF6bDD5fD3C1b29D234D58E1c33432758A529A058', // Actual deployed address
+    PUMPFUN_DEX_MANAGER: '0x5C9EE35D9D14702f9cD5b301032FfB11CA786082', // Actual deployed address
+    PUMPFUN_AIRDROP: '0xd84FDd7A89a11d89e3C83F4D0733aAC0083E9516', // Replace with actual deployed address
     WETH: '0xfff9976782d46cc05630d1f6ebab18b2324d6b14', // Sepolia WETH
   },
   1: {

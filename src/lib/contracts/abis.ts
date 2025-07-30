@@ -1964,15 +1964,35 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
   },
   { inputs: [], name: "PumpFunDEXManager__DeadlineExpired", type: "error" },
   {
+    inputs: [
+      { internalType: "uint256", name: "available", type: "uint256" },
+      { internalType: "uint256", name: "requested", type: "uint256" },
+    ],
+    name: "PumpFunDEXManager__InsufficientBalance",
+    type: "error",
+  },
+  {
     inputs: [],
     name: "PumpFunDEXManager__InsufficientLiquidity",
     type: "error",
   },
   { inputs: [], name: "PumpFunDEXManager__InvalidAmount", type: "error" },
+  {
+    inputs: [],
+    name: "PumpFunDEXManager__InvalidFactoryAddress",
+    type: "error",
+  },
+  { inputs: [], name: "PumpFunDEXManager__InvalidPathLength", type: "error" },
   { inputs: [], name: "PumpFunDEXManager__InvalidTokenAddress", type: "error" },
   { inputs: [], name: "PumpFunDEXManager__LiquidityLocked", type: "error" },
   { inputs: [], name: "PumpFunDEXManager__PairAlreadyExists", type: "error" },
+  {
+    inputs: [],
+    name: "PumpFunDEXManager__PathFeesLengthMismatch",
+    type: "error",
+  },
   { inputs: [], name: "PumpFunDEXManager__SlippageExceeded", type: "error" },
+  { inputs: [], name: "PumpFunDEXManager__TransferFailed", type: "error" },
   { inputs: [], name: "PumpFunDEXManager__UnauthorizedToken", type: "error" },
   { inputs: [], name: "ReentrancyGuardReentrantCall", type: "error" },
   {

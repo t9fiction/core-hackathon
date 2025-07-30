@@ -1,8 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
-import { parseEther, parseUnits, Address } from 'viem';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
-import { getContractAddresses } from '../../lib/contracts/addresses';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  useAccount,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  useChainId,
+} from "wagmi";
+import { parseEther, parseUnits, Address } from "viem";
+import {
+  PUMPFUN_FACTORY_ABI,
+  PUMPFUN_TOKEN_ABI,
+} from "../../lib/contracts/abis";
+import { getContractAddresses } from "../../lib/contracts/addresses";
 
 interface DEXPoolCreatorProps {
   tokenAddress?: Address;
@@ -10,32 +18,39 @@ interface DEXPoolCreatorProps {
   onPoolCreated?: (poolInfo: any) => void;
 }
 
-const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({ 
-  tokenAddress, 
-  tokenSymbol = 'TOKEN', 
-  onPoolCreated 
+const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
+  tokenAddress,
+  tokenSymbol = "TOKEN",
+  onPoolCreated,
 }) => {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  
+
   const [formData, setFormData] = useState({
-    tokenAmount: '',
-    ethAmount: '',
-    feeTier: '3000'
+    tokenAmount: "",
+    ethAmount: "",
+    feeTier: "3000",
   });
-  
+
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const formDataRef = useRef(formData);
 
   const contractAddresses = getContractAddresses(chainId);
-  const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const {
+    writeContract,
+    data: hash,
+    error: writeError,
+    isPending,
+  } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
 
   const feeTiers = [
-    { value: '500', label: '0.05%', description: 'Best for very stable pairs' },
-    { value: '3000', label: '0.3%', description: 'Most common fee tier' },
-    { value: '10000', label: '1%', description: 'Best for volatile pairs' }
+    { value: "500", label: "0.05%", description: "Best for very stable pairs" },
+    { value: "3000", label: "0.3%", description: "Most common fee tier" },
+    { value: "10000", label: "1%", description: "Best for volatile pairs" },
   ];
 
   const handleInputChange = (field: string, value: string) => {
@@ -55,12 +70,12 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
 
   const createDEXPool = async () => {
     if (!tokenAddress) {
-      setError('Token address is required');
+      setError("Token address is required");
       return;
     }
 
     if (!formData.tokenAmount || !formData.ethAmount) {
-      setError('Please fill in all required fields');
+      setError("Please fill in all required fields");
       return;
     }
 
@@ -68,7 +83,7 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
     const ethAmount = parseFloat(formData.ethAmount);
 
     if (tokenAmount <= 0 || ethAmount <= 0) {
-      setError('Amounts must be greater than 0');
+      setError("Amounts must be greater than 0");
       return;
     }
 
@@ -80,37 +95,26 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
       const ethAmountWei = parseEther(formData.ethAmount);
       const fee = parseInt(formData.feeTier);
 
-      console.log('Creating DEX pool:', {
+      console.log("Creating DEX pool:", {
         tokenAddress,
         tokenAmount: tokenAmountWei.toString(),
         ethAmount: ethAmountWei.toString(),
         fee,
-        contractAddress: contractAddresses.PUMPFUN_FACTORY
+        contractAddress: contractAddresses.PUMPFUN_FACTORY,
       });
 
-      // First approve the factory to spend tokens
-      await writeContract({
-        address: tokenAddress,
-        abi: PUMPFUN_TOKEN_ABI,
-        functionName: 'approve',
-        args: [contractAddresses.PUMPFUN_FACTORY, tokenAmountWei],
-      });
-
-      // Wait a bit for the approval to be mined
-      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Create pool via factory
       await writeContract({
         address: contractAddresses.PUMPFUN_FACTORY,
         abi: PUMPFUN_FACTORY_ABI,
-        functionName: 'createDEXPool',
+        functionName: "createDEXPool",
         args: [tokenAddress, tokenAmountWei, fee],
         value: ethAmountWei,
       });
-
     } catch (error: any) {
-      console.error('Error creating DEX pool:', error);
-      setError(error?.message || error?.reason || 'Failed to create DEX pool');
+      console.error("Error creating DEX pool:", error);
+      setError(error?.message || error?.reason || "Failed to create DEX pool");
     } finally {
       setIsCreating(false);
     }
@@ -125,10 +129,10 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
         tokenAddress,
         tokenAmount: currentFormData.tokenAmount,
         ethAmount: currentFormData.ethAmount,
-        feeTier: currentFormData.feeTier
+        feeTier: currentFormData.feeTier,
       });
       // Reset form
-      const resetData = { tokenAmount: '', ethAmount: '', feeTier: '3000' };
+      const resetData = { tokenAmount: "", ethAmount: "", feeTier: "3000" };
       setFormData(resetData);
       formDataRef.current = resetData;
     }
@@ -154,7 +158,7 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
             <input
               type="number"
               value={formData.tokenAmount}
-              onChange={(e) => handleInputChange('tokenAmount', e.target.value)}
+              onChange={(e) => handleInputChange("tokenAmount", e.target.value)}
               placeholder="5000"
               className="w-full p-3 rounded bg-gray-600 border border-gray-500 text-white focus:border-blue-500 focus:outline-none"
             />
@@ -167,7 +171,7 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
             <input
               type="number"
               value={formData.ethAmount}
-              onChange={(e) => handleInputChange('ethAmount', e.target.value)}
+              onChange={(e) => handleInputChange("ethAmount", e.target.value)}
               placeholder="1.0"
               step="0.01"
               className="w-full p-3 rounded bg-gray-600 border border-gray-500 text-white focus:border-blue-500 focus:outline-none"
@@ -176,15 +180,13 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
         </div>
 
         <div>
-          <label className="block text-gray-300 text-sm mb-1">
-            Fee Tier
-          </label>
+          <label className="block text-gray-300 text-sm mb-1">Fee Tier</label>
           <select
             value={formData.feeTier}
-            onChange={(e) => handleInputChange('feeTier', e.target.value)}
+            onChange={(e) => handleInputChange("feeTier", e.target.value)}
             className="w-full p-3 rounded bg-gray-600 border border-gray-500 text-white focus:border-blue-500 focus:outline-none"
           >
-            {feeTiers.map(tier => (
+            {feeTiers.map((tier) => (
               <option key={tier.value} value={tier.value}>
                 {tier.label} - {tier.description}
               </option>
@@ -202,13 +204,15 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
             <div className="flex justify-between">
               <span className="text-gray-300">Fee Tier:</span>
               <span className="text-white">
-                {feeTiers.find(t => t.value === formData.feeTier)?.label}
+                {feeTiers.find((t) => t.value === formData.feeTier)?.label}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-300">Initial Price:</span>
               <span className="text-white">
-                {initialPrice ? `1 ETH = ${initialPrice} ${tokenSymbol}` : 'Enter amounts'}
+                {initialPrice
+                  ? `1 ETH = ${initialPrice} ${tokenSymbol}`
+                  : "Enter amounts"}
               </span>
             </div>
           </div>
@@ -261,16 +265,22 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              {isCreating ? 'Approving...' : isPending ? 'Confirming...' : 'Creating Pool...'}
+              {isCreating
+                ? "Approving..."
+                : isPending
+                ? "Confirming..."
+                : "Creating Pool..."}
             </span>
           ) : (
-            'Create DEX Pool'
+            "Create DEX Pool"
           )}
         </button>
 
         {isSuccess && (
           <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg">
-            <p className="text-green-300 text-sm">✅ DEX Pool created successfully!</p>
+            <p className="text-green-300 text-sm">
+              ✅ DEX Pool created successfully!
+            </p>
             {hash && (
               <p className="text-xs text-gray-400 mt-1 break-all">
                 Transaction: {hash}
