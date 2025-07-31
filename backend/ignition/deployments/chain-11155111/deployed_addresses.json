@@ -1,6 +1,3 @@
 {
-  "DeployAllContracts#PumpFunDEXManager": "0x5C9EE35D9D14702f9cD5b301032FfB11CA786082",
-  "DeployAllContracts#PumpFunFactoryLite": "0xBc333399dDb0D27ea19C7fB2EaA78f2F0975B06a",
-  "DeployAllContracts#PumpFunGovernance": "0xF6bDD5fD3C1b29D234D58E1c33432758A529A058",
-  "DeployAllContracts#PumpFunGovernanceAirdrop": "0xd84FDd7A89a11d89e3C83F4D0733aAC0083E9516"
+  "PumpFunDEXManager#PumpFunDEXManager": "0x71AD278910DA885E6f01926381FeFC708A9E178c"
 }

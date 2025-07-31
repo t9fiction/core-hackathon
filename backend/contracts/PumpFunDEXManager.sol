@@ -9,7 +9,8 @@ import "./interfaces/INonfungiblePositionManager.sol";
 import "./interfaces/IUniswapV3Factory.sol";
 import "./interfaces/IUniswapV3Pool.sol";
 import "./interfaces/IWETH.sol";
-import "./interfaces/IQuoter.sol";
+// import "./interfaces/IQuoterV2.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
 
 /**
  * @title PumpFunDEXManager
@@ -30,6 +31,9 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     error PumpFunDEXManager__InvalidPathLength();
     error PumpFunDEXManager__PathFeesLengthMismatch();
     error PumpFunDEXManager__TransferFailed();
+    error PumpFunDEXManager__InvalidFeeTier();
+    error PumpFunDEXManager__PoolDoesNotExist();
+    error PumpFunDEXManager__QuoterFailed(string reason);
 
     // Modifiers
     modifier onlyFactory() {
@@ -82,7 +86,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     ISwapRouter public immutable swapRouter;
     INonfungiblePositionManager public immutable positionManager;
     IUniswapV3Factory public immutable uniswapV3Factory;
-    IQuoter public immutable quoter;
+    IQuoterV2 public immutable quoterV2;
     address public immutable WETH;
     address public factory;
 
@@ -92,25 +96,24 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
 
     uint256 public constant SLIPPAGE_TOLERANCE = 500; // 5% in basis points
     uint256 public constant PRICE_UPDATE_INTERVAL = 300; // 5 minutes
-    uint256 public constant MIN_LIQUIDITY_ETH = 0.1 ether;
 
     constructor(
         address _swapRouter,
         address _positionManager,
         address _uniswapV3Factory,
-        address _quoter,
+        address _quoterV2,
         address _weth
     ) Ownable(msg.sender) {
         if (
             _swapRouter == address(0) || _positionManager == address(0) || _uniswapV3Factory == address(0)
-                || _quoter == address(0) || _weth == address(0)
+                || _quoterV2 == address(0) || _weth == address(0)
         ) {
             revert PumpFunDEXManager__InvalidTokenAddress();
         }
         swapRouter = ISwapRouter(_swapRouter);
         positionManager = INonfungiblePositionManager(_positionManager);
         uniswapV3Factory = IUniswapV3Factory(_uniswapV3Factory);
-        quoter = IQuoter(_quoter);
+        quoterV2 = IQuoterV2(_quoterV2);
         WETH = _weth;
     }
 
@@ -143,7 +146,6 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      */
     function createLiquidityPoolWithETH(address token, uint24 fee, uint256 tokenAmount) external payable nonReentrant {
         if (!authorizedTokens[token]) revert PumpFunDEXManager__UnauthorizedToken();
-        if (msg.value < MIN_LIQUIDITY_ETH) revert PumpFunDEXManager__InvalidAmount();
         if (tokenAmount == 0) revert PumpFunDEXManager__InvalidAmount();
 
         address token0 = token < WETH ? token : WETH;
@@ -322,15 +324,21 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      */
     function swapExactETHForTokens(address tokenOut, uint24 fee) external payable nonReentrant {
         if (!authorizedTokens[tokenOut]) revert PumpFunDEXManager__UnauthorizedToken();
-        if (msg.value < MIN_LIQUIDITY_ETH) revert PumpFunDEXManager__InvalidAmount();
 
         bool isWETHLower = WETH < tokenOut;
         address token0 = isWETHLower ? WETH : tokenOut;
         address token1 = isWETHLower ? tokenOut : WETH;
 
         uint256 expectedAmountOut;
-        try quoter.quoteExactInputSingle(WETH, tokenOut, fee, msg.value, 0) returns (uint256 quote) {
-            expectedAmountOut = quote;
+        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: WETH,
+            tokenOut: tokenOut,
+            fee: fee,
+            amountIn: msg.value,
+            sqrtPriceLimitX96: 0
+        });
+        try quoterV2.quoteExactInputSingle(params) returns (uint256 amountOut, uint160, uint32, uint256) {
+            expectedAmountOut = amountOut;
         } catch {
             revert PumpFunDEXManager__InsufficientLiquidity();
         }
@@ -340,7 +348,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         IWETH(WETH).deposit{value: msg.value}();
         IERC20(WETH).approve(address(swapRouter), msg.value);
 
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
             tokenIn: WETH,
             tokenOut: tokenOut,
             fee: fee,
@@ -351,7 +359,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
-        uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(params);
+        uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(swapParams);
 
         _updateTokenPrice(tokenOut);
         tokenPrices[tokenOut].volume24h += msg.value;
@@ -368,18 +376,32 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         nonReentrant
     {
         if (!authorizedTokens[tokenOut]) revert PumpFunDEXManager__UnauthorizedToken();
-        if (msg.value < MIN_LIQUIDITY_ETH) revert PumpFunDEXManager__InvalidAmount();
         if (slippageTolerance > 5000) revert PumpFunDEXManager__SlippageExceeded();
+        if (fee != 100 && fee != 500 && fee != 3000 && fee != 10000) revert PumpFunDEXManager__InvalidFeeTier();
 
         bool isWETHLower = WETH < tokenOut;
         address token0 = isWETHLower ? WETH : tokenOut;
         address token1 = isWETHLower ? tokenOut : WETH;
 
+        // Check pool existence
+        address poolAddress = uniswapV3Factory.getPool(token0, token1, fee);
+        if (poolAddress == address(0)) revert PumpFunDEXManager__PoolDoesNotExist();
+
         uint256 expectedAmountOut;
-        try quoter.quoteExactInputSingle(WETH, tokenOut, fee, msg.value, 0) returns (uint256 quote) {
-            expectedAmountOut = quote;
+        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: WETH,
+            tokenOut: tokenOut,
+            fee: fee,
+            amountIn: msg.value,
+            sqrtPriceLimitX96: 0
+        });
+
+        try quoterV2.quoteExactInputSingle(params) returns (uint256 amountOut, uint160, uint32, uint256) {
+            expectedAmountOut = amountOut;
+        } catch Error(string memory reason) {
+            revert PumpFunDEXManager__QuoterFailed(reason);
         } catch {
-            revert PumpFunDEXManager__InsufficientLiquidity();
+            revert PumpFunDEXManager__QuoterFailed("Unknown error in QuoterV2");
         }
 
         uint256 amountOutMinimum = (expectedAmountOut * (10000 - slippageTolerance)) / 10000;
@@ -387,7 +409,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         IWETH(WETH).deposit{value: msg.value}();
         IERC20(WETH).approve(address(swapRouter), msg.value);
 
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
             tokenIn: WETH,
             tokenOut: tokenOut,
             fee: fee,
@@ -398,7 +420,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
-        uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(params);
+        uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(swapParams);
 
         _updateTokenPrice(tokenOut);
         tokenPrices[tokenOut].volume24h += msg.value;
@@ -418,8 +440,15 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         address token1 = isTokenInLower ? WETH : tokenIn;
 
         uint256 expectedAmountOut;
-        try quoter.quoteExactInputSingle(tokenIn, WETH, fee, amountIn, 0) returns (uint256 quote) {
-            expectedAmountOut = quote;
+        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: WETH,
+            fee: fee,
+            amountIn: amountIn,
+            sqrtPriceLimitX96: 0
+        });
+        try quoterV2.quoteExactInputSingle(params) returns (uint256 amountOut, uint160, uint32, uint256) {
+            expectedAmountOut = amountOut;
         } catch {
             revert PumpFunDEXManager__InsufficientLiquidity();
         }
@@ -433,7 +462,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenIn).approve(address(swapRouter), amountIn);
 
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: WETH,
             fee: fee,
@@ -444,7 +473,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
-        uint256 amountOut = swapRouter.exactInputSingle(params);
+        uint256 amountOut = swapRouter.exactInputSingle(swapParams);
 
         _updateTokenPrice(tokenIn);
         tokenPrices[tokenIn].volume24h += amountOut;
@@ -468,8 +497,15 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         address token1 = isTokenInLower ? WETH : tokenIn;
 
         uint256 expectedAmountOut;
-        try quoter.quoteExactInputSingle(tokenIn, WETH, fee, amountIn, 0) returns (uint256 quote) {
-            expectedAmountOut = quote;
+        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: WETH,
+            fee: fee,
+            amountIn: amountIn,
+            sqrtPriceLimitX96: 0
+        });
+        try quoterV2.quoteExactInputSingle(params) returns (uint256 amountOut, uint160, uint32, uint256) {
+            expectedAmountOut = amountOut;
         } catch {
             revert PumpFunDEXManager__InsufficientLiquidity();
         }
@@ -483,7 +519,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenIn).approve(address(swapRouter), amountIn);
 
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: WETH,
             fee: fee,
@@ -494,7 +530,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
-        uint256 amountOut = swapRouter.exactInputSingle(params);
+        uint256 amountOut = swapRouter.exactInputSingle(swapParams);
 
         _updateTokenPrice(tokenIn);
         tokenPrices[tokenIn].volume24h += amountOut;
@@ -607,7 +643,6 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      */
     function getAmountsOutMultiHop(uint256 amountIn, address[] calldata path, uint24[] calldata fees)
         external
-        view
         returns (uint256[] memory amounts)
     {
         if (path.length < 2) revert PumpFunDEXManager__InvalidPathLength();
@@ -637,7 +672,14 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
                 return amounts;
             }
 
-            try quoter.quoteExactInputSingle(tokenIn, tokenOut, fees[i], amounts[i], 0) returns (uint256 amountOut) {
+            IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: fees[i],
+                amountIn: amounts[i],
+                sqrtPriceLimitX96: 0
+            });
+            try quoterV2.quoteExactInputSingle(params) returns (uint256 amountOut, uint160, uint32, uint256) {
                 amounts[i + 1] = amountOut;
             } catch {
                 for (uint256 j = i + 1; j < path.length; j++) {
@@ -658,7 +700,6 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
      */
     function getAmountsOutSingleHop(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn)
         external
-        view
         returns (uint256 amountOut)
     {
         if (tokenIn == address(0) || tokenOut == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
@@ -673,8 +714,61 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             return 0;
         }
 
-        try quoter.quoteExactInputSingle(tokenIn, tokenOut, fee, amountIn, 0) returns (uint256 quote) {
-            return quote;
+        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            fee: fee,
+            amountIn: amountIn,
+            sqrtPriceLimitX96: 0
+        });
+        try quoterV2.quoteExactInputSingle(params) returns (uint256 amountOut, uint160, uint32, uint256) {
+            return amountOut;
+        } catch {
+            return 0;
+        }
+    }
+
+    /**
+     * @dev Test the Uniswap V3 Quoter's quoteExactInputSingle function
+     * @param tokenIn Input token address
+     * @param tokenOut Output token address
+     * @param fee Pool fee tier
+     * @param amountIn Input amount
+     * @param sqrtPriceLimitX96 Price limit for the swap
+     * @return amountOut Expected output amount
+     */
+    function testQuoteExactInputSingle(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        uint256 amountIn,
+        uint160 sqrtPriceLimitX96
+    ) external returns (uint256 amountOut) {
+        if (tokenIn == address(0) || tokenOut == address(0)) revert PumpFunDEXManager__InvalidTokenAddress();
+        if (amountIn == 0) revert PumpFunDEXManager__InvalidAmount();
+        if (!authorizedTokens[tokenIn] && !authorizedTokens[tokenOut] && tokenIn != WETH && tokenOut != WETH) {
+            revert PumpFunDEXManager__UnauthorizedToken();
+        }
+        if (fee != 100 && fee != 500 && fee != 3000 && fee != 10000) {
+            revert PumpFunDEXManager__InvalidFeeTier();
+        }
+
+        address orderedToken0 = tokenIn < tokenOut ? tokenIn : tokenOut;
+        address orderedToken1 = tokenIn < tokenOut ? tokenOut : tokenIn;
+        address poolAddress = uniswapV3Factory.getPool(orderedToken0, orderedToken1, fee);
+        if (poolAddress == address(0)) {
+            revert PumpFunDEXManager__PoolDoesNotExist();
+        }
+
+        IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            fee: fee,
+            amountIn: amountIn,
+            sqrtPriceLimitX96: sqrtPriceLimitX96
+        });
+        try quoterV2.quoteExactInputSingle(params) returns (uint256 amountOut, uint160, uint32, uint256) {
+            return amountOut;
         } catch {
             return 0;
         }

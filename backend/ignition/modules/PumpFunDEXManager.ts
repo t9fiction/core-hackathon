@@ -11,21 +11,21 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 const _swapRouter = process.env.UNISWAP_V3_SWAP_ROUTER || '0xE592427A0AEce92De3Edee1F18E0157C05861564';
 const _positionManager = process.env.UNISWAP_V3_POSITION_MANAGER || '0x1238536071E1c677A632429e3655c799b22cDA52';
 const _uniswapV3Factory = process.env.UNISWAP_V3_FACTORY || '0x0227628f3F023bb0B980b67D528571c95c6DaC1c';
-const _quoter = process.env.UNISWAP_V3_QUOTER || '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
+const _quoterV2 = process.env.UNISWAP_V3_QUOTER_V2 || '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3';
 const _weth = process.env.WETH_ADDRESS || '0xfff9976782d46cc05630d1f6ebab18b2324d6b14';
 
 const DEXManagerModule = buildModule("PumpFunDEXManager", (m) => {
   const swapRouterParam = m.getParameter("_swapRouter", _swapRouter);
   const positionManagerParam = m.getParameter("_positionManager", _positionManager);
   const uniswapV3FactoryParam = m.getParameter("_uniswapV3Factory", _uniswapV3Factory);
-  const quoterParam = m.getParameter("_quoter", _quoter);
+  const quoterV2Param = m.getParameter("_quoterV2", _quoterV2);
   const wethParam = m.getParameter("_weth", _weth);
   
   const dexManager = m.contract("PumpFunDEXManager", [
     swapRouterParam,
     positionManagerParam,
     uniswapV3FactoryParam,
-    quoterParam,
+    quoterV2Param,
     wethParam
   ]);
 

@@ -1946,7 +1946,7 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
       { internalType: "address", name: "_swapRouter", type: "address" },
       { internalType: "address", name: "_positionManager", type: "address" },
       { internalType: "address", name: "_uniswapV3Factory", type: "address" },
-      { internalType: "address", name: "_quoter", type: "address" },
+      { internalType: "address", name: "_quoterV2", type: "address" },
       { internalType: "address", name: "_weth", type: "address" },
     ],
     stateMutability: "nonpayable",
@@ -1982,6 +1982,7 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
     name: "PumpFunDEXManager__InvalidFactoryAddress",
     type: "error",
   },
+  { inputs: [], name: "PumpFunDEXManager__InvalidFeeTier", type: "error" },
   { inputs: [], name: "PumpFunDEXManager__InvalidPathLength", type: "error" },
   { inputs: [], name: "PumpFunDEXManager__InvalidTokenAddress", type: "error" },
   { inputs: [], name: "PumpFunDEXManager__LiquidityLocked", type: "error" },
@@ -1989,6 +1990,12 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
   {
     inputs: [],
     name: "PumpFunDEXManager__PathFeesLengthMismatch",
+    type: "error",
+  },
+  { inputs: [], name: "PumpFunDEXManager__PoolDoesNotExist", type: "error" },
+  {
+    inputs: [{ internalType: "string", name: "reason", type: "string" }],
+    name: "PumpFunDEXManager__QuoterFailed",
     type: "error",
   },
   { inputs: [], name: "PumpFunDEXManager__SlippageExceeded", type: "error" },
@@ -2182,13 +2189,6 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
   { stateMutability: "payable", type: "fallback" },
   {
     inputs: [],
-    name: "MIN_LIQUIDITY_ETH",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
     name: "PRICE_UPDATE_INTERVAL",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
@@ -2371,8 +2371,10 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
   },
   {
     inputs: [],
-    name: "quoter",
-    outputs: [{ internalType: "contract IQuoter", name: "", type: "address" }],
+    name: "quoterV2",
+    outputs: [
+      { internalType: "contract IQuoterV2", name: "", type: "address" },
+    ],
     stateMutability: "view",
     type: "function",
   },
@@ -2440,6 +2442,19 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
     outputs: [
       { internalType: "contract ISwapRouter", name: "", type: "address" },
     ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "tokenIn", type: "address" },
+      { internalType: "address", name: "tokenOut", type: "address" },
+      { internalType: "uint24", name: "fee", type: "uint24" },
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+      { internalType: "uint160", name: "sqrtPriceLimitX96", type: "uint160" },
+    ],
+    name: "testQuoteExactInputSingle",
+    outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },

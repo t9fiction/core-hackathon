@@ -21,8 +21,8 @@ describe("PumpFunDEXManager Quoter Functionality", function () {
     mockFactory = await MockFactory.deploy(ethers.ZeroAddress);
     
     // Deploy mock quoter
-    const QuoterMock = await ethers.getContractFactory("QuoterMock");
-    mockQuoter = await QuoterMock.deploy();
+    const QuoterV2Mock = await ethers.getContractFactory("QuoterV2Mock");
+    mockQuoter = await QuoterV2Mock.deploy();
     await mockQuoter.waitForDeployment();
 
     // Deploy mock contracts
@@ -317,13 +317,15 @@ describe("PumpFunDEXManager Quoter Functionality", function () {
       const inputAmount = ethers.parseEther("1");
       
       // Query for a pair without set mock price
-      const amountOut = await mockQuoter.quoteExactInputSingle(
-        await testToken1.getAddress(),
-        await testToken2.getAddress(),
-        FEE_TIER,
-        inputAmount,
-        0
-      );
+      const params = {
+        tokenIn: await testToken1.getAddress(),
+        tokenOut: await testToken2.getAddress(),
+        fee: FEE_TIER,
+        amountIn: inputAmount,
+        sqrtPriceLimitX96: 0
+      };
+      const result = await mockQuoter.quoteExactInputSingle(params);
+      const amountOut = result.amountOut;
       
       // Should return default 2x multiplier
       expect(amountOut).to.equal(ethers.parseEther("2"));
@@ -332,7 +334,7 @@ describe("PumpFunDEXManager Quoter Functionality", function () {
 
   describe("Integration with DEX Manager State", function () {
     it("Should check quoter address is set correctly", async function () {
-      expect(await dexManager.quoter()).to.equal(await mockQuoter.getAddress());
+    expect(await dexManager.quoterV2()).to.equal(await mockQuoter.getAddress());
     });
 
     it("Should handle quoter integration in constructor validation", async function () {

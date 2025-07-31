@@ -110,7 +110,8 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     
     try {
       const amountIn = parseEther(buyAmount);
-      const minAmountOut = buyEstimate ? (buyEstimate as bigint) * 95n / 100n : 0n; // 5% slippage
+      // const minAmountOut = buyEstimate ? (buyEstimate as bigint) * 95n / 100n : 0n; // 5% slippage
+      const minAmountOut = 86n; // 5% slippage
       console.log("Min Amount",minAmountOut)
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
       
