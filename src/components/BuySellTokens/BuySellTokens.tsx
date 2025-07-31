@@ -73,7 +73,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
     functionName: 'getAmountsOutSingleHop',
-    args: [tokenAddress, contractAddresses.WETH, 3000, parseEther(buyAmount || '0')],
+    args: [contractAddresses.WETH, tokenAddress, 3000, parseEther(buyAmount || '0')],
     query: {
       enabled: !!buyAmount && parseFloat(buyAmount) > 0,
     },
@@ -84,7 +84,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
     functionName: 'getAmountsOutSingleHop',
-    args: [contractAddresses.WETH, tokenAddress, 3000, parseEther(sellAmount || '0')],
+    args: [tokenAddress, contractAddresses.WETH, 3000, parseEther(sellAmount || '0')],
     query: {
       enabled: !!sellAmount && parseFloat(sellAmount) > 0,
     },
@@ -110,16 +110,14 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     
     try {
       const amountIn = parseEther(buyAmount);
-      // const minAmountOut = buyEstimate ? (buyEstimate as bigint) * 95n / 100n : 0n; // 5% slippage
-      const minAmountOut = 86n; // 5% slippage
-      console.log("Min Amount",minAmountOut)
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
+      const slippageTolerance = 500; // 5% slippage in basis points (500 = 5%)
+      console.log("Slippage Tolerance:", slippageTolerance);
       
       await writeContract({
         address: contractAddresses.PUMPFUN_DEX_MANAGER,
         abi: PUMPFUN_DEX_MANAGER_ABI,
         functionName: 'swapExactETHForTokensWithSlippage',
-        args: [tokenAddress, 3000, minAmountOut],
+        args: [tokenAddress, 3000, slippageTolerance],
         value: amountIn,
       });
       
@@ -157,14 +155,14 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     
     try {
       const amountIn = parseEther(sellAmount);
-      const minAmountOut = sellEstimate ? (sellEstimate as bigint) * 95n / 100n : 0n; // 5% slippage
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 minutes
+      const slippageTolerance = 500; // 5% slippage in basis points (500 = 5%)
+      console.log("Slippage Tolerance:", slippageTolerance);
       
       await writeContract({
         address: contractAddresses.PUMPFUN_DEX_MANAGER,
         abi: PUMPFUN_DEX_MANAGER_ABI,
         functionName: 'swapExactTokensForETHWithSlippage',
-        args: [tokenAddress, 3000, amountIn, minAmountOut],
+        args: [tokenAddress, 3000, amountIn, slippageTolerance],
       });
       
       setSellAmount('');

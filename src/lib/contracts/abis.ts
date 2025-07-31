@@ -2283,7 +2283,7 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
     outputs: [
       { internalType: "uint256[]", name: "amounts", type: "uint256[]" },
     ],
-    stateMutability: "view",
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -2295,7 +2295,7 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
     ],
     name: "getAmountsOutSingleHop",
     outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
-    stateMutability: "view",
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -2455,7 +2455,7 @@ export const PUMPFUN_DEX_MANAGER_ABI = [
     ],
     name: "testQuoteExactInputSingle",
     outputs: [{ internalType: "uint256", name: "amountOut", type: "uint256" }],
-    stateMutability: "view",
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
