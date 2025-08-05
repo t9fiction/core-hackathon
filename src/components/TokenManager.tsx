@@ -6,7 +6,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { formatEther, Address } from "viem";
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from "../lib/contracts/abis";
+import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from "../lib/contracts/addresses";
 import {
   useTokenDEX,
@@ -18,7 +18,6 @@ interface TokenInfo {
   tokenAddress: string;
   creator: string;
   deploymentTime: bigint;
-  liquidityLockPeriodDays: bigint;
   name?: string;
   symbol?: string;
   totalSupply?: bigint;
@@ -94,13 +93,12 @@ const TokenManager = () => {
         tokenSymbol &&
         totalSupply !== undefined
       ) {
-        const [creator, deploymentTime, liquidityLockPeriodDays] =
-          tokenInfo as [string, bigint, bigint];
+        const [creator, deploymentTime] =
+          tokenInfo as [string, bigint];
         onDataFetched({
           tokenAddress,
           creator,
           deploymentTime,
-          liquidityLockPeriodDays,
           name: tokenName as string,
           symbol: tokenSymbol as string,
           totalSupply: totalSupply as bigint,
@@ -145,7 +143,6 @@ const TokenManager = () => {
       a.tokenAddress === b.tokenAddress &&
       a.creator === b.creator &&
       a.deploymentTime.toString() === b.deploymentTime.toString() &&
-      a.liquidityLockPeriodDays.toString() === b.liquidityLockPeriodDays.toString() &&
       a.name === b.name &&
       a.symbol === b.symbol &&
       (a.totalSupply?.toString() || undefined) === (b.totalSupply?.toString() || undefined) &&
@@ -216,12 +213,6 @@ const TokenManager = () => {
           <span className="text-gray-400">Deployed:</span>
           <span className="text-white">
             {new Date(Number(token.deploymentTime) * 1000).toLocaleDateString()}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Lock Period:</span>
-          <span className="text-white">
-            {token.liquidityLockPeriodDays.toString()} days
           </span>
         </div>
       </div>

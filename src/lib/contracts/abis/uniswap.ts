@@ -1,4 +1,4 @@
-// lib/contracts/abis/uniswap.ts
+// src/lib/contracts/abis/uniswap.ts
 export const UNISWAP_V3_FACTORY_ABI = [
   {
     inputs: [

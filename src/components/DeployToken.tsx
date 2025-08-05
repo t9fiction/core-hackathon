@@ -64,7 +64,7 @@ const DeployToken = ({ totalSupply, renderTierInfo }: DeployTokenProps) => {
         address: contractAddress,
         abi: PUMPFUN_FACTORY_ABI,
         functionName: 'deployToken',
-        args: [name, symbol, BigInt(supplyNum), BigInt(liquidityLockDays)],
+        args: [name, symbol, BigInt(supplyNum)],
         value: parseEther(fee.toString()),
       });
     } catch (err) {

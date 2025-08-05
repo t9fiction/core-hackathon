@@ -24,12 +24,8 @@ contract MockFactory {
         address token0 = tokenA < tokenB ? tokenA : tokenB;
         address token1 = tokenA < tokenB ? tokenB : tokenA;
         
-        // Return mock pool address if set, otherwise return a dummy address
+        // Return mock pool address if set
         pool = pools[token0][token1][fee];
-        if (pool == address(0)) {
-            // Return a dummy non-zero address to simulate pool existence
-            return address(0x1234567890123456789012345678901234567890);
-        }
         return pool;
     }
     

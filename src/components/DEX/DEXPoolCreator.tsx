@@ -4,6 +4,7 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useChainId,
+  useReadContract,
 } from "wagmi";
 import { parseEther, parseUnits, Address } from "viem";
 import {
@@ -33,18 +34,45 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
   });
 
   const [isCreating, setIsCreating] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [approvalHash, setApprovalHash] = useState<`0x${string}` | undefined>();
   const [error, setError] = useState<string | null>(null);
   const formDataRef = useRef(formData);
 
   const contractAddresses = getContractAddresses(chainId);
+  
+  // Contract writing hooks
   const {
     writeContract,
     data: hash,
     error: writeError,
     isPending,
   } = useWriteContract();
+  
+  const {
+    writeContract: writeApproval,
+    data: approvalTxHash,
+    error: approvalError,
+    isPending: isApprovalPending,
+  } = useWriteContract();
+  
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
+  });
+  
+  const { isLoading: isApprovalConfirming, isSuccess: isApprovalSuccess } = useWaitForTransactionReceipt({
+    hash: approvalTxHash,
+  });
+  
+  // Check token allowance
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: tokenAddress,
+    abi: PUMPFUN_TOKEN_ABI,
+    functionName: "allowance",
+    args: address && tokenAddress ? [address, contractAddresses.PUMPFUN_FACTORY] : undefined,
+    query: {
+      enabled: !!(address && tokenAddress),
+    },
   });
 
   const feeTiers = [
@@ -66,6 +94,52 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
     const ethAmount = parseFloat(formData.ethAmount);
     if (tokenAmount <= 0 || ethAmount <= 0) return null;
     return (tokenAmount / ethAmount).toFixed(2);
+  };
+
+  // Check if approval is needed
+  const needsApproval = () => {
+    if (!tokenAddress || !formData.tokenAmount || allowance === undefined) {
+      console.log('needsApproval: missing requirements', {
+        tokenAddress,
+        tokenAmount: formData.tokenAmount,
+        allowance,
+      });
+      return false;
+    }
+    const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
+    const needsApprovalResult = BigInt(allowance.toString()) < BigInt(tokenAmountWei.toString());
+    console.log('needsApproval check:', {
+      allowance: allowance.toString(),
+      tokenAmountWei: tokenAmountWei.toString(),
+      needsApprovalResult,
+    });
+    return needsApprovalResult;
+  };
+
+  // Approve token spending
+  const approveToken = async () => {
+    if (!tokenAddress || !formData.tokenAmount) {
+      setError("Token address and amount are required");
+      return;
+    }
+
+    setIsApproving(true);
+    setError(null);
+
+    try {
+      const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
+      
+      await writeApproval({
+        address: tokenAddress,
+        abi: PUMPFUN_TOKEN_ABI,
+        functionName: "approve",
+        args: [contractAddresses.PUMPFUN_FACTORY, tokenAmountWei],
+      });
+    } catch (error: any) {
+      console.error("Error approving token:", error);
+      setError(error?.message || error?.reason || "Failed to approve token");
+      setIsApproving(false);
+    }
   };
 
   const createDEXPool = async () => {
@@ -103,7 +177,6 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
         contractAddress: contractAddresses.PUMPFUN_FACTORY,
       });
 
-
       // Create pool via factory
       await writeContract({
         address: contractAddresses.PUMPFUN_FACTORY,
@@ -119,6 +192,15 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
       setIsCreating(false);
     }
   };
+
+  // Handle successful approval
+  useEffect(() => {
+    if (isApprovalSuccess) {
+      setIsApproving(false);
+      // Refetch allowance after approval
+      refetchAllowance();
+    }
+  }, [isApprovalSuccess, refetchAllowance]);
 
   // Handle successful pool creation
   useEffect(() => {
@@ -215,6 +297,18 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
                   : "Enter amounts"}
               </span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-gray-300">Allowance:</span>
+              <span className="text-white">
+                {allowance !== undefined ? allowance.toString() : "Loading..."}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-300">Needs Approval:</span>
+              <span className="text-white">
+                {needsApproval() ? "Yes" : "No"}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -230,6 +324,60 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
           </div>
         )}
 
+        {approvalError && (
+          <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg">
+            <p className="text-red-300 text-sm">{approvalError.message}</p>
+          </div>
+        )}
+
+        {/* Show approve button if approval is needed */}
+        {needsApproval() && !isApprovalSuccess ? (
+          <button
+            onClick={approveToken}
+            disabled={
+              !isConnected ||
+              !tokenAddress ||
+              !formData.tokenAmount ||
+              isApproving ||
+              isApprovalPending ||
+              isApprovalConfirming
+            }
+            className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:opacity-50 text-white py-3 px-4 rounded font-medium transition-colors mb-4"
+          >
+            {isApproving || isApprovalPending || isApprovalConfirming ? (
+              <span className="flex items-center justify-center">
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                {isApproving
+                  ? "Approving..."
+                  : isApprovalPending
+                  ? "Confirming Approval..."
+                  : "Processing..."}
+              </span>
+            ) : (
+              `Approve ${tokenSymbol} Spending`
+            )}
+          </button>
+        ) : null}
+
         <button
           onClick={createDEXPool}
           disabled={
@@ -237,6 +385,7 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
             !tokenAddress ||
             !formData.tokenAmount ||
             !formData.ethAmount ||
+            needsApproval() ||
             isCreating ||
             isPending ||
             isConfirming
@@ -266,10 +415,10 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
                 ></path>
               </svg>
               {isCreating
-                ? "Approving..."
+                ? "Creating Pool..."
                 : isPending
                 ? "Confirming..."
-                : "Creating Pool..."}
+                : "Processing..."}
             </span>
           ) : (
             "Create DEX Pool"

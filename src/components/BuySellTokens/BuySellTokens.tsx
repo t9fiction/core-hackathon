@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAccount, useReadContract, useBalance, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { Address, formatEther, parseEther } from 'viem';
-import { PUMPFUN_TOKEN_ABI, PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
+import { PUMPFUN_DEX_MANAGER_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
 // import { PUMPFUN_DEX_MANAGER } from '../../lib/contracts/addresses';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 
@@ -68,27 +68,29 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     },
   });
 
-  // Get estimated output for buying tokens (ETH -> Token)
-  const { data: buyEstimate } = useReadContract({
-    address: contractAddresses.PUMPFUN_DEX_MANAGER,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: 'getAmountsOutSingleHop',
-    args: [contractAddresses.WETH, tokenAddress, 3000, parseEther(buyAmount || '0')],
-    query: {
-      enabled: !!buyAmount && parseFloat(buyAmount) > 0,
-    },
-  });
+  // Debounced buy amount for estimates to prevent excessive calls  
+  const [debouncedBuyAmount, setDebouncedBuyAmount] = useState('');
+  const [debouncedSellAmount, setDebouncedSellAmount] = useState('');
 
-  // Get estimated output for selling tokens (Token -> ETH)
-  const { data: sellEstimate } = useReadContract({
-    address: contractAddresses.PUMPFUN_DEX_MANAGER,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: 'getAmountsOutSingleHop',
-    args: [tokenAddress, contractAddresses.WETH, 3000, parseEther(sellAmount || '0')],
-    query: {
-      enabled: !!sellAmount && parseFloat(sellAmount) > 0,
-    },
-  });
+  // Debounce the amount inputs
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedBuyAmount(buyAmount);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [buyAmount]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSellAmount(sellAmount);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [sellAmount]);
+
+  // Note: getAmountsOutSingleHop is not a view function, so we can't use it for estimates
+  // For now, we'll use a simple placeholder for price estimates
+  const buyEstimate = null;
+  const sellEstimate = null;
 
   // Set transaction hash when available
   useEffect(() => {
@@ -110,7 +112,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     
     try {
       const amountIn = parseEther(buyAmount);
-      const slippageTolerance = 500; // 5% slippage in basis points (500 = 5%)
+      const slippageTolerance = 500n; // 5% slippage in basis points (500 = 5%)
       console.log("Slippage Tolerance:", slippageTolerance);
       
       await writeContract({
@@ -130,7 +132,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     }
   };
 
-  const handleApproveToken = async () => {
+  const handleApproveToken = async (_amount: string) => {
     if (!tokenAddress || !address) return;
     setIsLoading(true);
     
@@ -139,7 +141,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
         address: tokenAddress,
         abi: PUMPFUN_TOKEN_ABI,
         functionName: 'approve',
-        args: [contractAddresses.PUMPFUN_DEX_MANAGER, parseEther('1000000')], // Approve large amount
+        args: [contractAddresses.PUMPFUN_DEX_MANAGER, parseEther(_amount)], // Approve large amount
       });
     } catch (error: any) {
       console.error('Error approving tokens:', error);
@@ -154,8 +156,15 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     setIsLoading(true);
     
     try {
+      // First approve tokens if needed
+      // if (needsApproval) {
+        await handleApproveToken(sellAmount);
+        // Wait a bit for the approval to be processed
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      // }
+      
       const amountIn = parseEther(sellAmount);
-      const slippageTolerance = 500; // 5% slippage in basis points (500 = 5%)
+      const slippageTolerance = 500n; // 5% slippage in basis points (500 = 5%)
       console.log("Slippage Tolerance:", slippageTolerance);
       
       await writeContract({
@@ -174,6 +183,28 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     }
   };
 
+  // Calculate values using useMemo (must be before conditional returns)
+  const calculateBuyOutput = useMemo(() => {
+    if (!buyAmount || !buyEstimate) return '0';
+    const estimate = buyEstimate as bigint;
+    return formatEther(estimate);
+  }, [buyAmount, buyEstimate]);
+
+  const calculateSellOutput = useMemo(() => {
+    if (!sellAmount || !sellEstimate) return '0';
+    const estimate = sellEstimate as bigint;
+    return formatEther(estimate);
+  }, [sellAmount, sellEstimate]);
+
+  const needsApproval = useMemo(() => {
+    if (!sellAmount || !tokenAllowance) return false;
+    try {
+      return parseEther(sellAmount) > (tokenAllowance as bigint);
+    } catch {
+      return false;
+    }
+  }, [sellAmount, tokenAllowance]);
+
   if (!isConnected) {
     return (
       <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
@@ -184,24 +215,6 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
       </div>
     );
   }
-
-  const calculateBuyOutput = () => {
-    if (!buyAmount || !buyEstimate) return '0';
-    const estimate = buyEstimate as bigint;
-    return formatEther(estimate);
-  };
-
-  const calculateSellOutput = () => {
-    if (!sellAmount || !sellEstimate) return '0';
-    const estimate = sellEstimate as bigint;
-    return formatEther(estimate);
-  };
-
-
-  const needsApproval = () => {
-    if (!sellAmount || !tokenAllowance) return false;
-    return parseEther(sellAmount) > (tokenAllowance as bigint);
-  };
 
   return (
     <div className="space-y-6">
@@ -272,7 +285,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
                 className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white"
               />
               <div className="text-sm text-gray-400 mt-1">
-                You will receive: ~{parseFloat(calculateBuyOutput()).toFixed(6)} {tokenSymbol as string || 'tokens'}
+                You will receive: ~{parseFloat(calculateBuyOutput).toFixed(6)} {tokenSymbol as string || 'tokens'}
               </div>
             </div>
             
@@ -301,13 +314,13 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
                 className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-white"
               />
               <div className="text-sm text-gray-400 mt-1">
-                You will receive: ~{parseFloat(calculateSellOutput()).toFixed(6)} ETH
+                You will receive: ~{parseFloat(calculateSellOutput).toFixed(6)} ETH
               </div>
             </div>
             
-            {needsApproval() ? (
+            {needsApproval ? (
               <button
-                onClick={handleApproveToken}
+                onClick={() => handleApproveToken(sellAmount)}
                 disabled={isLoading || isConfirming}
                 className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors mb-2"
               >
@@ -317,7 +330,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
             
             <button
               onClick={handleSellTokens}
-              disabled={isLoading || isConfirming || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n)) || needsApproval()}
+              disabled={isLoading || isConfirming || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n)) || needsApproval}
               className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
             >
               {isLoading || isConfirming ? 'Processing...' : `Sell ${tokenSymbol as string || 'Tokens'}`}

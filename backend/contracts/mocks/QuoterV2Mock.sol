@@ -44,6 +44,10 @@ contract QuoterV2Mock is IQuoterV2 {
             revert("Mock quoter revert");
         }
         
+        // Check if amount is too large causing overflow
+        require(params.amountIn > 0, "Amount must be greater than 0");
+        require(params.amountIn < type(uint256).max / 10000, "Amount too large");
+        
         uint256 mockPrice = mockPrices[params.tokenIn][params.tokenOut][params.fee];
         if (mockPrice == 0) {
             // Default mock price: 1 tokenIn = 2 tokenOut

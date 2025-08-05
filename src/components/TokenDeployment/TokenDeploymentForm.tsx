@@ -68,7 +68,7 @@ const TokenDeploymentForm: React.FC<TokenDeploymentFormProps> = ({ onDeploymentS
         address: contractAddress,
         abi: PUMPFUN_FACTORY_ABI,
         functionName: 'deployToken',
-        args: [formData.name, formData.symbol, BigInt(supplyNum), BigInt(lockDays)],
+        args: [formData.name, formData.symbol, BigInt(supplyNum)],
         value: parseEther(currentTier.fee.toString()),
       });
 

@@ -16,7 +16,7 @@ const TokenModule = buildModule("PumpFunToken", (m) => {
     const totalSupplyParam = m.getParameter("totalSupply", totalSupply);
     const factoryParam = m.getParameter("factory", factory);
 
-  const token = m.contract("PumpFunToken", [tokenNameParam, tokenSymbolParam, totalSupplyParam, ownersAddressParam, factoryParam]);
+  const token = m.contract("PumpFunToken", [tokenNameParam, tokenSymbolParam, totalSupplyParam, ownersAddressParam]);
 
   return { token };
 });

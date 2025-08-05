@@ -10,14 +10,12 @@ import {
   UNISWAP_V3_FACTORY_ABI,
   UNISWAP_V3_POOL_ABI,
   NONFUNGIBLE_POSITION_MANAGER_ABI,
-} from "../contracts/abis/uniswap";
-import { parseEther, formatEther, Address, parseUnits } from "viem";
-import {
   PUMPFUN_GOVERNANCE_ABI,
   PUMPFUN_DEX_MANAGER_ABI,
   PUMPFUN_TOKEN_ABI,
   PUMPFUN_FACTORY_ABI,
 } from "../contracts/abis";
+import { parseEther, formatEther, Address, parseUnits } from "viem";
 import { getContractAddresses } from "../contracts/addresses";
 
 interface PoolInfo {

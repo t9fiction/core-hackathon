@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { Address, formatEther } from 'viem';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
+import { PUMPFUN_DEX_MANAGER_ABI, PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from '../lib/contracts/addresses';
 import { useTokenDEX } from '../lib/hooks/useTokenContracts';
 import DEXPoolCreator from '../components/DEX/DEXPoolCreator';

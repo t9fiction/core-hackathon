@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useReadContract } from 'wagmi';
 import { parseEther, parseUnits, Address, formatUnits } from 'viem';
-import { PUMPFUN_FACTORY_ABI } from '../../lib/contracts/abis';
+import { PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 
 interface LiquidityManagerProps {
@@ -30,13 +30,10 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
   const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  // Fetch available token balance from factory pool
-  const { data: availableTokenBalance, refetch: refetchBalance } = useReadContract({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
-    functionName: 'tokenLiquidityPoolBalance',
-    args: tokenAddress ? [tokenAddress] : undefined,
-  });
+  // Note: tokenLiquidityPoolBalance function doesn't exist in deployed contract
+  // For now, we'll use placeholder data
+  const availableTokenBalance = null;
+  const refetchBalance = useCallback(() => {}, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -93,14 +90,9 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
         contractAddress: contractAddresses.PUMPFUN_FACTORY
       });
 
-      // Lock tokens and ETH via factory (no approval needed - tokens come from factory pool)
-      await writeContract({
-        address: contractAddresses.PUMPFUN_FACTORY,
-        abi: PUMPFUN_FACTORY_ABI,
-        functionName: 'addAndLockLiquidity',
-        args: [tokenAddress, tokenAmountWei],
-        value: ethAmountWei,
-      });
+      // Note: addAndLockLiquidity function doesn't exist in deployed contract
+      // This functionality needs to be implemented in the contract first
+      throw new Error('Liquidity locking functionality is not yet available in the deployed contract');
 
     } catch (error: any) {
       console.error('Error locking tokens:', error);
@@ -128,7 +120,18 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
         🔒 Lock Tokens for Trust Building
       </h4>
 
-      <div className="space-y-4">
+      {/* Feature Unavailable Notice */}
+      <div className="p-4 bg-gradient-to-r from-red-900/30 to-orange-900/30 border border-red-500/50 rounded-lg mb-4">
+        <div className="text-red-200 text-sm">
+          <div className="font-medium mb-2 text-red-300">⚠️ Feature Currently Unavailable:</div>
+          <p className="text-xs">
+            The liquidity locking functionality is not yet implemented in the deployed contract. 
+            This feature will be available once the contract is updated with the necessary functions.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4 opacity-50 pointer-events-none">
         {/* Available Balance Display */}
         {availableTokenBalance && (
           <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg">
