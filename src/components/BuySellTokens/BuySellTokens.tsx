@@ -4,6 +4,7 @@ import { Address, formatEther, parseEther } from 'viem';
 import { PUMPFUN_DEX_MANAGER_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
 // import { PUMPFUN_DEX_MANAGER } from '../../lib/contracts/addresses';
 import { getContractAddresses } from '../../lib/contracts/addresses';
+import { showSuccessAlert, showErrorAlert } from '../../lib/swal-config';
 
 interface BuySellTokensProps {
   tokenAddress: Address;
@@ -108,12 +109,17 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     }
   }, [hash]);
 
-  // Reset transaction state when confirmed
+  // Handle transaction success
   useEffect(() => {
-    if (isConfirmed) {
+    if (isConfirmed && txHash) {
+      showSuccessAlert(
+        'Transaction Successful!',
+        `Your transaction has been confirmed on the blockchain.\nTx Hash: ${txHash.slice(0, 10)}...`,
+        5000
+      );
       setTxHash(undefined);
     }
-  }, [isConfirmed]);
+  }, [isConfirmed, txHash]);
 
   const handleBuyTokens = async () => {
     if (!tokenAddress || !buyAmount || !address) return;
@@ -135,7 +141,10 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
       setBuyAmount('');
     } catch (error: any) {
       console.error('Error buying tokens:', error);
-      alert('Failed to buy tokens: ' + (error.shortMessage || error.message || 'Unknown error'));
+      showErrorAlert(
+        'Transaction Failed',
+        error.shortMessage || error.message || 'Unknown error occurred while buying tokens'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -154,7 +163,10 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
       });
     } catch (error: any) {
       console.error('Error approving tokens:', error);
-      alert('Failed to approve tokens: ' + (error.shortMessage || error.message || 'Unknown error'));
+      showErrorAlert(
+        'Approval Failed',
+        error.shortMessage || error.message || 'Unknown error occurred while approving tokens'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -186,7 +198,10 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
       setSellAmount('');
     } catch (error: any) {
       console.error('Error selling tokens:', error);
-      alert('Failed to sell tokens: ' + (error.shortMessage || error.message || 'Unknown error'));
+      showErrorAlert(
+        'Transaction Failed',
+        error.shortMessage || error.message || 'Unknown error occurred while selling tokens'
+      );
     } finally {
       setIsLoading(false);
     }

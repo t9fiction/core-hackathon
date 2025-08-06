@@ -15,6 +15,7 @@ import {
 import { PUMPFUN_DEX_MANAGER_ABI } from '../lib/contracts/abis';
 import { parseEther } from "viem";
 import Link from "next/link";
+import { showErrorAlert } from '../lib/swal-config';
 
 interface TokenInfo {
   tokenAddress: string;
@@ -298,6 +299,7 @@ const TokenManager = () => {
 
     const handleBuyTokens = async () => {
       if (!buyAmount || !tokenAddress) return;
+      
       try {
         const amountIn = parseEther(buyAmount);
         await writeContract({
@@ -310,12 +312,16 @@ const TokenManager = () => {
         setBuyAmount('');
       } catch (error) {
         console.error('Error buying tokens:', error);
-        alert('Failed to buy tokens: ' + (error as any)?.message);
+        showErrorAlert(
+          'Transaction Failed',
+          (error as any)?.message || 'Unknown error occurred while buying tokens'
+        );
       }
     };
 
     const handleSellTokens = async () => {
       if (!sellAmount || !tokenAddress) return;
+      
       try {
         // First approve tokens if needed
         const amountIn = parseEther(sellAmount);
@@ -341,7 +347,10 @@ const TokenManager = () => {
         setSellAmount('');
       } catch (error) {
         console.error('Error selling tokens:', error);
-        alert('Failed to sell tokens: ' + (error as any)?.message);
+        showErrorAlert(
+          'Transaction Failed',
+          (error as any)?.message || 'Unknown error occurred while selling tokens'
+        );
       }
     };
 
