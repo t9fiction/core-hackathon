@@ -360,7 +360,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
-        uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(swapParams);
+        uint256 amountOut = swapRouter.exactInputSingle(swapParams);
 
         _updateTokenPrice(tokenOut);
         tokenPrices[tokenOut].volume24h += msg.value;
@@ -422,7 +422,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
             sqrtPriceLimitX96: 0 // TODO: Consider adding price impact protection
         });
 
-        uint256 amountOut = swapRouter.exactInputSingle{value: msg.value}(swapParams);
+        uint256 amountOut = swapRouter.exactInputSingle(swapParams);
 
         _updateTokenPrice(tokenOut);
         tokenPrices[tokenOut].volume24h += msg.value;
