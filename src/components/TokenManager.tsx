@@ -254,6 +254,17 @@ const TokenManager = () => {
     const chainId = useChainId();
     const contractAddresses = getContractAddresses(chainId);
 
+    // Get token price for estimates
+    const { data: tokenPriceData } = useReadContract({
+      address: contractAddresses.PUMPFUN_DEX_MANAGER,
+      abi: PUMPFUN_DEX_MANAGER_ABI,
+      functionName: 'getTokenPrice',
+      args: [tokenAddress as Address],
+      query: {
+        enabled: !!tokenAddress
+      }
+    });
+
     // Get token details
     const selectedTokenInfo = tokens.find(
       (t) => t.tokenAddress === tokenAddress
@@ -402,12 +413,16 @@ const TokenManager = () => {
                           You&apos;ll receive:
                         </span>
                         <span className="text-white font-medium">
-                          ~1,234 {selectedTokenInfo?.symbol}
+                          ~{buyAmount && tokenPriceData ? 
+                            ((parseFloat(buyAmount) * parseFloat(formatEther(parseEther('1')))) / parseFloat(formatEther(tokenPriceData[0] as bigint))).toFixed(2)
+                            : '0'} {selectedTokenInfo?.symbol}
                         </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
                         <span>Price:</span>
-                        <span>1 ETH = 12,340 {selectedTokenInfo?.symbol}</span>
+                        <span>1 ETH = {tokenPriceData ? 
+                          (parseFloat(formatEther(parseEther('1'))) / parseFloat(formatEther(tokenPriceData[0] as bigint))).toFixed(0)
+                          : '0'} {selectedTokenInfo?.symbol}</span>
                       </div>
                     </div>
                     <button
@@ -444,13 +459,17 @@ const TokenManager = () => {
                           You&apos;ll receive:
                         </span>
                         <span className="text-white font-medium">
-                          ~0.081 ETH
+                          ~{sellAmount && tokenPriceData ? 
+                            ((parseFloat(sellAmount) * parseFloat(formatEther(tokenPriceData[0] as bigint))) / parseFloat(formatEther(parseEther('1')))).toFixed(6)
+                            : '0'} ETH
                         </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
                         <span>Price:</span>
                         <span>
-                          1 {selectedTokenInfo?.symbol} = 0.000081 ETH
+                          1 {selectedTokenInfo?.symbol} = {tokenPriceData ? 
+                            (parseFloat(formatEther(tokenPriceData[0] as bigint)) / parseFloat(formatEther(parseEther('1')))).toFixed(8)
+                            : '0'} ETH
                         </span>
                       </div>
                     </div>

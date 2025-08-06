@@ -87,10 +87,19 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     return () => clearTimeout(timer);
   }, [sellAmount]);
 
-  // Note: getAmountsOutSingleHop is not a view function, so we can't use it for estimates
-  // For now, we'll use a simple placeholder for price estimates
-  const buyEstimate = null;
-  const sellEstimate = null;
+  // Get token price for estimates (temporary fallback)
+  const { data: tokenPriceData } = useReadContract({
+    address: contractAddresses.PUMPFUN_DEX_MANAGER,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: 'getTokenPrice',
+    args: [tokenAddress],
+    query: {
+      enabled: true
+    }
+  });
+
+  // Note: Using getTokenPrice as fallback since getAmountsOutSingleHop is not a view function
+  // This will be replaced with proper quoter implementation later
 
   // Set transaction hash when available
   useEffect(() => {
@@ -185,16 +194,22 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
 
   // Calculate values using useMemo (must be before conditional returns)
   const calculateBuyOutput = useMemo(() => {
-    if (!buyAmount || !buyEstimate) return '0';
-    const estimate = buyEstimate as bigint;
-    return formatEther(estimate);
-  }, [buyAmount, buyEstimate]);
+    if (!debouncedBuyAmount || !tokenPriceData || isNaN(Number(debouncedBuyAmount))) return '0';
+    const price = tokenPriceData[0] as bigint; // price is first element of tuple
+    const ethAmount = parseEther(debouncedBuyAmount);
+    // Simple calculation: ethAmount / price (need to handle decimals properly)
+    const estimated = (ethAmount * parseEther('1')) / price;
+    return formatEther(estimated);
+  }, [debouncedBuyAmount, tokenPriceData]);
 
   const calculateSellOutput = useMemo(() => {
-    if (!sellAmount || !sellEstimate) return '0';
-    const estimate = sellEstimate as bigint;
-    return formatEther(estimate);
-  }, [sellAmount, sellEstimate]);
+    if (!debouncedSellAmount || !tokenPriceData || isNaN(Number(debouncedSellAmount))) return '0';
+    const price = tokenPriceData[0] as bigint; // price is first element of tuple
+    const tokenAmount = parseEther(debouncedSellAmount);
+    // Simple calculation: tokenAmount * price
+    const estimated = (tokenAmount * price) / parseEther('1');
+    return formatEther(estimated);
+  }, [debouncedSellAmount, tokenPriceData]);
 
   const needsApproval = useMemo(() => {
     if (!sellAmount || !tokenAllowance) return false;
