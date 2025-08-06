@@ -22,12 +22,12 @@ const TokenDeploymentForm: React.FC<TokenDeploymentFormProps> = ({ onDeploymentS
   const { writeContract, data: hash, error, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  // Supply tier calculation
+  // Supply tier calculation (matches smart contract fee structure)
   const getSupplyTier = (supply: string) => {
     const supplyNum = parseInt(supply) || 0;
     if (supplyNum <= 100000000) return { tier: 'Standard', fee: '0.05', maxSupply: '100M', color: 'bg-green-500' };
-    if (supplyNum <= 500000000) return { tier: 'Premium', fee: '0.15', maxSupply: '500M', color: 'bg-yellow-500' };
-    return { tier: 'Ultimate', fee: '0.50', maxSupply: '1B', color: 'bg-purple-500' };
+    if (supplyNum <= 500000000) return { tier: 'Premium', fee: '0.25', maxSupply: '500M', color: 'bg-yellow-500' };
+    return { tier: 'Ultimate', fee: '0.5', maxSupply: '1B', color: 'bg-purple-500' };
   };
 
   const currentTier = getSupplyTier(formData.totalSupply);

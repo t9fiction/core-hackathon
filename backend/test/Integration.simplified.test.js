@@ -8,7 +8,7 @@ describe("PumpFun Integration (Simplified)", function () {
     const tokenName = "PumpCoin";
     const tokenSymbol = "PUMP";
     const totalSupply = 1000000; // 1M tokens
-    const deploymentFee = ethers.parseEther("0.01");
+    const deploymentFee = ethers.parseEther("0.05");
 
     beforeEach(async function () {
         [owner, creator, trader1, trader2] = await ethers.getSigners();
@@ -175,7 +175,7 @@ describe("PumpFun Integration (Simplified)", function () {
             // Premium tier (300M tokens) 
             const premiumSupply = 300000000;
             const premiumFee = await factory.getRequiredFee(premiumSupply);
-            expect(premiumFee).to.equal(deploymentFee * 3n);
+            expect(premiumFee).to.equal(deploymentFee * 5n);
 
             // Ultimate tier (800M tokens)
             const ultimateSupply = 800000000;

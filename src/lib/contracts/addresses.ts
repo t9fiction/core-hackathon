@@ -60,23 +60,24 @@ export function getContractAddresses(chainId: number): ContractAddresses {
 }
 
 // Supply tier constants (from contracts)
+// Base fee is 0.05 ETH as defined in the smart contract: uint256 public etherFee = 0.05 ether;
 export const SUPPLY_TIERS = {
   STANDARD: {
     maxSupply: BigInt("100000000"),
     feeMultiplier: BigInt("1"),
-    baseFee: 0.05, // ETH
+    baseFee: 0.05, // ETH (0.05 * 1 = 0.05 ETH)
     name: 'Standard'
   },
   PREMIUM: {
     maxSupply: BigInt("500000000"),
-    feeMultiplier: BigInt("3"),
-    baseFee: 0.15, // ETH
+    feeMultiplier: BigInt("5"),
+    baseFee: 0.25, // ETH (0.05 * 5 = 0.25 ETH)
     name: 'Premium'
   },
   ULTIMATE: {
     maxSupply: BigInt("1000000000"),
     feeMultiplier: BigInt("10"),
-    baseFee: 0.50, // ETH
+    baseFee: 0.5, // ETH (0.05 * 10 = 0.5 ETH)
     name: 'Ultimate'
   }
 } as const;

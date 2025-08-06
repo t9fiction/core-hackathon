@@ -9,7 +9,7 @@ describe("PumpFunFactoryLite (Simplified)", function () {
     const tokenName = "Test Token";
     const tokenSymbol = "TEST";
     const totalSupply = 10000000; // 10M tokens
-    const deploymentFee = ethers.parseEther("0.01");
+    const deploymentFee = ethers.parseEther("0.05");
 
     beforeEach(async function () {
         [owner, creator, addr1, addr2] = await ethers.getSigners();
@@ -111,7 +111,7 @@ describe("PumpFunFactoryLite (Simplified)", function () {
         });
 
         it("Should return excess ETH to creator", async function () {
-            const excessAmount = ethers.parseEther("0.02"); // Double the required fee
+            const excessAmount = ethers.parseEther("0.1"); // Double the required fee (0.05 * 2)
             
             await expect(
                 factory.connect(creator).deployToken(
@@ -138,7 +138,7 @@ describe("PumpFunFactoryLite (Simplified)", function () {
             it("Should charge premium fee for premium supply", async function () {
                 const premiumSupply = 300000000; // 300M tokens
                 const expectedFee = await factory.getRequiredFee(premiumSupply);
-                expect(expectedFee).to.equal(deploymentFee * 3n); // 3x multiplier
+                expect(expectedFee).to.equal(deploymentFee * 5n); // 5x multiplier
             });
 
             it("Should charge ultimate fee for ultimate supply", async function () {
@@ -406,7 +406,7 @@ describe("PumpFunFactoryLite (Simplified)", function () {
 
             const premiumTier = await factory.getSupplyTier(300000000);
             expect(premiumTier[0]).to.equal("Premium");
-            expect(premiumTier[2]).to.equal(3); // multiplier
+            expect(premiumTier[2]).to.equal(5); // multiplier
 
             const ultimateTier = await factory.getSupplyTier(800000000);
             expect(ultimateTier[0]).to.equal("Ultimate");

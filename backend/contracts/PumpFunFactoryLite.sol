@@ -42,7 +42,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     // State Variables
-    uint256 public etherFee = 0.01 ether;
+    uint256 public etherFee = 0.05 ether; // Base fee is now 0.05 ETH
     uint256 public constant MAX_FEE = 1 ether;
     uint256 public constant MIN_TOTAL_SUPPLY = 1000;
 
@@ -55,9 +55,9 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     uint256 public constant ULTIMATE_MAX_SUPPLY = 1000000000; // 1B tokens
 
     // Fee multipliers
-    uint256 public constant STANDARD_FEE_MULTIPLIER = 1;
-    uint256 public constant PREMIUM_FEE_MULTIPLIER = 3;
-    uint256 public constant ULTIMATE_FEE_MULTIPLIER = 10;
+    uint256 public constant STANDARD_FEE_MULTIPLIER = 1;  // 0.05 * 1 = 0.05 ETH
+    uint256 public constant PREMIUM_FEE_MULTIPLIER = 5;   // 0.05 * 5 = 0.25 ETH
+    uint256 public constant ULTIMATE_FEE_MULTIPLIER = 10; // 0.05 * 10 = 0.5 ETH
 
     // Mappings
     mapping(address => address[]) public creatorTokens;
