@@ -350,7 +350,7 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
 };
 
 const DEXPage = () => {
-  const [activeTab, setActiveTab] = useState<'create' | 'info' | 'buysell' | 'liquidity'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'info' | 'buysell' | 'liquidity'>('buysell');
   const [selectedToken, setSelectedToken] = useState<Address | undefined>(undefined);
   const [userTokens, setUserTokens] = useState<any[]>([]);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);

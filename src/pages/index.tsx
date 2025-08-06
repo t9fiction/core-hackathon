@@ -74,10 +74,10 @@ const PumpFunApp = () => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-yellow-400">Premium</h3>
                 <span className="bg-yellow-500 text-black px-3 py-1 rounded-full text-sm font-bold">
-                  3x Fee
+                  5x Fee
                 </span>
               </div>
-              <p className="text-3xl font-bold mb-2">0.15 ETH</p>
+              <p className="text-3xl font-bold mb-2">0.25 ETH</p>
               <p className="text-gray-400 mb-4">Up to 500M tokens</p>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center">
@@ -148,10 +148,10 @@ const PumpFunApp = () => {
             </div>
           </Link>
           
-          <Link href="/trading" className="group">
+          <Link href="/dex" className="group">
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-yellow-500 transition-colors group-hover:bg-gray-750">
-              <div className="text-3xl mb-4">📊</div>
-              <h3 className="text-xl font-bold mb-2">Trading</h3>
+              <div className="text-3xl mb-4">💱</div>
+              <h3 className="text-xl font-bold mb-2">Buy & Sell</h3>
               <p className="text-gray-400 text-sm">Trade tokens and manage liquidity pools</p>
             </div>
           </Link>

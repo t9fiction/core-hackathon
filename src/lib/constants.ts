@@ -10,8 +10,8 @@ export const SUPPLY_TIERS = {
   PREMIUM: {
     name: 'Premium', 
     maxSupply: 500000000,
-    feeMultiplier: 3,
-    description: 'Up to 500M tokens - 3x base fee',
+    feeMultiplier: 5,
+    description: 'Up to 500M tokens - 5x base fee',
   },
   ULTIMATE: {
     name: 'Ultimate',
