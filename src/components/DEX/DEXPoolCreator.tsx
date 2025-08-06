@@ -99,21 +99,10 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
   // Check if approval is needed
   const needsApproval = () => {
     if (!tokenAddress || !formData.tokenAmount || allowance === undefined) {
-      console.log('needsApproval: missing requirements', {
-        tokenAddress,
-        tokenAmount: formData.tokenAmount,
-        allowance,
-      });
       return false;
     }
     const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
-    const needsApprovalResult = BigInt(allowance.toString()) < BigInt(tokenAmountWei.toString());
-    console.log('needsApproval check:', {
-      allowance: allowance.toString(),
-      tokenAmountWei: tokenAmountWei.toString(),
-      needsApprovalResult,
-    });
-    return needsApprovalResult;
+    return BigInt(allowance.toString()) < BigInt(tokenAmountWei.toString());
   };
 
   // Approve token spending
@@ -295,18 +284,6 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
                 {initialPrice
                   ? `1 ETH = ${initialPrice} ${tokenSymbol}`
                   : "Enter amounts"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-300">Allowance:</span>
-              <span className="text-white">
-                {allowance !== undefined ? allowance.toString() : "Loading..."}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-300">Needs Approval:</span>
-              <span className="text-white">
-                {needsApproval() ? "Yes" : "No"}
               </span>
             </div>
           </div>

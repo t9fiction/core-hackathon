@@ -460,13 +460,8 @@ export const useTokenLock = (tokenAddress?: Address) => {
       hash,
     });
 
-  // Get liquidity lock information
-  const { data: liquidityInfo } = useReadContract({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
-    functionName: "liquidityInfo",
-    args: tokenAddress ? [tokenAddress] : undefined,
-  });
+  // Note: The factory contract doesn't have a liquidityInfo function
+  // This would need to be implemented if liquidity lock tracking is needed
 
   const lockTokens = async (
     ethAmount: string,
@@ -477,14 +472,11 @@ export const useTokenLock = (tokenAddress?: Address) => {
 
     setIsLocking(true);
     try {
-      // This would call a lock function on the factory or a separate locking contract
-      writeContract({
-        address: contractAddresses.PUMPFUN_FACTORY,
-        abi: PUMPFUN_FACTORY_ABI,
-        functionName: "addAndLockLiquidity", // Update with correct function name
-        args: [tokenAddress, parseEther(tokenAmount)],
-        value: parseEther(ethAmount),
-      });
+      // TODO: Implement liquidity locking functionality
+      // The factory contract doesn't currently have a locking function
+      // This would need to be implemented in the smart contract first
+      console.warn("Liquidity locking not yet implemented in smart contract");
+      throw new Error("Liquidity locking functionality not yet available");
     } finally {
       setIsLocking(false);
     }
@@ -498,7 +490,7 @@ export const useTokenLock = (tokenAddress?: Address) => {
     error,
 
     // Data
-    liquidityInfo,
+    // liquidityInfo would be available if implemented in the contract
 
     // Functions
     lockTokens,

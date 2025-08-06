@@ -12,6 +12,8 @@ import {
   useTokenDEX,
   useTokenLock,
 } from "../lib/hooks/useTokenContracts";
+import { PUMPFUN_DEX_MANAGER_ABI } from '../lib/contracts/abis';
+import { parseEther } from "viem";
 import Link from "next/link";
 
 interface TokenInfo {
@@ -246,6 +248,8 @@ const TokenManager = () => {
     const [poolTokenAmount, setPoolTokenAmount] = useState("");
     const [poolEthAmount, setPoolEthAmount] = useState("");
     const [poolFee, setPoolFee] = useState(3000);
+    const [buyAmount, setBuyAmount] = useState("");
+    const [sellAmount, setSellAmount] = useState("");
 
     const chainId = useChainId();
     const contractAddresses = getContractAddresses(chainId);
@@ -258,6 +262,7 @@ const TokenManager = () => {
     // Initialize hooks for blockchain interactions
     const dex = useTokenDEX(tokenAddress as Address);
     const lock = useTokenLock(tokenAddress as Address);
+    const { writeContract } = useWriteContract();
 
     const tabs = [
       { id: "dex", label: "💱 DEX Trading", icon: "💱" },
@@ -277,6 +282,55 @@ const TokenManager = () => {
         }
       } catch (error) {
         console.error("Error creating DEX pool:", error);
+      }
+    };
+
+    const handleBuyTokens = async () => {
+      if (!buyAmount || !tokenAddress) return;
+      try {
+        const amountIn = parseEther(buyAmount);
+        await writeContract({
+          address: contractAddresses.PUMPFUN_DEX_MANAGER,
+          abi: PUMPFUN_DEX_MANAGER_ABI,
+          functionName: 'swapExactETHForTokensWithSlippage',
+          args: [tokenAddress as Address, 3000, 500n], // 5% slippage
+          value: amountIn,
+        });
+        setBuyAmount('');
+      } catch (error) {
+        console.error('Error buying tokens:', error);
+        alert('Failed to buy tokens: ' + (error as any)?.message);
+      }
+    };
+
+    const handleSellTokens = async () => {
+      if (!sellAmount || !tokenAddress) return;
+      try {
+        // First approve tokens if needed
+        const amountIn = parseEther(sellAmount);
+        
+        // Approve tokens to DEX Manager
+        await writeContract({
+          address: tokenAddress as Address,
+          abi: PUMPFUN_TOKEN_ABI,
+          functionName: 'approve',
+          args: [contractAddresses.PUMPFUN_DEX_MANAGER, amountIn],
+        });
+
+        // Wait a bit for approval
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Execute sell
+        await writeContract({
+          address: contractAddresses.PUMPFUN_DEX_MANAGER,
+          abi: PUMPFUN_DEX_MANAGER_ABI,
+          functionName: 'swapExactTokensForETHWithSlippage',
+          args: [tokenAddress as Address, 3000, amountIn, 500n], // 5% slippage
+        });
+        setSellAmount('');
+      } catch (error) {
+        console.error('Error selling tokens:', error);
+        alert('Failed to sell tokens: ' + (error as any)?.message);
       }
     };
 
@@ -336,6 +390,8 @@ const TokenManager = () => {
                       <input
                         type="number"
                         step="0.001"
+                        value={buyAmount}
+                        onChange={(e) => setBuyAmount(e.target.value)}
                         className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
                         placeholder="0.1"
                       />
@@ -355,7 +411,8 @@ const TokenManager = () => {
                       </div>
                     </div>
                     <button
-                      disabled={!isConnected}
+                      disabled={!isConnected || !buyAmount}
+                      onClick={handleBuyTokens}
                       className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
                     >
                       Buy Tokens
@@ -375,6 +432,8 @@ const TokenManager = () => {
                       </label>
                       <input
                         type="number"
+                        value={sellAmount}
+                        onChange={(e) => setSellAmount(e.target.value)}
                         className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
                         placeholder="1000"
                       />
@@ -396,7 +455,8 @@ const TokenManager = () => {
                       </div>
                     </div>
                     <button
-                      disabled={!isConnected}
+                      disabled={!isConnected || !sellAmount}
+                      onClick={handleSellTokens}
                       className="w-full bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
                     >
                       Sell Tokens

@@ -23,12 +23,52 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
   const [poolTokenAmount, setPoolTokenAmount] = useState('');
   const [poolEthAmount, setPoolEthAmount] = useState('');
   const [poolFee, setPoolFee] = useState(3000);
+  const [hasActivePools, setHasActivePools] = useState(false);
 
-  const dex = useTokenDEX(tokenAddress);
+  const chainId = useChainId();
+  const contractAddresses = getContractAddresses(chainId);
   const { address, isConnected } = useAccount();
+  const WETH_ADDRESS = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14"; // fallback to Sepolia WETH
 
   // Get selected token info
   const selectedTokenInfo = { symbol: 'TOKEN' }; // Simplified for now
+
+  // Get pool info for different fee tiers - same as PoolInformation component
+  const { data: poolInfo500 } = useReadContract({
+    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: "getPoolInfo",
+    args: [tokenAddress, WETH_ADDRESS as Address, 500],
+    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+  });
+
+  const { data: poolInfo3000 } = useReadContract({
+    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: "getPoolInfo",
+    args: [tokenAddress, WETH_ADDRESS as Address, 3000],
+    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+  });
+
+  const { data: poolInfo10000 } = useReadContract({
+    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
+    abi: PUMPFUN_DEX_MANAGER_ABI,
+    functionName: "getPoolInfo",
+    args: [tokenAddress, WETH_ADDRESS as Address, 10000],
+    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+  });
+
+  // Check if there are any active pools
+  useEffect(() => {
+    const pools = [poolInfo500, poolInfo3000, poolInfo10000];
+    const activePoolsExist = pools.some(data => 
+      data && Array.isArray(data) && data.length >= 5 && data[3] // isActive is at index 3
+    );
+    setHasActivePools(activePoolsExist);
+  }, [poolInfo500, poolInfo3000, poolInfo10000]);
+
+  // Use useTokenDEX for pool creation functionality
+  const dex = useTokenDEX(tokenAddress);
 
   const dexHash = async () => {
     try {
@@ -48,12 +88,12 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
   return (
     <div className="space-y-6">
       {/* Conditional Pool Creation */}
-      {!dex.poolInfo ? (
+      {!hasActivePools ? (
         <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
           <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
             🚀 Create DEX Pool
             <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-1 rounded">
-              Uniswap V3
+              Sushiswap
             </span>
           </h4>
           <div className="mb-4 p-3 bg-blue-900/30 border border-blue-500/50 rounded">
@@ -297,7 +337,7 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
                   className="block w-full"
                 >
                   <button className="w-full bg-purple-600 hover:bg-purple-500 text-white py-2 px-4 rounded-lg transition-colors">
-                    View on Uniswap
+                    View on Sushiswap
                   </button>
                 </Link>
               </div>
@@ -437,10 +477,67 @@ const DEXPage = () => {
                 Create a new liquidity pool for your token on PumpFun DEX. Set up trading pairs and enable decentralized trading.
               </p>
             </div>
-            <DEXPoolCreator onPoolCreated={(tokenAddress) => {
-              setSelectedToken(tokenAddress);
-              setActiveTab('info');
-            }} />
+            
+            {/* Token Selection */}
+            {isConnected ? (
+              <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 mb-6">
+                <h3 className="text-xl font-semibold text-white mb-4">Select Your Token</h3>
+                
+                {isLoadingTokens ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                    <span className="ml-3 text-gray-300">Loading your tokens...</span>
+                  </div>
+                ) : userTokens.length > 0 ? (
+                  <select
+                    value={selectedToken || ''}
+                    onChange={(e) => setSelectedToken(e.target.value ? (e.target.value as Address) : undefined)}
+                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
+                  >
+                    <option value="">-- Select a Token --</option>
+                    {userTokens.map((token) => (
+                      <option key={token.address} value={token.address}>
+                        {token.name} ({token.symbol})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-4">🪙</div>
+                    <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
+                    <p className="text-gray-400 mb-4">
+                      You haven&apos;t deployed any tokens yet. Create your first token to get started!
+                    </p>
+                    <Link
+                      href="/token"
+                      className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
+                    >
+                      Deploy Token
+                      <span className="ml-2">🚀</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-center">
+                <div className="text-4xl mb-4">🔐</div>
+                <h4 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h4>
+                <p className="text-gray-300">
+                  Please connect your wallet to view your tokens and create pools.
+                </p>
+              </div>
+            )}
+            
+            {/* DEX Pool Creator Component */}
+            {selectedToken && (
+              <DEXPoolCreator 
+                tokenAddress={selectedToken as Address}
+                tokenSymbol={userTokens.find(token => token.address === selectedToken)?.symbol}
+                onPoolCreated={(poolInfo) => {
+                  setActiveTab('info');
+                }} 
+              />
+            )}
           </div>
         );
 
