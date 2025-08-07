@@ -109,7 +109,7 @@ const PublicTokenListing: React.FC<PublicTokenListingProps> = ({ onSelectToken }
 
   return (
     <div className="w-full">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h2 className="text-xl font-semibold text-white mb-1">Live Token Markets</h2>
           <p className="text-slate-400 text-sm">
@@ -118,7 +118,7 @@ const PublicTokenListing: React.FC<PublicTokenListingProps> = ({ onSelectToken }
         </div>
         
         {/* Search Bar */}
-        <div className="relative w-80">
+        <div className="relative w-full sm:w-80">
           <input
             type="text"
             placeholder="Search tokens..."

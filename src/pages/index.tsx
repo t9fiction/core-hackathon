@@ -43,19 +43,19 @@ const PumpFunApp = () => {
     <div className="min-h-screen bg-slate-900">
       {/* Header */}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Quick Actions */}
-        <div className="mb-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Link href="/token" className="group">
               <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-400 text-lg">🚀</span>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-blue-400 text-lg sm:text-xl">🚀</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-sm">Deploy Token</h3>
-                    <p className="text-xs text-slate-400">Create new token</p>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-white text-sm sm:text-base">Deploy Token</h3>
+                    <p className="text-xs sm:text-sm text-slate-400">Create new token</p>
                   </div>
                 </div>
               </div>
@@ -64,12 +64,12 @@ const PumpFunApp = () => {
             <Link href="/tokens" className="group">
               <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                    <span className="text-emerald-400 text-lg">🪙</span>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-emerald-400 text-lg sm:text-xl">🪙</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-sm">My Tokens</h3>
-                    <p className="text-xs text-slate-400">Manage portfolio</p>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-white text-sm sm:text-base">My Tokens</h3>
+                    <p className="text-xs sm:text-sm text-slate-400">Manage portfolio</p>
                   </div>
                 </div>
               </div>
@@ -78,12 +78,12 @@ const PumpFunApp = () => {
             <Link href="/governance" className="group">
               <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                    <span className="text-purple-400 text-lg">🏛️</span>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-purple-400 text-lg sm:text-xl">🏛️</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-sm">Governance</h3>
-                    <p className="text-xs text-slate-400">Vote & propose</p>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-white text-sm sm:text-base">Governance</h3>
+                    <p className="text-xs sm:text-sm text-slate-400">Vote & propose</p>
                   </div>
                 </div>
               </div>
@@ -92,12 +92,12 @@ const PumpFunApp = () => {
             <Link href="/dex" className="group">
               <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
-                    <span className="text-amber-400 text-lg">💱</span>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-amber-400 text-lg sm:text-xl">💱</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-sm">Trade</h3>
-                    <p className="text-xs text-slate-400">Buy & sell tokens</p>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-white text-sm sm:text-base">Trade</h3>
+                    <p className="text-xs sm:text-sm text-slate-400">Buy & sell tokens</p>
                   </div>
                 </div>
               </div>
@@ -107,15 +107,15 @@ const PumpFunApp = () => {
 
 
         {/* Main Token Listings Section */}
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 sm:p-6">
           <PublicTokenListing onSelectToken={handleTokenSelect} />
         </div>
 
         {/* Supply Tiers Sidebar */}
-        <div className="mt-8">
-          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Token Creation Pricing</h3>
-            <div className="grid md:grid-cols-3 gap-4">
+        <div className="mt-6 sm:mt-8">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 sm:p-6">
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Token Creation Pricing</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               <div className="border border-slate-600 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium text-white">Standard</h4>
