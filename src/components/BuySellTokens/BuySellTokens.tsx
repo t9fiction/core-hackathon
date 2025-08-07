@@ -29,6 +29,11 @@ export const BuySellTokens = ({
   const [sellAmount, setSellAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>(defaultTab);
+  
+  // Update activeTab when defaultTab prop changes
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   
   const { address, isConnected } = useAccount();
