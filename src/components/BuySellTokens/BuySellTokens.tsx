@@ -8,13 +8,27 @@ import { showSuccessAlert, showErrorAlert } from '../../lib/swal-config';
 
 interface BuySellTokensProps {
   tokenAddress: Address;
+  tokenName?: string;
+  tokenSymbol?: string;
+  defaultTab?: 'buy' | 'sell';
+  onTabChange?: (tab: string) => void;
+  embedded?: boolean;
+  onTransactionComplete?: () => void;
 }
 
-export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
+export const BuySellTokens = ({ 
+  tokenAddress, 
+  tokenName: propTokenName, 
+  tokenSymbol: propTokenSymbol,
+  defaultTab = 'buy',
+  onTabChange,
+  embedded = false,
+  onTransactionComplete
+}: BuySellTokensProps) => {
   const [buyAmount, setBuyAmount] = useState('');
   const [sellAmount, setSellAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
+  const [activeTab, setActiveTab] = useState<'buy' | 'sell'>(defaultTab);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   
   const { address, isConnected } = useAccount();
@@ -34,18 +48,22 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
     address: address,
   });
 
-  // Get token info
-  const { data: tokenName } = useReadContract({
+  // Get token info from contract
+  const { data: contractTokenName } = useReadContract({
     address: tokenAddress,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'name',
   });
 
-  const { data: tokenSymbol } = useReadContract({
+  const { data: contractTokenSymbol } = useReadContract({
     address: tokenAddress,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'symbol',
   });
+
+  // Use props if provided, otherwise use contract data
+  const tokenName = propTokenName || (contractTokenName as string);
+  const tokenSymbol = propTokenSymbol || (contractTokenSymbol as string);
 
   // Get token balance
   const { data: tokenBalance } = useReadContract({
@@ -118,8 +136,13 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
         5000
       );
       setTxHash(undefined);
+      
+      // Call completion callback if provided
+      if (onTransactionComplete) {
+        onTransactionComplete();
+      }
     }
-  }, [isConfirmed, txHash]);
+  }, [isConfirmed, txHash, onTransactionComplete]);
 
   const handleBuyTokens = async () => {
     if (!tokenAddress || !buyAmount || !address) return;
@@ -237,74 +260,92 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
 
   if (!isConnected) {
     return (
-      <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
+      <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
         <div className="text-center">
-          <h3 className="text-xl font-semibold text-white mb-2">Connect Your Wallet</h3>
-          <p className="text-gray-400">Please connect your wallet to trade tokens.</p>
+          <h3 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h3>
+          <p className="text-slate-400">Please connect your wallet to trade tokens.</p>
         </div>
       </div>
     );
   }
 
+  const containerClasses = embedded 
+    ? "space-y-4" 
+    : "space-y-6";
+    
+  const cardClasses = embedded 
+    ? "bg-transparent p-6" 
+    : "bg-slate-700 rounded-lg p-6 border border-slate-600";
+
   return (
-    <div className="space-y-6">
-      <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-white">
-            Trade {tokenSymbol as string || 'Token'}
-          </h3>
-          <div className="bg-gray-700 px-3 py-1 rounded-lg">
-            <span className="text-sm text-gray-300">
-              {isConfirming ? 'Transaction Pending...' : isConfirmed ? 'Transaction Confirmed!' : 'Ready to Trade'}
-            </span>
+    <div className={containerClasses}>
+      <div className={cardClasses}>
+        {!embedded && (
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-white">
+              Trade {tokenSymbol as string || 'Token'}
+            </h3>
+            <div className="bg-slate-600 px-3 py-1 rounded-lg">
+              <span className="text-sm text-slate-300">
+                {isConfirming ? 'Transaction Pending...' : isConfirmed ? 'Transaction Confirmed!' : 'Ready to Trade'}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Balance Display */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="text-center bg-gray-700/50 rounded-lg p-4">
-            <p className="text-sm text-gray-400 mb-1">Your ETH Balance</p>
-            <p className="text-lg font-semibold text-white">
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="text-center bg-slate-800 rounded-lg p-3">
+            <p className="text-sm text-slate-400 mb-1">Your ETH Balance</p>
+            <p className="text-base font-medium text-white">
               {ethBalance ? parseFloat(formatEther(ethBalance.value)).toFixed(4) : '0.0000'} ETH
             </p>
           </div>
-          <div className="text-center bg-gray-700/50 rounded-lg p-4">
-            <p className="text-sm text-gray-400 mb-1">Your {tokenSymbol as string || 'Token'} Balance</p>
-            <p className="text-lg font-semibold text-white">
+          <div className="text-center bg-slate-800 rounded-lg p-3">
+            <p className="text-sm text-slate-400 mb-1">Your {tokenSymbol as string || 'Token'} Balance</p>
+            <p className="text-base font-medium text-white">
               {tokenBalance ? parseFloat(formatEther(tokenBalance as bigint)).toFixed(4) : '0.0000'} {tokenSymbol as string || 'Token'}
             </p>
           </div>
         </div>
 
-        {/* Tab Buttons */}
-        <div className="flex space-x-1 mb-6 bg-gray-700 p-1 rounded-lg">
-          <button
-            onClick={() => setActiveTab('buy')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'buy'
-                ? 'bg-green-600 text-white'
-                : 'text-gray-300 hover:text-white hover:bg-gray-600'
-            }`}
-          >
-            Buy Tokens
-          </button>
-          <button
-            onClick={() => setActiveTab('sell')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'sell'
-                ? 'bg-red-600 text-white'
-                : 'text-gray-300 hover:text-white hover:bg-gray-600'
-            }`}
-          >
-            Sell Tokens
-          </button>
-        </div>
+        {/* Tab Buttons - Hidden in embedded mode */}
+        {!embedded && (
+          <div className="flex space-x-1 mb-6 bg-slate-700 p-1 rounded-lg">
+            <button
+              onClick={() => {
+                setActiveTab('buy');
+                onTabChange?.('buy');
+              }}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'buy'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-600'
+              }`}
+            >
+              Buy Tokens
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('sell');
+                onTabChange?.('sell');
+              }}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'sell'
+                  ? 'bg-rose-600 text-white'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-600'
+              }`}
+            >
+              Sell Tokens
+            </button>
+          </div>
+        )}
 
         {/* Buy Tab */}
         {activeTab === 'buy' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
                 ETH Amount to Spend
               </label>
               <input
@@ -312,9 +353,9 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
                 placeholder="0.0"
                 value={buyAmount}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBuyAmount(e.target.value)}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-white"
+                className="w-full p-3 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white placeholder-slate-400"
               />
-              <div className="text-sm text-gray-400 mt-1">
+              <div className="text-sm text-slate-400 mt-1">
                 You will receive: ~{parseFloat(calculateBuyOutput).toFixed(6)} {tokenSymbol as string || 'tokens'}
               </div>
             </div>
@@ -322,7 +363,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
             <button
               onClick={handleBuyTokens}
               disabled={isLoading || isConfirming || !buyAmount || parseFloat(buyAmount) > parseFloat(formatEther(ethBalance?.value || 0n))}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
             >
               {isLoading || isConfirming ? 'Processing...' : `Buy ${tokenSymbol as string || 'Tokens'}`}
             </button>
@@ -333,7 +374,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
         {activeTab === 'sell' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
                 {tokenSymbol as string || 'Token'} Amount to Sell
               </label>
               <input
@@ -341,9 +382,9 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
                 placeholder="0.0"
                 value={sellAmount}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSellAmount(e.target.value)}
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-white"
+                className="w-full p-3 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent text-white placeholder-slate-400"
               />
-              <div className="text-sm text-gray-400 mt-1">
+              <div className="text-sm text-slate-400 mt-1">
                 You will receive: ~{parseFloat(calculateSellOutput).toFixed(6)} ETH
               </div>
             </div>
@@ -352,7 +393,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
               <button
                 onClick={() => handleApproveToken(sellAmount)}
                 disabled={isLoading || isConfirming}
-                className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors mb-2"
+                className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors mb-2"
               >
                 {isLoading || isConfirming ? 'Approving...' : `Approve ${tokenSymbol as string || 'Tokens'}`}
               </button>
@@ -361,7 +402,7 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
             <button
               onClick={handleSellTokens}
               disabled={isLoading || isConfirming || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n)) || needsApproval}
-              className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
+              className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
             >
               {isLoading || isConfirming ? 'Processing...' : `Sell ${tokenSymbol as string || 'Tokens'}`}
             </button>
@@ -369,10 +410,10 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
         )}
       </div>
 
-      {/* Transaction Status */}
-      {txHash && (
-        <div className="bg-blue-600/10 border border-blue-600/20 rounded-2xl p-4">
-          <div className="text-blue-200">
+      {/* Transaction Status - Hidden in embedded mode */}
+      {!embedded && txHash && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+          <div className="text-blue-300">
             <strong>Transaction Status:</strong> 
             {isConfirming && ' Confirming transaction...'}
             {isConfirmed && ' Transaction confirmed successfully!'}
@@ -383,13 +424,17 @@ export default function BuySellTokens({ tokenAddress }: BuySellTokensProps) {
         </div>
       )}
       
-      {/* Trading Info */}
-      <div className="bg-blue-600/10 border border-blue-600/20 rounded-2xl p-4">
-        <div className="text-blue-200">
-          <strong>Trading Info:</strong> This interface connects to the PumpFun DEX for real token trading. 
-          Prices are fetched from the liquidity pool and include a 5% slippage tolerance.
+      {/* Trading Info - Hidden in embedded mode */}
+      {!embedded && (
+        <div className="bg-slate-700 border border-slate-600 rounded-lg p-4">
+          <div className="text-slate-300">
+            <strong>Trading Info:</strong> This interface connects to the PumpFun DEX for real token trading. 
+            Prices are fetched from the liquidity pool and include a 5% slippage tolerance.
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
+
+export default BuySellTokens;

@@ -3,191 +3,182 @@ import Link from 'next/link';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
+import PublicTokenListing from '../components/PublicTokenListing/PublicTokenListing';
+import TokenTradeModal from '../components/PublicTokenListing/TokenTradeModal';
 
 const PumpFunApp = () => {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
 
+  const [selectedToken, setSelectedToken] = useState<{
+    address: string;
+    name: string;
+    symbol: string;
+  } | null>(null);
+  const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
+
+  const handleTokenSelect = (tokenAddress: string) => {
+    // We'll need to fetch token details when selected
+    setSelectedToken({
+      address: tokenAddress,
+      name: 'Loading...',
+      symbol: 'Loading...'
+    });
+    setIsTradeModalOpen(true);
+  };
+
+  const closeTradeModal = () => {
+    setIsTradeModalOpen(false);
+    setSelectedToken(null);
+  };
+
+  const handleTransactionComplete = () => {
+    // Close the modal after transaction completes
+    closeTradeModal();
+    // Optionally add any other actions like refreshing token list
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-          <div className="text-center">
-            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-6">
-              PumpFun Factory
-            </h1>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
-              Create sustainable meme tokens with built-in anti-rug pull mechanisms, 
-              community governance, and automated liquidity protection.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4 text-sm">
-              <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full">
-                🔒 Anti-Rug Pull
-              </span>
-              <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full">
-                🏛️ Governance
-              </span>
-              <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full">
-                🔐 Liquidity Locked
-              </span>
-              <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full">
-                📊 Tiered Pricing
-              </span>
+    <div className="min-h-screen bg-slate-900">
+      {/* Header */}
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick Actions */}
+        <div className="mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link href="/token" className="group">
+              <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-400 text-lg">🚀</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-sm">Deploy Token</h3>
+                    <p className="text-xs text-slate-400">Create new token</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+            
+            <Link href="/tokens" className="group">
+              <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                    <span className="text-emerald-400 text-lg">🪙</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-sm">My Tokens</h3>
+                    <p className="text-xs text-slate-400">Manage portfolio</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+            
+            <Link href="/governance" className="group">
+              <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                    <span className="text-purple-400 text-lg">🏛️</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-sm">Governance</h3>
+                    <p className="text-xs text-slate-400">Vote & propose</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+            
+            <Link href="/dex" className="group">
+              <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-slate-600 hover:shadow-lg transition-all duration-200 group-hover:scale-[1.02]">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                    <span className="text-amber-400 text-lg">💱</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-sm">Trade</h3>
+                    <p className="text-xs text-slate-400">Buy & sell tokens</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+
+
+        {/* Main Token Listings Section */}
+        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <PublicTokenListing onSelectToken={handleTokenSelect} />
+        </div>
+
+        {/* Supply Tiers Sidebar */}
+        <div className="mt-8">
+          <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Token Creation Pricing</h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="border border-slate-600 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-white">Standard</h4>
+                  <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-medium">
+                    Popular
+                  </span>
+                </div>
+                <p className="text-2xl font-bold text-white mb-1">0.05 ETH</p>
+                <p className="text-sm text-slate-400 mb-3">Up to 100M tokens</p>
+                <ul className="space-y-1 text-sm text-slate-300">
+                  <li className="flex items-center">✓ Anti-rug protection</li>
+                  <li className="flex items-center">✓ 30-day liquidity lock</li>
+                  <li className="flex items-center">✓ Community governance</li>
+                </ul>
+              </div>
+              
+              <div className="border border-slate-600 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-white">Premium</h4>
+                  <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-medium">
+                    5x Fee
+                  </span>
+                </div>
+                <p className="text-2xl font-bold text-white mb-1">0.25 ETH</p>
+                <p className="text-sm text-slate-400 mb-3">Up to 500M tokens</p>
+                <ul className="space-y-1 text-sm text-slate-300">
+                  <li className="flex items-center">✓ All Standard features</li>
+                  <li className="flex items-center">✓ Higher supply limit</li>
+                  <li className="flex items-center">✓ Priority support</li>
+                </ul>
+              </div>
+              
+              <div className="border border-slate-600 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-white">Ultimate</h4>
+                  <span className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded text-xs font-medium">
+                    10x Fee
+                  </span>
+                </div>
+                <p className="text-2xl font-bold text-white mb-1">0.50 ETH</p>
+                <p className="text-sm text-slate-400 mb-3">Up to 1B tokens</p>
+                <ul className="space-y-1 text-sm text-slate-300">
+                  <li className="flex items-center">✓ All Premium features</li>
+                  <li className="flex items-center">✓ Maximum supply limit</li>
+                  <li className="flex items-center">✓ VIP support</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        {/* Supply Tiers Info */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-center mb-8">Supply Tiers & Pricing</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-gray-800 rounded-xl p-6 border-2 border-green-500/50">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-green-400">Standard</h3>
-                <span className="bg-green-500 text-black px-3 py-1 rounded-full text-sm font-bold">
-                  Most Popular
-                </span>
-              </div>
-              <p className="text-3xl font-bold mb-2">0.05 ETH</p>
-              <p className="text-gray-400 mb-4">Up to 100M tokens</p>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center">
-                  <span className="text-green-400 mr-2">✓</span>
-                  Anti-rug pull protection
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-400 mr-2">✓</span>
-                  30-day liquidity lock
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-400 mr-2">✓</span>
-                  Community governance
-                </li>
-              </ul>
-            </div>
-            
-            <div className="bg-gray-800 rounded-xl p-6 border-2 border-yellow-500/50">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-yellow-400">Premium</h3>
-                <span className="bg-yellow-500 text-black px-3 py-1 rounded-full text-sm font-bold">
-                  5x Fee
-                </span>
-              </div>
-              <p className="text-3xl font-bold mb-2">0.25 ETH</p>
-              <p className="text-gray-400 mb-4">Up to 500M tokens</p>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center">
-                  <span className="text-yellow-400 mr-2">✓</span>
-                  All Standard features
-                </li>
-                <li className="flex items-center">
-                  <span className="text-yellow-400 mr-2">✓</span>
-                  Higher supply limit
-                </li>
-                <li className="flex items-center">
-                  <span className="text-yellow-400 mr-2">✓</span>
-                  Priority support
-                </li>
-              </ul>
-            </div>
-            
-            <div className="bg-gray-800 rounded-xl p-6 border-2 border-purple-500/50">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-purple-400">Ultimate</h3>
-                <span className="bg-purple-500 text-black px-3 py-1 rounded-full text-sm font-bold">
-                  10x Fee
-                </span>
-              </div>
-              <p className="text-3xl font-bold mb-2">0.50 ETH</p>
-              <p className="text-gray-400 mb-4">Up to 1B tokens</p>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center">
-                  <span className="text-purple-400 mr-2">✓</span>
-                  All Premium features
-                </li>
-                <li className="flex items-center">
-                  <span className="text-purple-400 mr-2">✓</span>
-                  Maximum supply limit
-                </li>
-                <li className="flex items-center">
-                  <span className="text-purple-400 mr-2">✓</span>
-                  VIP support
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <Link href="/token" className="group">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500 transition-colors group-hover:bg-gray-750">
-              <div className="text-3xl mb-4">🚀</div>
-              <h3 className="text-xl font-bold mb-2">Deploy Token</h3>
-              <p className="text-gray-400 text-sm">Create your sustainable meme token with anti-rug pull protection</p>
-            </div>
-          </Link>
-          
-          <Link href="/tokens" className="group">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-green-500 transition-colors group-hover:bg-gray-750">
-              <div className="text-3xl mb-4">🪙</div>
-              <h3 className="text-xl font-bold mb-2">My Tokens</h3>
-              <p className="text-gray-400 text-sm">Manage your deployed tokens and view analytics</p>
-            </div>
-          </Link>
-          
-          <Link href="/governance" className="group">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-purple-500 transition-colors group-hover:bg-gray-750">
-              <div className="text-3xl mb-4">🏛️</div>
-              <h3 className="text-xl font-bold mb-2">Governance</h3>
-              <p className="text-gray-400 text-sm">Participate in community governance and voting</p>
-            </div>
-          </Link>
-          
-          <Link href="/dex" className="group">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-yellow-500 transition-colors group-hover:bg-gray-750">
-              <div className="text-3xl mb-4">💱</div>
-              <h3 className="text-xl font-bold mb-2">Buy & Sell</h3>
-              <p className="text-gray-400 text-sm">Trade tokens and manage liquidity pools</p>
-            </div>
-          </Link>
-        </div>
-
-        {/* Wallet Connection Section */}
-        <div className="text-center">
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 max-w-md mx-auto">
-            <h3 className="text-xl font-bold mb-4">Get Started</h3>
-            {isConnected ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-center">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  <span className="text-sm">Wallet Connected</span>
-                </div>
-                <p className="text-xs text-gray-400 break-all">{address}</p>
-                <div className="flex gap-2 justify-center">
-                  <Link href="/token" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm transition-colors">
-                    Deploy Token
-                  </Link>
-                  <Link href="/tokens" className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded text-sm transition-colors">
-                    View Tokens
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm text-gray-400 mb-4">
-                  Connect your wallet to start creating tokens
-                </p>
-                <ConnectButton />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Trade Modal */}
+      {selectedToken && (
+        <TokenTradeModal
+          tokenAddress={selectedToken.address}
+          tokenName={selectedToken.name}
+          tokenSymbol={selectedToken.symbol}
+          isOpen={isTradeModalOpen}
+          onClose={closeTradeModal}
+          onTransactionComplete={handleTransactionComplete}
+        />
+      )}
     </div>
   );
 };

@@ -368,63 +368,125 @@ export const useTokenDEX = (tokenAddress: Address) => {
   ) => {
     setError(null);
     try {
-      const token0 = tokenAddress < WETH_ADDRESS ? tokenAddress : WETH_ADDRESS;
-      const token1 = tokenAddress < WETH_ADDRESS ? WETH_ADDRESS : tokenAddress;
-      const isToken0 = tokenAddress === token0;
+      console.log('Adding liquidity with params:', {
+        tokenAddress,
+        tokenAmount,
+        ethAmount,
+        fee,
+        WETH_ADDRESS,
+        contractAddresses,
+        isAuthorized
+      });
 
       const tokenAmountWei = parseUnits(tokenAmount, 18);
       const ethAmountWei = parseEther(ethAmount);
 
-      // Approve tokens
-      await writeContractAsync({
-        address: tokenAddress,
-        abi: PUMPFUN_TOKEN_ABI,
-        functionName: "approve",
-        args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS, tokenAmountWei],
+      // Check if token is authorized first
+      if (!isAuthorized) {
+        console.log('Token not authorized, authorizing first...');
+        await writeContractAsync({
+          address: contractAddresses.PUMPFUN_DEX_MANAGER,
+          abi: PUMPFUN_DEX_MANAGER_ABI,
+          functionName: "authorizeToken",
+          args: [tokenAddress],
+        });
+        console.log('Token authorized successfully');
+      }
+
+      // Check if pool exists first by trying to get pool info
+      const poolExists = poolInfoData && Array.isArray(poolInfoData) && poolInfoData.length >= 5 && poolInfoData[3]; // isActive
+      
+      console.log('Pool existence check:', {
+        poolInfoData,
+        poolExists,
+        isActive: poolInfoData ? poolInfoData[3] : 'unknown'
       });
 
-      await writeContractAsync({
-        address: WETH_ADDRESS,
-        abi: PUMPFUN_TOKEN_ABI,
-        functionName: "approve",
-        args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS, ethAmountWei],
-      });
+      if (!poolExists) {
+        // Pool doesn't exist, create it first using createLiquidityPoolWithETH
+        console.log('Pool does not exist, creating pool first...');
+        
+        // Approve tokens to DEX Manager
+        console.log('Approving tokens...');
+        await writeContractAsync({
+          address: tokenAddress,
+          abi: PUMPFUN_TOKEN_ABI,
+          functionName: "approve",
+          args: [contractAddresses.PUMPFUN_DEX_MANAGER, tokenAmountWei],
+        });
 
-      // For now, assume pool exists and use default tick range
-      // In production, you'd want to handle pool existence checking differently
-      const defaultTick = 0;
-      const tickSpacing = fee === 500 ? 10 : fee === 3000 ? 60 : 200;
-      const tickLower =
-        Math.floor((defaultTick - 600) / tickSpacing) * tickSpacing;
-      const tickUpper =
-        Math.ceil((defaultTick + 600) / tickSpacing) * tickSpacing;
+        // Create pool with ETH
+        console.log('Creating pool with ETH...');
+        const tx = await writeContractAsync({
+          address: contractAddresses.PUMPFUN_DEX_MANAGER,
+          abi: PUMPFUN_DEX_MANAGER_ABI,
+          functionName: "createLiquidityPoolWithETH",
+          args: [
+            tokenAddress, // token
+            fee,         // fee
+            tokenAmountWei, // tokenAmount
+          ],
+          value: ethAmountWei, // Send ETH with the transaction
+        });
 
-      // Mint liquidity
-      const mintParams = {
-        token0,
-        token1,
-        fee,
-        tickLower,
-        tickUpper,
-        amount0Desired: isToken0 ? tokenAmountWei : ethAmountWei,
-        amount1Desired: isToken0 ? ethAmountWei : tokenAmountWei,
-        amount0Min: 0,
-        amount1Min: 0,
-        recipient: userAddress,
-        deadline: Math.floor(Date.now() / 1000) + 1800,
-      };
+        console.log('Pool created successfully:', tx);
+        
+        // Refetch pool info after creation
+        setTimeout(() => {
+          refetchPoolInfo();
+          refetchTokenStats();
+        }, 2000);
 
-      const tx = await writeContractAsync({
-        address: NONFUNGIBLE_POSITION_MANAGER_ADDRESS,
-        abi: NONFUNGIBLE_POSITION_MANAGER_ABI,
-        functionName: "mint",
-        args: [mintParams],
-        value: isToken0 ? ethAmountWei : BigInt(0),
-      });
+        return tx;
+      } else {
+        // Pool exists, add liquidity to existing pool
+        console.log('Pool exists, adding liquidity...');
+        
+        const token0 = tokenAddress < WETH_ADDRESS ? tokenAddress : WETH_ADDRESS;
+        const token1 = tokenAddress < WETH_ADDRESS ? WETH_ADDRESS : tokenAddress;
+        const isToken0 = tokenAddress === token0;
 
-      return tx;
+        console.log('Token ordering:', { token0, token1, isToken0 });
+
+        // Approve tokens to DEX Manager
+        console.log('Approving tokens...');
+        await writeContractAsync({
+          address: tokenAddress,
+          abi: PUMPFUN_TOKEN_ABI,
+          functionName: "approve",
+          args: [contractAddresses.PUMPFUN_DEX_MANAGER, tokenAmountWei],
+        });
+
+        // Add liquidity to existing pool
+        console.log('Adding liquidity to existing pool...');
+        const tx = await writeContractAsync({
+          address: contractAddresses.PUMPFUN_DEX_MANAGER,
+          abi: PUMPFUN_DEX_MANAGER_ABI,
+          functionName: "addLiquidity",
+          args: [
+            token0,
+            token1,
+            fee,
+            isToken0 ? tokenAmountWei : ethAmountWei,
+            isToken0 ? ethAmountWei : tokenAmountWei,
+          ],
+          value: ethAmountWei, // Send ETH with the transaction
+        });
+
+        console.log('Liquidity added successfully:', tx);
+
+        // Refetch pool info after adding liquidity
+        setTimeout(() => {
+          refetchPoolInfo();
+          refetchTokenStats();
+        }, 2000);
+
+        return tx;
+      }
     } catch (error: any) {
-      setError(error.message || "Failed to add liquidity");
+      console.error('Error in addLiquidity:', error);
+      const errorMessage = error?.message || error?.reason || "Failed to add liquidity";
+      setError(errorMessage);
       throw error;
     }
   };

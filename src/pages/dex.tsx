@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { Address, formatEther } from 'viem';
@@ -8,6 +8,8 @@ import { useTokenDEX } from '../lib/hooks/useTokenContracts';
 import DEXPoolCreator from '../components/DEX/DEXPoolCreator';
 import PoolInformation from '../components/PoolInfo/PoolInformation';
 import BuySellTokens from '../components/BuySellTokens/BuySellTokens';
+import PublicTokenListing from '../components/PublicTokenListing/PublicTokenListing';
+import TokenTradeModal from '../components/PublicTokenListing/TokenTradeModal';
 
 interface TokenInfo {
   address: string;
@@ -69,6 +71,16 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
 
   // Use useTokenDEX for pool creation functionality
   const dex = useTokenDEX(tokenAddress);
+  
+  // Debug logging for pool state
+  console.log('DEX Pool Status:', {
+    hasActivePools,
+    poolExists: dex.poolExists,
+    poolInfo: dex.poolInfo,
+    poolInfo500,
+    poolInfo3000,
+    poolInfo10000
+  });
 
   const dexHash = async () => {
     try {
@@ -350,18 +362,27 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
 };
 
 const DEXPage = () => {
-  const [activeTab, setActiveTab] = useState<'create' | 'info' | 'buysell' | 'liquidity'>('buysell');
+  const [activeTab, setActiveTab] = useState<'marketplace' | 'buysell' | 'dashboard' | 'create' | 'manage'>('marketplace');
   const [selectedToken, setSelectedToken] = useState<Address | undefined>(undefined);
   const [userTokens, setUserTokens] = useState<any[]>([]);
+  const [allTokens, setAllTokens] = useState<any[]>([]);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [selectedTokenForTrade, setSelectedTokenForTrade] = useState<{address: string, name: string, symbol: string} | null>(null);
+  const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
+  
+  // Search states for each tab
+  const [searchTermBuySell, setSearchTermBuySell] = useState('');
+  const [searchTermDashboard, setSearchTermDashboard] = useState('');
+  const [searchTermCreate, setSearchTermCreate] = useState('');
+  const [searchTermManage, setSearchTermManage] = useState('');
   
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const contractAddresses = getContractAddresses(chainId);
   
 
-  // Fetch user's deployed tokens
-  const { data: tokenAddresses } = useReadContract({
+  // Fetch user's deployed tokens (when connected)
+  const { data: userTokenAddresses } = useReadContract({
     address: contractAddresses?.PUMPFUN_FACTORY as `0x${string}`,
     abi: PUMPFUN_FACTORY_ABI,
     functionName: 'getTokensByCreator',
@@ -370,6 +391,19 @@ const DEXPage = () => {
       enabled: isConnected && !!address && !!contractAddresses?.PUMPFUN_FACTORY,
     },
   });
+
+  // Fetch all deployed tokens (always available)
+  const { data: allTokenAddresses } = useReadContract({
+    address: contractAddresses?.PUMPFUN_FACTORY as `0x${string}`,
+    abi: PUMPFUN_FACTORY_ABI,
+    functionName: 'getAllDeployedTokens',
+    query: {
+      enabled: !!contractAddresses?.PUMPFUN_FACTORY,
+    },
+  });
+
+  // Use user tokens if connected, otherwise show all tokens
+  const tokenAddresses = isConnected ? userTokenAddresses : allTokenAddresses;
 
   
   // Debug token addresses - commented out to prevent infinite logging
@@ -395,6 +429,38 @@ const DEXPage = () => {
     }
   }, [tokenAddresses, chainId]);
 
+  const handleTokenSelect = (tokenAddress: string) => {
+    // Find token details
+    const token = userTokens.find(t => t.address === tokenAddress) || 
+                 allTokens.find(t => t.address === tokenAddress);
+    
+    if (token) {
+      setSelectedTokenForTrade({
+        address: tokenAddress,
+        name: token.name || 'Loading...',
+        symbol: token.symbol || '...',
+      });
+      setIsTradeModalOpen(true);
+    } else {
+      // If token details not available, set with placeholder data
+      setSelectedTokenForTrade({
+        address: tokenAddress,
+        name: 'Loading...',
+        symbol: '...',
+      });
+      setIsTradeModalOpen(true);
+    }
+  };
+
+  const closeTradeModal = () => {
+    setIsTradeModalOpen(false);
+    setSelectedTokenForTrade(null);
+  };
+
+  const handleTransactionComplete = () => {
+    closeTradeModal();
+  };
+
   const handleTokenDataFetched = useCallback((data: TokenInfo) => {
     setUserTokens(prevTokens => {
       const existingIndex = prevTokens.findIndex((token) => token.address === data.address);
@@ -417,7 +483,71 @@ const DEXPage = () => {
         return [...prevTokens, data];
       }
     });
+    
+    // Also update allTokens for marketplace
+    setAllTokens(prevTokens => {
+      const existingIndex = prevTokens.findIndex((token) => token.address === data.address);
+      
+      if (existingIndex >= 0) {
+        const existingToken = prevTokens[existingIndex];
+        const hasChanged = JSON.stringify(existingToken) !== JSON.stringify(data);
+        
+        if (hasChanged) {
+          return prevTokens.map((token) => 
+            token.address === data.address ? data : token
+          );
+        }
+        return prevTokens;
+      } else {
+        return [...prevTokens, data];
+      }
+    });
   }, []);
+
+  // Filter tokens based on search terms for each tab
+  const filteredUserTokensBuySell = useMemo(() => {
+    if (!searchTermBuySell) return userTokens;
+    
+    const search = searchTermBuySell.toLowerCase();
+    return userTokens.filter(token => 
+      token.name?.toLowerCase().includes(search) ||
+      token.symbol?.toLowerCase().includes(search) ||
+      token.address?.toLowerCase().includes(search)
+    );
+  }, [userTokens, searchTermBuySell]);
+
+  const filteredUserTokensDashboard = useMemo(() => {
+    if (!searchTermDashboard) return userTokens;
+    
+    const search = searchTermDashboard.toLowerCase();
+    return userTokens.filter(token => 
+      token.name?.toLowerCase().includes(search) ||
+      token.symbol?.toLowerCase().includes(search) ||
+      token.address?.toLowerCase().includes(search)
+    );
+  }, [userTokens, searchTermDashboard]);
+
+  const filteredUserTokensCreate = useMemo(() => {
+    if (!searchTermCreate) return userTokens;
+    
+    const search = searchTermCreate.toLowerCase();
+    return userTokens.filter(token => 
+      token.name?.toLowerCase().includes(search) ||
+      token.symbol?.toLowerCase().includes(search) ||
+      token.address?.toLowerCase().includes(search)
+    );
+  }, [userTokens, searchTermCreate]);
+
+  const filteredUserTokensManage = useMemo(() => {
+    if (!searchTermManage) return userTokens;
+    
+    const search = searchTermManage.toLowerCase();
+    return userTokens.filter(token => 
+      token.name?.toLowerCase().includes(search) ||
+      token.symbol?.toLowerCase().includes(search) ||
+      token.address?.toLowerCase().includes(search)
+    );
+  }, [userTokens, searchTermManage]);
 
   // Separate useEffect to handle loading state management
   useEffect(() => {
@@ -459,74 +589,126 @@ const DEXPage = () => {
     return null; // Component doesn't render anything
   };
 
-  const tabs = [
-    { id: 'create' as const, label: 'Create Pool', icon: '🏗️' },
-    { id: 'info' as const, label: 'Pool Info', icon: '📊' },
-    { id: 'liquidity' as const, label: 'Manage Liquidity', icon: '💧' },
-    { id: 'buysell' as const, label: 'Buy/Sell', icon: '💱' }
+  // Public tabs - always visible
+  const publicTabs = [
+    { id: 'marketplace' as const, label: 'Token Marketplace', icon: '🏪' },
+    { id: 'buysell' as const, label: 'Direct Trading', icon: '💱' }
   ];
+
+  // Owner dashboard tabs - only when connected
+  const ownerTabs = [
+    { id: 'dashboard' as const, label: 'My Dashboard', icon: '🎯' },
+    { id: 'create' as const, label: 'Create Pool', icon: '🏗️' },
+    { id: 'manage' as const, label: 'Manage Liquidity', icon: '💧' }
+  ];
+
+  // Combine tabs based on connection status
+  const tabs = isConnected ? [...publicTabs, ...ownerTabs] : publicTabs;
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'create':
         return (
           <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Create DEX Pool</h2>
-              <p className="text-gray-300 max-w-2xl mx-auto">
-                Create a new liquidity pool for your token on PumpFun DEX. Set up trading pairs and enable decentralized trading.
-              </p>
-            </div>
-            
-            {/* Token Selection */}
-            {isConnected ? (
-              <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 mb-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Select Your Token</h3>
-                
-                {isLoadingTokens ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
-                    <span className="ml-3 text-gray-300">Loading your tokens...</span>
-                  </div>
-                ) : userTokens.length > 0 ? (
-                  <select
-                    value={selectedToken || ''}
-                    onChange={(e) => setSelectedToken(e.target.value ? (e.target.value as Address) : undefined)}
-                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
-                  >
-                    <option value="">-- Select a Token --</option>
-                    {userTokens.map((token) => (
-                      <option key={token.address} value={token.address}>
-                        {token.name} ({token.symbol})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-4">🪙</div>
-                    <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
-                    <p className="text-gray-400 mb-4">
-                      You haven&apos;t deployed any tokens yet. Create your first token to get started!
-                    </p>
-                    <Link
-                      href="/token"
-                      className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
-                    >
-                      Deploy Token
-                      <span className="ml-2">🚀</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-center">
-                <div className="text-4xl mb-4">🔐</div>
-                <h4 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h4>
-                <p className="text-gray-300">
-                  Please connect your wallet to view your tokens and create pools.
+
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-xl font-semibold text-white mb-1">Create DEX Pool</h2>
+                  <p className="text-slate-400 text-sm">
+                  Create a new liquidity pool for your token. Set up trading pairs and enable trading.
+                  {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
                 </p>
               </div>
-            )}
+              
+              {/* Search Bar */}
+              <div className="relative w-80">
+                <input
+                  type="text"
+                  placeholder="Search tokens..."
+                  value={searchTermBuySell}
+                  onChange={(e) => setSearchTermBuySell(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-slate-400"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            {/* Token Selection Cards */}
+            <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 mb-6">
+              <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                <span className="mr-2">🏠</span>
+                {isConnected ? 'Select Your Token' : 'Browse Available Tokens'}
+              </h3>
+              
+              {/* Connection Status Info */}
+              {!isConnected && (
+                <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <p className="text-yellow-300 text-sm flex items-center">
+                    <span className="mr-2">⚠️</span>
+                    Connect your wallet to perform pool operations. You can browse tokens without connecting.
+                  </p>
+                </div>
+              )}
+              
+              {isLoadingTokens ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                  <span className="ml-3 text-gray-300">
+                    Loading {isConnected ? 'your' : 'available'} tokens...
+                  </span>
+                </div>
+              ) : filteredUserTokensCreate.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredUserTokensCreate.map((token) => (
+                    <div
+                      key={token.address} 
+                      onClick={() => setSelectedToken(token.address as Address)}
+                      className={`bg-gray-700/50 rounded-lg p-4 border cursor-pointer transition-all duration-200 hover:scale-105 ${
+                        selectedToken === token.address 
+                          ? 'border-cyan-500 bg-cyan-500/10' 
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-white">{token.symbol}</h4>
+                        <div className="flex items-center space-x-2">
+                          {selectedToken === token.address && (
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                          )}
+                          <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">Your Token</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-300 mb-2">{token.name}</p>
+                      <p className="text-xs text-gray-400">
+                        Supply: {Number(token.totalSupply).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">🪙</div>
+                  <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
+                  <p className="text-gray-400 mb-4">
+                    {isConnected 
+                      ? "You haven't deployed any tokens yet. Create your first token to get started!"
+                      : "No tokens have been deployed on this platform yet. Be the first to create one!"
+                    }
+                  </p>
+                  <Link
+                    href="/token"
+                    className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
+                  >
+                    Deploy Token
+                    <span className="ml-2">🚀</span>
+                  </Link>
+                </div>
+              )}
+            </div>
             
             {/* DEX Pool Creator Component */}
             {selectedToken && (
@@ -534,210 +716,397 @@ const DEXPage = () => {
                 tokenAddress={selectedToken as Address}
                 tokenSymbol={userTokens.find(token => token.address === selectedToken)?.symbol}
                 onPoolCreated={(poolInfo) => {
-                  setActiveTab('info');
+                  setActiveTab('manage');
                 }} 
               />
             )}
           </div>
         );
 
-      case 'info':
-        return (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Pool Information</h2>
-              <p className="text-gray-300 max-w-2xl mx-auto">
-                View live data for all active pools, including token statistics, liquidity levels, and trading activity.
-              </p>
-            </div>
-            
-            {/* Token Selection */}
-            {isConnected ? (
-              <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 mb-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Select Your Token</h3>
-                
-                {isLoadingTokens ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
-                    <span className="ml-3 text-gray-300">Loading your tokens...</span>
-                  </div>
-                ) : userTokens.length > 0 ? (
-                  <select
-                    value={selectedToken || ''}
-                    onChange={(e) => setSelectedToken(e.target.value ? (e.target.value as Address) : undefined)}
-                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
-                  >
-                    <option value="">-- Select a Token --</option>
-                    {userTokens.map((token) => (
-                      <option key={token.address} value={token.address}>
-                        {token.name} ({token.symbol})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-4">🪙</div>
-                    <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
-                    <p className="text-gray-400 mb-4">
-                      You haven&apos;t deployed any tokens yet. Create your first token to get started!
-                    </p>
-                    <Link
-                      href="/token"
-                      className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
-                    >
-                      Deploy Token
-                      <span className="ml-2">🚀</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-center">
-                <div className="text-4xl mb-4">🔐</div>
-                <h4 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h4>
-                <p className="text-gray-300">
-                  Please connect your wallet to view your tokens and pool information.
-                </p>
-              </div>
-            )}
-            
-            {/* Pool Information Component */}
-            {selectedToken && (
-              <PoolInformation tokenAddress={selectedToken as Address} />
-            )}
-          </div>
-        );
 
-      case 'liquidity':
+      case 'marketplace':
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Manage Liquidity</h2>
+              {/* <h2 className="text-3xl font-bold text-white mb-4">Token Marketplace</h2>
               <p className="text-gray-300 max-w-2xl mx-auto">
-                Add or remove liquidity from existing pools to earn fees and support token trading.
-              </p>
+                Browse all available tokens on the platform. Discover new projects and explore trading opportunities.
+              </p> */}
             </div>
             
-            {/* Token Selection */}
-            {isConnected ? (
-              <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 mb-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Select Your Token</h3>
-                
-                {isLoadingTokens ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
-                    <span className="ml-3 text-gray-300">Loading your tokens...</span>
-                  </div>
-                ) : userTokens.length > 0 ? (
-                  <select
-                    value={selectedToken || ''}
-                    onChange={(e) => setSelectedToken(e.target.value ? (e.target.value as Address) : undefined)}
-                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
-                  >
-                    <option value="">-- Select a Token --</option>
-                    {userTokens.map((token) => (
-                      <option key={token.address} value={token.address}>
-                        {token.name} ({token.symbol})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-4">🪙</div>
-                    <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
-                    <p className="text-gray-400 mb-4">
-                      You haven&apos;t deployed any tokens yet. Create your first token to get started!
-                    </p>
-                    <Link
-                      href="/token"
-                      className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
-                    >
-                      Deploy Token
-                      <span className="ml-2">🚀</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-center">
-                <div className="text-4xl mb-4">🔐</div>
-                <h4 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h4>
-                <p className="text-gray-300">
-                  Please connect your wallet to manage liquidity.
-                </p>
-              </div>
-            )}
-            
-            {/* Liquidity Management Component */}
-            {selectedToken && (
-              <LiquidityManagerComponent tokenAddress={selectedToken as Address} />
-            )}
+            <PublicTokenListing onSelectToken={handleTokenSelect} />
           </div>
         );
 
       case 'buysell':
         return (
           <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Buy/Sell Tokens</h2>
-              <p className="text-gray-300 max-w-2xl mx-auto">
-                Buy and sell tokens directly on the DEX with instant execution and competitive pricing.
-              </p>
-            </div>
-            
-            {/* Token Selection */}
-            {isConnected ? (
-              <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 mb-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Select Your Token</h3>
-                
-                {isLoadingTokens ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
-                    <span className="ml-3 text-gray-300">Loading your tokens...</span>
-                  </div>
-                ) : userTokens.length > 0 ? (
-                  <select
-                    value={selectedToken}
-                    onChange={(e) => setSelectedToken(e.target.value as Address)}
-                    className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white"
-                  >
-                    <option value="">-- Select a Token --</option>
-                    {userTokens.map((token) => (
-                      <option key={token.address} value={token.address}>
-                        {token.name} ({token.symbol})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-4">🪙</div>
-                    <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
-                    <p className="text-gray-400 mb-4">
-                      You haven&apos;t deployed any tokens yet. Create your first token to get started!
-                    </p>
-                    <Link
-                      href="/token"
-                      className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
-                    >
-                      Deploy Token
-                      <span className="ml-2">🚀</span>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-center">
-                <div className="text-4xl mb-4">🔐</div>
-                <h4 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h4>
-                <p className="text-gray-300">
-                  Please connect your wallet to view your tokens and trade.
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-xl font-semibold text-white mb-1">Direct Trading</h2>
+                  <p className="text-slate-400 text-sm">
+                  Trade tokens you own directly with instant execution and competitive pricing.
+                  {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
                 </p>
               </div>
-            )}
+              
+              {/* Search Bar */}
+              <div className="relative w-80">
+                <input
+                  type="text"
+                  placeholder="Search tokens..."
+                  value={searchTermBuySell}
+                  onChange={(e) => setSearchTermBuySell(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-slate-400"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            {/* Token Selection Cards */}
+            <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 mb-6">
+              <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                <span className="mr-2">🪙</span>
+                {isConnected ? 'Select Your Token' : 'Browse Available Tokens'}
+              </h3>
+              
+              {/* Connection Status Info */}
+              {!isConnected && (
+                <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <p className="text-yellow-300 text-sm flex items-center">
+                    <span className="mr-2">⚠️</span>
+                    Connect your wallet to trade tokens. You can browse tokens without connecting.
+                  </p>
+                </div>
+              )}
+              
+              {isLoadingTokens ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                  <span className="ml-3 text-gray-300">
+                    Loading {isConnected ? 'your' : 'available'} tokens...
+                  </span>
+                </div>
+              ) : filteredUserTokensBuySell.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredUserTokensBuySell.map((token) => (
+                    <div 
+                      key={token.address} 
+                      onClick={() => setSelectedToken(token.address as Address)}
+                      className={`bg-gray-700/50 rounded-lg p-4 border cursor-pointer transition-all duration-200 hover:scale-105 ${
+                        selectedToken === token.address 
+                          ? 'border-cyan-500 bg-cyan-500/10' 
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-white">{token.symbol}</h4>
+                        <div className="flex items-center space-x-2">
+                          {selectedToken === token.address && (
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                          )}
+                          <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">Your Token</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-300 mb-2">{token.name}</p>
+                      <p className="text-xs text-gray-400">
+                        Supply: {Number(token.totalSupply).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">🪙</div>
+                  <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
+                  <p className="text-gray-400 mb-4">
+                    {isConnected 
+                      ? "You haven't deployed any tokens yet. Create your first token to get started!"
+                      : "No tokens have been deployed on this platform yet. Be the first to create one!"
+                    }
+                  </p>
+                  <Link
+                    href="/token"
+                    className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
+                  >
+                    Deploy Token
+                    <span className="ml-2">🚀</span>
+                  </Link>
+                </div>
+              )}
+            </div>
             
             {/* Buy/Sell Component */}
             {selectedToken && (
               <BuySellTokens tokenAddress={selectedToken as Address} />
+            )}
+          </div>
+        );
+
+      case 'dashboard':
+        return (
+          <div className="space-y-6">
+            
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-xl font-semibold text-white mb-1">My Dashboard</h2>
+                  <p className="text-slate-400 text-sm">
+                  Manage your tokens, pools, and liquidity positions all in one place.
+                  {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
+                </p>
+              </div>
+              
+              {/* Search Bar */}
+              <div className="relative w-80">
+                <input
+                  type="text"
+                  placeholder="Search tokens..."
+                  value={searchTermBuySell}
+                  onChange={(e) => setSearchTermBuySell(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-slate-400"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            {!isConnected ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-6">🔒</div>
+                <h3 className="text-2xl font-bold text-white mb-4">Connect Your Wallet</h3>
+                <p className="text-gray-300 mb-6">
+                  Please connect your wallet to access your personal dashboard.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Your Tokens Section */}
+                <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <span className="mr-2">🪙</span>
+                    Your Tokens
+                  </h3>
+                  
+                  {isLoadingTokens ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                      <span className="ml-3 text-gray-300">Loading your tokens...</span>
+                    </div>
+                  ) : userTokens.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {userTokens.map((token) => (
+                        <div key={token.address} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold text-white">{token.symbol}</h4>
+                            <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">Your Token</span>
+                          </div>
+                          <p className="text-sm text-gray-300 mb-2">{token.name}</p>
+                          <p className="text-xs text-gray-400 mb-3">
+                            Supply: {Number(token.totalSupply).toLocaleString()}
+                          </p>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => {
+                                setSelectedToken(token.address as Address);
+                                setActiveTab('create');
+                              }}
+                              className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white text-xs py-2 px-3 rounded transition-colors"
+                            >
+                              Create Pool
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedToken(token.address as Address);
+                                setActiveTab('manage');
+                              }}
+                              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 px-3 rounded transition-colors"
+                            >
+                              Manage
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-4xl mb-4">🚀</div>
+                      <h4 className="text-lg font-semibold text-white mb-2">No Tokens Yet</h4>
+                      <p className="text-gray-400 mb-4">
+                        You haven&apos;t deployed any tokens yet. Create your first token to get started!
+                      </p>
+                      <Link
+                        href="/token"
+                        className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
+                      >
+                        Deploy Your First Token
+                        <span className="ml-2">🚀</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
+                    <div className="text-3xl mb-4">🏗️</div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Pool Creation</h3>
+                    <p className="text-gray-300 text-sm mb-4">
+                      Create liquidity pools for your tokens to enable trading.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('create')}
+                      className="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Create Pool
+                    </button>
+                  </div>
+
+                  <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
+                    <div className="text-3xl mb-4">💧</div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Liquidity Management</h3>
+                    <p className="text-gray-300 text-sm mb-4">
+                      Add or remove liquidity from your existing pools.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('manage')}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Manage Liquidity
+                    </button>
+                  </div>
+
+                  <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
+                    <div className="text-3xl mb-4">💱</div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Token Trading</h3>
+                    <p className="text-gray-300 text-sm mb-4">
+                      Buy and sell tokens with instant execution.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('buysell')}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Trade Tokens
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'manage':
+        return (
+          <div className="space-y-6">
+            
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-xl font-semibold text-white mb-1">Manage Liquidity</h2>
+                  <p className="text-slate-400 text-sm">
+                  Add or remove liquidity from existing pools to earn fees and support token trading.
+                  {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
+                </p>
+              </div>
+              
+              {/* Search Bar */}
+              <div className="relative w-80">
+                <input
+                  type="text"
+                  placeholder="Search tokens..."
+                  value={searchTermBuySell}
+                  onChange={(e) => setSearchTermBuySell(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-slate-400"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            {/* Token Selection Cards */}
+            <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 mb-6">
+              <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                <span className="mr-2">💧</span>
+                {isConnected ? 'Select Your Token' : 'Browse Available Tokens'}
+              </h3>
+              
+              {/* Connection Status Info */}
+              {!isConnected && (
+                <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <p className="text-yellow-300 text-sm flex items-center">
+                    <span className="mr-2">⚠️</span>
+                    Connect your wallet to manage liquidity. You can browse tokens without connecting.
+                  </p>
+                </div>
+              )}
+              
+              {isLoadingTokens ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                  <span className="ml-3 text-gray-300">
+                    Loading {isConnected ? 'your' : 'available'} tokens...
+                  </span>
+                </div>
+              ) : filteredUserTokensManage.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredUserTokensManage.map((token) => (
+                    <div 
+                      key={token.address} 
+                      onClick={() => setSelectedToken(token.address as Address)}
+                      className={`bg-gray-700/50 rounded-lg p-4 border cursor-pointer transition-all duration-200 hover:scale-105 ${
+                        selectedToken === token.address 
+                          ? 'border-cyan-500 bg-cyan-500/10' 
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-white">{token.symbol}</h4>
+                        <div className="flex items-center space-x-2">
+                          {selectedToken === token.address && (
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                          )}
+                          <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded">Your Token</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-300 mb-2">{token.name}</p>
+                      <p className="text-xs text-gray-400">
+                        Supply: {Number(token.totalSupply).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">🪙</div>
+                  <h4 className="text-lg font-semibold text-white mb-2">No Tokens Found</h4>
+                  <p className="text-gray-400 mb-4">
+                    {isConnected 
+                      ? "You haven't deployed any tokens yet. Create your first token to get started!"
+                      : "No tokens have been deployed on this platform yet. Be the first to create one!"
+                    }
+                  </p>
+                  <Link
+                    href="/token"
+                    className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-medium rounded-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
+                  >
+                    Deploy Token
+                    <span className="ml-2">🚀</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+            
+            {/* Liquidity Management Component */}
+            {selectedToken && (
+              <LiquidityManagerComponent tokenAddress={selectedToken as Address} />
             )}
           </div>
         );
@@ -853,6 +1222,18 @@ const DEXPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Token Trade Modal */}
+        {selectedTokenForTrade && (
+          <TokenTradeModal
+            tokenAddress={selectedTokenForTrade.address}
+            tokenName={selectedTokenForTrade.name}
+            tokenSymbol={selectedTokenForTrade.symbol}
+            isOpen={isTradeModalOpen}
+            onClose={closeTradeModal}
+            onTransactionComplete={handleTransactionComplete}
+          />
+        )}
       </div>
   );
 };

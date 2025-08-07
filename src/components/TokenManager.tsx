@@ -523,7 +523,7 @@ const TokenManager = () => {
           {activeTab === "liquidity" && (
             <div className="space-y-6">
               {/* Conditional Pool Creation */}
-              {!dex.poolInfo ? (
+              {!dex.poolExists ? (
                 <div className="bg-gray-700 rounded-lg p-6">
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
                     🚀 Create DEX Pool
@@ -536,6 +536,11 @@ const TokenManager = () => {
                       ℹ️ No liquidity pool exists for this token yet. Create one to enable trading on Uniswap.
                     </p>
                   </div>
+                  {dex.error && (
+                    <div className="text-red-400 text-sm mb-4 p-2 bg-red-900/30 border border-red-500/50 rounded">
+                      {dex.error}
+                    </div>
+                  )}
                   <div className="grid md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-gray-300 text-sm mb-1">
