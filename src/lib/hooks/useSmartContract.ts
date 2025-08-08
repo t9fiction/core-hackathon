@@ -3,6 +3,24 @@ import { Address } from 'viem';
 import { createFallbackPublicClient } from '../fallback-wallet';
 import { useQuery } from '@tanstack/react-query';
 
+// Helper function to convert BigInt values to strings for serialization
+function serializeBigInt(obj: any): any {
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(serializeBigInt);
+  }
+  if (obj && typeof obj === 'object') {
+    const serialized: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      serialized[key] = serializeBigInt(value);
+    }
+    return serialized;
+  }
+  return obj;
+}
+
 interface UseSmartContractReadProps {
   address: Address;
   abi: any;
@@ -35,16 +53,18 @@ export function useSmartContractRead({
 
   // Use fallback public client if no wallet is connected
   const fallbackResult = useQuery({
-    queryKey: ['fallback-read', address, functionName, args, chainId],
+    queryKey: ['fallback-read', address, functionName, serializeBigInt(args), chainId],
     queryFn: async () => {
       try {
         const fallbackClient = createFallbackPublicClient(chainId);
-        return await fallbackClient.readContract({
+        const result = await fallbackClient.readContract({
           address,
           abi,
           functionName,
           args: args || [],
         });
+        // Serialize BigInt values in the result to prevent JSON serialization errors
+        return serializeBigInt(result);
       } catch (error) {
         console.warn('Fallback wallet not available:', error);
         throw error;

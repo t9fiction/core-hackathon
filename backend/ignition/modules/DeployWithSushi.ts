@@ -1,14 +1,24 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+import GovernanceModule from "./PumpFunGovernance";
+import GovernanceAirdropModule from "./PumpFunGovernanceAirdrop";
 
+/**
+ * PumpFun Protocol Deployment with SushiSwap Integration
+ * 
+ * Deploys the complete protocol using SushiSwap V3 infrastructure:
+ * - Core contracts (Factory & DEX Manager) 
+ * - Governance system (Governance & Airdrop contracts)
+ * - Configured for Sepolia testnet with SushiSwap addresses
+ */
 const DeployWithSushiModule = buildModule("DeployWithSushi", (m) => {
-  // SushiSwap V3 contract addresses on Sepolia
-  const SUSHI_SWAP_ROUTER_SEPOLIA = "0x3cd1C46068dAEa5Ebb0d3f55F6915B10648062B8";
-  const SUSHI_POSITION_MANAGER_SEPOLIA = "0x2B1c7b41f6A8F2b2bc45C3233a5d5FB3cD6dC9A8";
-  const SUSHI_V3_FACTORY_SEPOLIA = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4";
-  const SUSHI_QUOTER_V2_SEPOLIA = "0xb1E835Dc2785b52265711e17fCCb0fd018226a6e";
-  const WETH_SEPOLIA = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
+  // Use environment variables or fallback to generic addresses for testing
+  const SUSHI_SWAP_ROUTER_SEPOLIA = process.env.SUSHI_SWAP_ROUTER || "0x93c31c9C729A249b2877F7699e178F4720407733";
+  const SUSHI_POSITION_MANAGER_SEPOLIA = process.env.SUSHI_POSITION_MANAGER || "0x544bA588efD839d2692Fc31EA991cD39993c135F";
+  const SUSHI_V3_FACTORY_SEPOLIA = process.env.SUSHI_FACTORY || "0x1f2FCf1d036b375b384012e61D3AA33F8C256bbE";
+  const SUSHI_QUOTER_V2_SEPOLIA = process.env.UNISWAP_V2_QUOTER || "0x039e87AB90205F9d87c5b40d4B28e2Be45dA4a20";
+  const WETH_SEPOLIA = process.env.WETH_ADDRESS || "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
 
-  // Deploy PumpFunDEXManager with SushiSwap contracts
+  // Deploy core infrastructure with SushiSwap integration
   const pumpFunDEXManager = m.contract("PumpFunDEXManager", [
     SUSHI_SWAP_ROUTER_SEPOLIA,
     SUSHI_POSITION_MANAGER_SEPOLIA,
@@ -18,13 +28,23 @@ const DeployWithSushiModule = buildModule("DeployWithSushi", (m) => {
   ]);
 
   // Deploy PumpFunFactoryLite
-  const pumpFunFactoryLite = m.contract("PumpFunFactoryLite", [
-    pumpFunDEXManager,
-  ]);
+  const pumpFunFactoryLite = m.contract("PumpFunFactoryLite");
+
+  // Set up factory and DEX manager relationship
+  m.call(pumpFunDEXManager, "setFactory", [pumpFunFactoryLite], { after: [pumpFunFactoryLite, pumpFunDEXManager] });
+  m.call(pumpFunFactoryLite, "setDEXManager", [pumpFunDEXManager], { after: [pumpFunDEXManager, pumpFunFactoryLite] });
+
+  // Deploy governance infrastructure
+  const { governance } = m.useModule(GovernanceModule);
+  const { airdrop } = m.useModule(GovernanceAirdropModule);
 
   return {
+    // Core infrastructure
     pumpFunDEXManager,
     pumpFunFactoryLite,
+    // Governance infrastructure
+    governance,
+    airdrop,
   };
 });
 

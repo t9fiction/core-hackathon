@@ -18,7 +18,7 @@ interface AirdropRecipient {
 
 const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreated }) => {
   const { address, isConnected, chainId } = useAccount();
-  const { createProposal, isPending, isConfirming } = useGovernance();
+  const { createProposal, isPending, isConfirming, isConfirmed, transactionHash } = useGovernance();
   const contractAddresses = getContractAddresses(chainId || 1);
   
   // Form state
@@ -66,6 +66,24 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
       setSelectedToken(allTokens[0] as Address);
     }
   }, [allTokens, selectedToken]);
+
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isConfirmed && transactionHash && isSubmitting) {
+      // Success - reset form
+      setDescription('');
+      setProposedValue('');
+      setAirdropRecipients([{ address: '', amount: '' }]);
+      setIsSubmitting(false);
+      
+      showSuccessAlert(
+        'Proposal Created!',
+        'Your proposal has been submitted successfully and is now open for voting.'
+      );
+
+      onProposalCreated?.();
+    }
+  }, [isConfirmed, transactionHash, isSubmitting, onProposalCreated]);
 
   const currentProposalType = PROPOSAL_TYPES.find(type => type.id === proposalType);
 
@@ -153,21 +171,10 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
         amounts
       );
 
-      // Success - reset form
-      setDescription('');
-      setProposedValue('');
-      setAirdropRecipients([{ address: '', amount: '' }]);
-      
-      showSuccessAlert(
-        'Proposal Created!',
-        'Your proposal has been submitted successfully and is now open for voting.'
-      );
-
-      onProposalCreated?.();
+      // Transaction submitted successfully - wait for confirmation in useEffect
     } catch (error) {
       console.error('Error creating proposal:', error);
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); // Only reset on error
     }
   };
 
@@ -349,10 +356,20 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
           disabled={isSubmitting || isPending || isConfirming}
           className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
         >
-          {isSubmitting || isPending || isConfirming ? (
+          {isSubmitting && !isPending && !isConfirming ? (
             <>
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Creating Proposal...</span>
+              <span>Confirm in Wallet...</span>
+            </>
+          ) : isPending ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Transaction Pending...</span>
+            </>
+          ) : isConfirming ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Confirming on Blockchain...</span>
             </>
           ) : (
             <>

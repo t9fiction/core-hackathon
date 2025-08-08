@@ -2,16 +2,25 @@
 // Learn more about it at https://hardhat.org/ignition
 
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+import GovernanceModule from "./PumpFunGovernance";
 
-const _governanceContract = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
-
+/**
+ * PumpFun Governance Airdrop Contract Deployment Module
+ * 
+ * Deploys the governance airdrop contract that handles:
+ * - Merkle proof-based token airdrops
+ * - Batch claim functionality
+ * - Emergency withdrawal mechanisms
+ * - Airdrop configuration and management
+ */
 const GovernanceAirdropModule = buildModule("PumpFunGovernanceAirdrop", (m) => {
+  // Import governance contract from the governance module
+  const { governance } = m.useModule(GovernanceModule);
   
-    const governanceAirdropParams = m.getParameter("_governanceContract", _governanceContract);
+  // Deploy airdrop contract with governance contract address
+  const airdrop = m.contract("PumpFunGovernanceAirdrop", [governance]);
 
-    const airdrop = m.contract("PumpFunGovernanceAirdrop",[governanceAirdropParams]);
-
-  return { airdrop };
+  return { airdrop, governance };
 });
 
 export default GovernanceAirdropModule;

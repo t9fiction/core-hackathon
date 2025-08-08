@@ -1,5 +1,8 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+import GovernanceModule from "./PumpFunGovernance";
+import GovernanceAirdropModule from "./PumpFunGovernanceAirdrop";
 
+// DEX Configuration - Environment variables with fallbacks
 const SWAP_ROUTER = process.env.SUSHI_SWAP_ROUTER || "0x93c31c9C729A249b2877F7699e178F4720407733";
 const POSITION_MANAGER = process.env.SUSHI_POSITION_MANAGER || "0x544bA588efD839d2692Fc31EA991cD39993c135F";
 const SUSHI_FACTORY = process.env.SUSHI_FACTORY || "0x1f2FCf1d036b375b384012e61D3AA33F8C256bbE";
@@ -14,21 +17,43 @@ const WETH = process.env.WETH_ADDRESS || "0xfff9976782d46cc05630d1f6ebab18b2324d
 // const TOTAL_SUPPLY = 10000000n;
 // const LIQUIDITY_LOCK_PERIOD_DAYS = 30;
 
-const DeployAllContracts = buildModule("DeployAllContracts", (m:any) => {
+/**
+ * Complete PumpFun Protocol Deployment Module
+ * 
+ * Deploys all core contracts in the correct order:
+ * 1. Factory and DEX Manager (token creation and liquidity management)
+ * 2. Governance contracts (proposal and voting system)
+ * 3. Sets up proper contract relationships
+ */
+const DeployAllContracts = buildModule("DeployAllContracts", (m: any) => {
+  // Deploy core token infrastructure
   const factory = m.contract("PumpFunFactoryLite");
   const dexManager = m.contract("PumpFunDEXManager", [SWAP_ROUTER, POSITION_MANAGER, SUSHI_FACTORY, _quoter, WETH]);
 
-  m.call(dexManager,"setFactory", [factory], { after: [factory, dexManager] });
+  // Set up factory and DEX manager relationship
+  m.call(dexManager, "setFactory", [factory], { after: [factory, dexManager] });
   m.call(factory, "setDEXManager", [dexManager], { after: [dexManager, factory] });
 
+  // Deploy governance infrastructure
+  const { governance } = m.useModule(GovernanceModule);
+  const { airdrop } = m.useModule(GovernanceAirdropModule);
+
+  // Example token deployment (commented out by default)
   // const requiredFee = m.staticCall(factory, "getRequiredFee", [TOTAL_SUPPLY]);
-  // const deployToken = m.call(factory, "deployToken", [TOKEN_NAME, TOKEN_SYMBOL, TOTAL_SUPPLY, LIQUIDITY_LOCK_PERIOD_DAYS], {
+  // const deployToken = m.call(factory, "deployToken", [TOKEN_NAME, TOKEN_SYMBOL, TOTAL_SUPPLY], {
   //   value: requiredFee,
   //   from: m.getAccount(0),
-  //   after: [factory] // Ensure factory is deployed
+  //   after: [factory]
   // });
 
-  return { factory, dexManager };
+  return { 
+    // Core infrastructure
+    factory, 
+    dexManager,
+    // Governance infrastructure 
+    governance,
+    airdrop
+  };
 });
 
 export default DeployAllContracts;
