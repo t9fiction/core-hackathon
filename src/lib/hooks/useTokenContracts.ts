@@ -448,7 +448,7 @@ export const useTokenDEX = (tokenAddress: Address) => {
 
         console.log('Token ordering:', { token0, token1, isToken0 });
 
-        // Approve tokens to DEX Manager
+        // Approve tokens to DEX Manager (only the token, not WETH as it will be wrapped)
         console.log('Approving tokens...');
         await writeContractAsync({
           address: tokenAddress,
@@ -459,6 +459,19 @@ export const useTokenDEX = (tokenAddress: Address) => {
 
         // Add liquidity to existing pool
         console.log('Adding liquidity to existing pool...');
+        
+        // Determine the correct amounts based on token ordering
+        const tokenAmount0 = isToken0 ? tokenAmountWei : ethAmountWei;
+        const tokenAmount1 = isToken0 ? ethAmountWei : tokenAmountWei;
+        
+        console.log('Final amounts:', {
+          token0,
+          token1, 
+          tokenAmount0: tokenAmount0.toString(),
+          tokenAmount1: tokenAmount1.toString(),
+          ethValue: ethAmountWei.toString()
+        });
+        
         const tx = await writeContractAsync({
           address: contractAddresses.PUMPFUN_DEX_MANAGER,
           abi: PUMPFUN_DEX_MANAGER_ABI,
@@ -467,10 +480,10 @@ export const useTokenDEX = (tokenAddress: Address) => {
             token0,
             token1,
             fee,
-            isToken0 ? tokenAmountWei : ethAmountWei,
-            isToken0 ? ethAmountWei : tokenAmountWei,
+            tokenAmount0,
+            tokenAmount1,
           ],
-          value: ethAmountWei, // Send ETH with the transaction
+          value: ethAmountWei, // Send ETH with the transaction for WETH wrapping
         });
 
         console.log('Liquidity added successfully:', tx);

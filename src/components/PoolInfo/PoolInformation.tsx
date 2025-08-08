@@ -12,6 +12,8 @@ interface PoolData {
     fee: number;
     tokenId: string;
     liquidity: string;
+    amount0: string; // Actual token amount locked
+    amount1: string; // Actual ETH amount locked
     lockExpiry: string;
     isActive: boolean;
     createdAt: string;
@@ -46,11 +48,11 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
   const contractAddresses = getContractAddresses(chainId);
   const WETH_ADDRESS = addresses?.WETH || "0xfff9976782d46cc05630d1f6ebab18b2324d6b14"; // fallback to Sepolia WETH
 
-  // Get pool info for different fee tiers
+  // Get detailed pool info for different fee tiers
   const { data: poolInfo500, isLoading: loading500 } = useReadContract({
     address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
     abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: "getPoolInfo",
+    functionName: "getDetailedPoolInfo",
     args: [tokenAddress!, WETH_ADDRESS as Address, 500],
     query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
   });
@@ -58,7 +60,7 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
   const { data: poolInfo3000, isLoading: loading3000 } = useReadContract({
     address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
     abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: "getPoolInfo",
+    functionName: "getDetailedPoolInfo",
     args: [tokenAddress!, WETH_ADDRESS as Address, 3000],
     query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
   });
@@ -66,7 +68,7 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
   const { data: poolInfo10000, isLoading: loading10000 } = useReadContract({
     address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
     abi: PUMPFUN_DEX_MANAGER_ABI,
-    functionName: "getPoolInfo",
+    functionName: "getDetailedPoolInfo",
     args: [tokenAddress!, WETH_ADDRESS as Address, 10000],
     query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
   });
@@ -103,14 +105,19 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
     ];
 
     feesTiers.forEach(({ fee, data }) => {
-      if (data && Array.isArray(data) && data.length >= 5 && data[3]) { // isActive is at index 3
+      if (data && Array.isArray(data) && data.length >= 7 && data[5]) { // isActive is now at index 5
+        // For detailed pool info: [tokenId, liquidity, amount0, amount1, lockExpiry, isActive, createdAt]
+        const isTokenFirst = tokenAddress && tokenAddress.toLowerCase() < WETH_ADDRESS.toLowerCase();
+        
         pools.push({
           fee,
           tokenId: data[0]?.toString() || '0',
           liquidity: data[1]?.toString() || '0',
-          lockExpiry: data[2]?.toString() || '0',
-          isActive: Boolean(data[3]),
-          createdAt: data[4]?.toString() || '0',
+          amount0: data[2]?.toString() || '0', // First token amount
+          amount1: data[3]?.toString() || '0', // Second token amount  
+          lockExpiry: data[4]?.toString() || '0',
+          isActive: Boolean(data[5]),
+          createdAt: data[6]?.toString() || '0',
         });
       }
     });
@@ -347,15 +354,53 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
                     </span>
                     <span className="text-green-400 text-sm">● Active</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-300">Liquidity: </span>
-                      <span className="text-white">{formatTokenAmount(pool.liquidity)}</span>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div>
+                        <span className="text-gray-300">🔒 Locked {tokenSymbol}: </span>
+                        <span className="text-white font-medium">
+                          {(() => {
+                            const isTokenFirst = tokenAddress && tokenAddress.toLowerCase() < WETH_ADDRESS.toLowerCase();
+                            const tokenAmount = isTokenFirst ? pool.amount0 : pool.amount1;
+                            return formatTokenAmount(tokenAmount);
+                          })()}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-300">🔒 Locked ETH: </span>
+                        <span className="text-white font-medium">
+                          {(() => {
+                            const isTokenFirst = tokenAddress && tokenAddress.toLowerCase() < WETH_ADDRESS.toLowerCase();
+                            const ethAmount = isTokenFirst ? pool.amount1 : pool.amount0;
+                            return formatTokenAmount(ethAmount);
+                          })()}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-300">Created: </span>
-                      <span className="text-white">
-                        {new Date(parseInt(pool.createdAt) * 1000).toLocaleDateString()}
+                    <div className="space-y-2">
+                      <div>
+                        <span className="text-gray-300">Liquidity: </span>
+                        <span className="text-white">{formatTokenAmount(pool.liquidity)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-300">Created: </span>
+                        <span className="text-white text-xs">
+                          {new Date(parseInt(pool.createdAt) * 1000).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Lock Expiry Information */}
+                  <div className="mt-3 pt-2 border-t border-gray-500">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">Lock expires:</span>
+                      <span className={`font-medium ${
+                        parseInt(pool.lockExpiry) * 1000 > Date.now() 
+                          ? 'text-yellow-400' 
+                          : 'text-red-400'
+                      }`}>
+                        {new Date(parseInt(pool.lockExpiry) * 1000).toLocaleString()}
                       </span>
                     </div>
                   </div>

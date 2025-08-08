@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useReadContract, useChainId } from 'wagmi';
+import { useChainId } from 'wagmi';
 import { Address, formatEther } from 'viem';
 import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI, PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
+import { useSmartContractRead } from '../../lib/hooks/useSmartContract';
 
 interface TokenInfo {
   address: string;
@@ -30,7 +31,7 @@ const PublicTokenListing: React.FC<PublicTokenListingProps> = ({ onSelectToken }
   const WETH_ADDRESS = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
 
   // Get all deployed tokens from factory
-  const { data: allTokens, isLoading: isLoadingTokens } = useReadContract({
+  const { data: allTokens, isLoading: isLoadingTokens } = useSmartContractRead({
     address: contractAddresses.PUMPFUN_FACTORY,
     abi: PUMPFUN_FACTORY_ABI,
     functionName: 'getAllDeployedTokens',
@@ -39,7 +40,7 @@ const PublicTokenListing: React.FC<PublicTokenListingProps> = ({ onSelectToken }
   // Fetch detailed information for each token
   useEffect(() => {
     const fetchTokenDetails = async () => {
-      if (!allTokens || allTokens.length === 0) return;
+      if (!allTokens || !Array.isArray(allTokens) || allTokens.length === 0) return;
       
       setIsLoadingDetails(true);
       try {
@@ -113,7 +114,7 @@ const PublicTokenListing: React.FC<PublicTokenListingProps> = ({ onSelectToken }
         <div>
           <h2 className="text-xl font-semibold text-white mb-1">Live Token Markets</h2>
           <p className="text-slate-400 text-sm">
-            {allTokens ? `${allTokens.length} tokens available` : '0 tokens'} • Real-time trading
+            {allTokens && Array.isArray(allTokens) ? `${allTokens.length} tokens available` : '0 tokens'} • Real-time trading
           </p>
         </div>
         
@@ -194,28 +195,28 @@ const TokenCard: React.FC<TokenCardProps> = ({ token, onSelect }) => {
   const WETH_ADDRESS = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
 
   // Get token name
-  const { data: tokenName } = useReadContract({
+  const { data: tokenName } = useSmartContractRead({
     address: token.address as Address,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'name',
   });
 
   // Get token symbol
-  const { data: tokenSymbol } = useReadContract({
+  const { data: tokenSymbol } = useSmartContractRead({
     address: token.address as Address,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'symbol',
   });
 
   // Get total supply
-  const { data: totalSupply } = useReadContract({
+  const { data: totalSupply } = useSmartContractRead({
     address: token.address as Address,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'totalSupply',
   });
 
   // Get token info from factory
-  const { data: tokenInfo } = useReadContract({
+  const { data: tokenInfo } = useSmartContractRead({
     address: contractAddresses.PUMPFUN_FACTORY,
     abi: PUMPFUN_FACTORY_ABI,
     functionName: 'getTokenInfo',
@@ -223,7 +224,7 @@ const TokenCard: React.FC<TokenCardProps> = ({ token, onSelect }) => {
   });
 
   // Get pool info from DEX manager
-  const { data: poolInfo } = useReadContract({
+  const { data: poolInfo } = useSmartContractRead({
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
     functionName: 'getPoolInfo',
@@ -231,8 +232,8 @@ const TokenCard: React.FC<TokenCardProps> = ({ token, onSelect }) => {
   });
 
   // Parse token info
-  const creator = tokenInfo ? tokenInfo[0] : '0x...';
-  const deploymentTime = tokenInfo ? tokenInfo[1] : BigInt(0);
+  const creator = (tokenInfo && Array.isArray(tokenInfo) && tokenInfo.length > 0) ? tokenInfo[0] : '0x...';
+  const deploymentTime = (tokenInfo && Array.isArray(tokenInfo) && tokenInfo.length > 1) ? tokenInfo[1] : BigInt(0);
   const hasPool = poolInfo && Array.isArray(poolInfo) && poolInfo.length >= 5 && poolInfo[3]; // isActive
 
   const formatAddress = (address: string) => {

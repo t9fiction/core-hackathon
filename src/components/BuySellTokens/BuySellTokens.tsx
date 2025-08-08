@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useAccount, useReadContract, useBalance, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
+import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { Address, formatEther, parseEther } from 'viem';
 import { PUMPFUN_DEX_MANAGER_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
 // import { PUMPFUN_DEX_MANAGER } from '../../lib/contracts/addresses';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { showSuccessAlert, showErrorAlert } from '../../lib/swal-config';
+import { useSmartContractRead, useIsFallbackMode } from '../../lib/hooks/useSmartContract';
 
 interface BuySellTokensProps {
   tokenAddress: Address;
@@ -38,6 +39,7 @@ export const BuySellTokens = ({
   
   const { address, isConnected } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
+  const isFallbackMode = useIsFallbackMode();
   
   const chainId = useChainId();
 
@@ -54,13 +56,13 @@ export const BuySellTokens = ({
   });
 
   // Get token info from contract
-  const { data: contractTokenName } = useReadContract({
+  const { data: contractTokenName } = useSmartContractRead({
     address: tokenAddress,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'name',
   });
 
-  const { data: contractTokenSymbol } = useReadContract({
+  const { data: contractTokenSymbol } = useSmartContractRead({
     address: tokenAddress,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'symbol',
@@ -71,25 +73,21 @@ export const BuySellTokens = ({
   const tokenSymbol = propTokenSymbol || (contractTokenSymbol as string);
 
   // Get token balance
-  const { data: tokenBalance } = useReadContract({
+  const { data: tokenBalance } = useSmartContractRead({
     address: tokenAddress,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [address!],
-    query: {
-      enabled: !!address,
-    },
+    enabled: !!address,
   });
 
   // Get token allowance for DEX Manager
-  const { data: tokenAllowance } = useReadContract({
+  const { data: tokenAllowance } = useSmartContractRead({
     address: tokenAddress,
     abi: PUMPFUN_TOKEN_ABI,
     functionName: 'allowance',
     args: [address!, contractAddresses.PUMPFUN_DEX_MANAGER],
-    query: {
-      enabled: !!address,
-    },
+    enabled: !!address,
   });
 
   // Debounced buy amount for estimates to prevent excessive calls  
@@ -112,14 +110,12 @@ export const BuySellTokens = ({
   }, [sellAmount]);
 
   // Get token price for estimates (temporary fallback)
-  const { data: tokenPriceData } = useReadContract({
+  const { data: tokenPriceData } = useSmartContractRead({
     address: contractAddresses.PUMPFUN_DEX_MANAGER,
     abi: PUMPFUN_DEX_MANAGER_ABI,
     functionName: 'getTokenPrice',
     args: [tokenAddress],
-    query: {
-      enabled: true
-    }
+    enabled: true,
   });
 
   // Note: Using getTokenPrice as fallback since getAmountsOutSingleHop is not a view function
@@ -238,20 +234,26 @@ export const BuySellTokens = ({
   // Calculate values using useMemo (must be before conditional returns)
   const calculateBuyOutput = useMemo(() => {
     if (!debouncedBuyAmount || !tokenPriceData || isNaN(Number(debouncedBuyAmount))) return '0';
-    const price = tokenPriceData[0] as bigint; // price is first element of tuple
-    const ethAmount = parseEther(debouncedBuyAmount);
-    // Simple calculation: ethAmount / price (need to handle decimals properly)
-    const estimated = (ethAmount * parseEther('1')) / price;
-    return formatEther(estimated);
+    if (Array.isArray(tokenPriceData) && tokenPriceData.length > 0) {
+      const price = tokenPriceData[0] as bigint; // price is first element of tuple
+      const ethAmount = parseEther(debouncedBuyAmount);
+      // Simple calculation: ethAmount / price (need to handle decimals properly)
+      const estimated = (ethAmount * parseEther('1')) / price;
+      return formatEther(estimated);
+    }
+    return '0';
   }, [debouncedBuyAmount, tokenPriceData]);
 
   const calculateSellOutput = useMemo(() => {
     if (!debouncedSellAmount || !tokenPriceData || isNaN(Number(debouncedSellAmount))) return '0';
-    const price = tokenPriceData[0] as bigint; // price is first element of tuple
-    const tokenAmount = parseEther(debouncedSellAmount);
-    // Simple calculation: tokenAmount * price
-    const estimated = (tokenAmount * price) / parseEther('1');
-    return formatEther(estimated);
+    if (Array.isArray(tokenPriceData) && tokenPriceData.length > 0) {
+      const price = tokenPriceData[0] as bigint; // price is first element of tuple
+      const tokenAmount = parseEther(debouncedSellAmount);
+      // Simple calculation: tokenAmount * price
+      const estimated = (tokenAmount * price) / parseEther('1');
+      return formatEther(estimated);
+    }
+    return '0';
   }, [debouncedSellAmount, tokenPriceData]);
 
   const needsApproval = useMemo(() => {
@@ -268,7 +270,11 @@ export const BuySellTokens = ({
       <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
         <div className="text-center">
           <h3 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h3>
-          <p className="text-slate-400">Please connect your wallet to trade tokens.</p>
+          <p className="text-slate-400 mb-4">Please connect your wallet to trade tokens.</p>
+          <div className="text-xs text-amber-300 bg-amber-400/10 rounded-lg p-3 border border-amber-400/20">
+            <p className="mb-1">📊 You can view token information without connecting a wallet.</p>
+            <p>🔒 Connect your wallet to enable trading functionality.</p>
+          </div>
         </div>
       </div>
     );

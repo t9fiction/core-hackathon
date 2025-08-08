@@ -12,9 +12,9 @@ export interface ContractAddresses {
 export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
   // Sepolia Testnet
   11155111: {
-    PUMPFUN_FACTORY: '0x8ba36AAeEa120a1e947307629294F050a9052236', // Actual deployed address
+    PUMPFUN_FACTORY: '0x17a9814BF9dDBd5ae3C245F668561068984Dd8a4', // Actual deployed address
     PUMPFUN_GOVERNANCE: '0x44652C54bD053fB339912a2Ce28030Fda19edFd9', // Actual deployed address
-    PUMPFUN_DEX_MANAGER: '0xE08EB3CC28e3c1A8ec97c536fAE41bCA0CA3Ce2A', // Actual deployed address
+    PUMPFUN_DEX_MANAGER: '0x8BA9a1E63b82DEB901b1311aD293B4039142Ea60', // Actual deployed address
     PUMPFUN_AIRDROP: '0x102A628D8a53a997F5aE6d9182255BBC54e8ccb6', // Replace with actual deployed address
     WETH: '0xfff9976782d46cc05630d1f6ebab18b2324d6b14', // Sepolia WETH
   },
@@ -40,6 +40,22 @@ export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
     PUMPFUN_DEX_MANAGER: '0x0000000000000000000000000000000000000000', // Replace with actual deployed address
     PUMPFUN_AIRDROP: '0x0000000000000000000000000000000000000000', // Replace with actual deployed address
     WETH: '0x0000000000000000000000000000000000000000', // Dummy address for WETH
+  },
+  // Core DAO Mainnet
+  1116: {
+    PUMPFUN_FACTORY: '0x17a9814BF9dDBd5ae3C245F668561068984Dd8a4', // Replace with actual deployed address on Core
+    PUMPFUN_GOVERNANCE: '0x44652C54bD053fB339912a2Ce28030Fda19edFd9', // Replace with actual deployed address on Core
+    PUMPFUN_DEX_MANAGER: '0x8BA9a1E63b82DEB901b1311aD293B4039142Ea60', // Replace with actual deployed address on Core
+    PUMPFUN_AIRDROP: '0x102A628D8a53a997F5aE6d9182255BBC54e8ccb6', // Replace with actual deployed address on Core
+    WETH: '0x40375C92d9FAf44d2f9db9Bd9ba41a3317a2404f', // WCORE on Core DAO
+  },
+  // Core DAO Testnet
+  1115: {
+    PUMPFUN_FACTORY: '0x17a9814BF9dDBd5ae3C245F668561068984Dd8a4', // Replace with actual deployed address on Core Testnet
+    PUMPFUN_GOVERNANCE: '0x44652C54bD053fB339912a2Ce28030Fda19edFd9', // Replace with actual deployed address on Core Testnet
+    PUMPFUN_DEX_MANAGER: '0x8BA9a1E63b82DEB901b1311aD293B4039142Ea60', // Replace with actual deployed address on Core Testnet
+    PUMPFUN_AIRDROP: '0x102A628D8a53a997F5aE6d9182255BBC54e8ccb6', // Replace with actual deployed address on Core Testnet
+    WETH: '0x40375C92d9FAf44d2f9db9Bd9ba41a3317a2404f', // WCORE on Core DAO Testnet
   },
   // Hardhat Local Network
   31337: {

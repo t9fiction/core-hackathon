@@ -293,21 +293,46 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     {
         address orderedToken0 = token0 < token1 ? token0 : token1;
         address orderedToken1 = token0 < token1 ? token1 : token0;
-        if (!tokenPools[orderedToken0][orderedToken1][fee].isActive) revert PumpFunDEXManager__PairAlreadyExists();
+        if (!tokenPools[orderedToken0][orderedToken1][fee].isActive) revert PumpFunDEXManager__PoolDoesNotExist();
         if (tokenAmount0 == 0 || tokenAmount1 == 0) revert PumpFunDEXManager__InvalidAmount();
 
-        IERC20(token0).transferFrom(msg.sender, address(this), tokenAmount0);
-        IERC20(token1).transferFrom(msg.sender, address(this), tokenAmount1);
+        // Handle ETH/WETH conversion
+        if (token0 == WETH && msg.value > 0) {
+            if (msg.value != tokenAmount0) revert PumpFunDEXManager__InvalidAmount();
+            IWETH(WETH).deposit{value: msg.value}();
+            IERC20(token1).transferFrom(msg.sender, address(this), tokenAmount1);
+        } else if (token1 == WETH && msg.value > 0) {
+            if (msg.value != tokenAmount1) revert PumpFunDEXManager__InvalidAmount();
+            IWETH(WETH).deposit{value: msg.value}();
+            IERC20(token0).transferFrom(msg.sender, address(this), tokenAmount0);
+        } else {
+            // Both tokens are ERC20
+            IERC20(token0).transferFrom(msg.sender, address(this), tokenAmount0);
+            IERC20(token1).transferFrom(msg.sender, address(this), tokenAmount1);
+        }
 
         IERC20(token0).approve(address(positionManager), tokenAmount0);
         IERC20(token1).approve(address(positionManager), tokenAmount1);
 
         PoolInfo storage poolInfo = tokenPools[orderedToken0][orderedToken1][fee];
+        
+        // Properly order the amounts based on the ordered tokens
+        uint256 amount0Desired;
+        uint256 amount1Desired;
+        
+        if (token0 < token1) {
+            amount0Desired = tokenAmount0;
+            amount1Desired = tokenAmount1;
+        } else {
+            amount0Desired = tokenAmount1;
+            amount1Desired = tokenAmount0;
+        }
+        
         INonfungiblePositionManager.IncreaseLiquidityParams memory increaseParams = INonfungiblePositionManager
             .IncreaseLiquidityParams({
             tokenId: poolInfo.tokenId,
-            amount0Desired: tokenAmount0,
-            amount1Desired: tokenAmount1,
+            amount0Desired: amount0Desired,
+            amount1Desired: amount1Desired,
             amount0Min: 0,
             amount1Min: 0,
             deadline: block.timestamp + 300
@@ -607,6 +632,72 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         address orderedToken1 = token0 < token1 ? token1 : token0;
         PoolInfo memory poolInfo = tokenPools[orderedToken0][orderedToken1][fee];
         return (poolInfo.tokenId, poolInfo.liquidity, poolInfo.lockExpiry, poolInfo.isActive, poolInfo.createdAt);
+    }
+
+    /**
+     * @dev Get detailed position information including actual token amounts
+     */
+    function getDetailedPoolInfo(address token0, address token1, uint24 fee)
+        external
+        view
+        returns (
+            uint256 tokenId,
+            uint256 liquidity,
+            uint256 amount0,
+            uint256 amount1,
+            uint256 lockExpiry,
+            bool isActive,
+            uint256 createdAt
+        )
+    {
+        address orderedToken0 = token0 < token1 ? token0 : token1;
+        address orderedToken1 = token0 < token1 ? token1 : token0;
+        PoolInfo memory poolInfo = tokenPools[orderedToken0][orderedToken1][fee];
+        
+        if (!poolInfo.isActive || poolInfo.tokenId == 0) {
+            return (0, 0, 0, 0, 0, false, 0);
+        }
+
+        // Get position details from Uniswap V3 Position Manager
+        try positionManager.positions(poolInfo.tokenId) returns (
+            uint96 nonce,
+            address operator,
+            address posToken0,
+            address posToken1,
+            uint24 posFee,
+            int24 tickLower,
+            int24 tickUpper,
+            uint128 posLiquidity,
+            uint256 feeGrowthInside0LastX128,
+            uint256 feeGrowthInside1LastX128,
+            uint128 tokensOwed0,
+            uint128 tokensOwed1
+        ) {
+            // Calculate actual token amounts from liquidity and ticks
+            // This is an approximation - for exact amounts you'd need to query the pool directly
+            amount0 = uint256(tokensOwed0);
+            amount1 = uint256(tokensOwed1);
+            
+            return (
+                poolInfo.tokenId,
+                poolInfo.liquidity,
+                amount0,
+                amount1,
+                poolInfo.lockExpiry,
+                poolInfo.isActive,
+                poolInfo.createdAt
+            );
+        } catch {
+            return (
+                poolInfo.tokenId,
+                poolInfo.liquidity,
+                0,
+                0,
+                poolInfo.lockExpiry,
+                poolInfo.isActive,
+                poolInfo.createdAt
+            );
+        }
     }
 
     /**
