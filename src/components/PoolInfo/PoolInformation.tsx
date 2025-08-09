@@ -391,16 +391,13 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
                     </div>
                   </div>
                   
-                  {/* Lock Expiry Information */}
+                  {/* Permanent Lock Information */}
                   <div className="mt-3 pt-2 border-t border-gray-500">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-400">Lock expires:</span>
-                      <span className={`font-medium ${
-                        parseInt(pool.lockExpiry) * 1000 > Date.now() 
-                          ? 'text-yellow-400' 
-                          : 'text-red-400'
-                      }`}>
-                        {new Date(parseInt(pool.lockExpiry) * 1000).toLocaleString()}
+                      <span className="text-gray-400">Liquidity Status:</span>
+                      <span className="font-medium text-amber-400 flex items-center">
+                        <span className="mr-1">🔒</span>
+                        Permanently Locked (Roach Motel)
                       </span>
                     </div>
                   </div>

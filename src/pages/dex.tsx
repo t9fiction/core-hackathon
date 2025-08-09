@@ -336,12 +336,12 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
                 <span className="text-white font-medium">{poolFee / 10000}%</span>
               </div>
               <div className="pt-3 border-t border-gray-600">
-                <button
-                  disabled={!isConnected}
-                  className="w-full bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white py-2 px-4 rounded-lg transition-colors mb-2"
-                >
-                  Remove Liquidity
-                </button>
+                <div className="mb-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <p className="text-amber-300 text-sm flex items-center">
+                    <span className="mr-2">🔒</span>
+                    Liquidity is permanently locked (roach motel model). No removal possible.
+                  </p>
+                </div>
                 <Link
                   href={`https://app.uniswap.org/pools/${tokenAddress}`}
                   target="_blank"
@@ -972,7 +972,7 @@ const DEXPage = () => {
                     <div className="text-3xl mb-4">💧</div>
                     <h3 className="text-lg font-semibold text-white mb-2">Liquidity Management</h3>
                     <p className="text-gray-300 text-sm mb-4">
-                      Add or remove liquidity from your existing pools.
+                      Add liquidity to your existing pools. Liquidity is permanently locked for trust.
                     </p>
                     <button
                       onClick={() => setActiveTab('manage')}
@@ -1009,7 +1009,7 @@ const DEXPage = () => {
               <div>
                 <h2 className="text-xl font-semibold text-white mb-1">Manage Liquidity</h2>
                   <p className="text-slate-400 text-sm">
-                  Add or remove liquidity from existing pools to earn fees and support token trading.
+                  Add liquidity to existing pools to earn fees and support token trading. Liquidity is permanently locked.
                   {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
                 </p>
               </div>

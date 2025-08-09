@@ -764,12 +764,14 @@ const TokenManager = () => {
                         <span className="text-white font-medium">{poolFee / 10000}%</span>
                       </div>
                       <div className="pt-3 border-t border-gray-600">
-                        <button
-                          disabled={!isConnected}
-                          className="w-full bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors mb-2"
-                        >
-                          Remove Liquidity
-                        </button>
+                        <div className="p-3 bg-orange-900/30 border border-orange-500/50 rounded-lg mb-3">
+                          <div className="text-orange-200 text-sm">
+                            <div className="font-medium mb-1 text-orange-300">🔒 Permanent Liquidity Lock</div>
+                            <p className="text-xs">
+                              Liquidity is permanently locked and cannot be removed (roach motel model). This ensures long-term price stability.
+                            </p>
+                          </div>
+                        </div>
                         <Link
                           href={`https://app.uniswap.org/pools/${tokenAddress}`}
                           target="_blank"

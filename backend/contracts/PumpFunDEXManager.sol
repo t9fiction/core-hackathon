@@ -25,7 +25,6 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     error PumpFunDEXManager__SlippageExceeded();
     error PumpFunDEXManager__DeadlineExpired();
     error PumpFunDEXManager__UnauthorizedToken();
-    error PumpFunDEXManager__LiquidityLocked();
     error PumpFunDEXManager__InvalidFactoryAddress();
     error PumpFunDEXManager__InsufficientBalance(uint256 available, uint256 requested);
     error PumpFunDEXManager__InvalidPathLength();
@@ -58,9 +57,6 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
         uint256 amount1,
         uint256 liquidity
     );
-    event LiquidityRemoved(
-        address indexed token0, address indexed token1, uint24 indexed fee, uint256 amount0, uint256 amount1
-    );
     event TokenSwapped(
         address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut
     );
@@ -70,7 +66,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
     struct PoolInfo {
         uint256 tokenId;
         uint256 liquidity;
-        uint256 lockExpiry;
+        uint256 lockExpiry; // Note: Liquidity is PERMANENTLY locked (roach motel model)
         bool isActive;
         uint256 createdAt;
     }
@@ -143,6 +139,7 @@ contract PumpFunDEXManager is Ownable, ReentrancyGuard {
 
     /**
      * @dev Create initial liquidity pool for a token with ETH - requires both ETH and token amounts
+     * @notice Liquidity is PERMANENTLY locked (roach motel model) - cannot be withdrawn
      */
     function createLiquidityPoolWithETH(address token, uint24 fee, uint256 tokenAmount) external payable nonReentrant {
         if (!authorizedTokens[token]) revert PumpFunDEXManager__UnauthorizedToken();
