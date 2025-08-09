@@ -27,7 +27,8 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         string indexed symbol,
         address indexed tokenAddress,
         uint256 totalSupply,
-        address creator
+        address creator,
+        bool hasAntiRugProtection
     );
     event EtherFeeUpdated(uint256 oldFee, uint256 newFee);
     event EtherWithdrawn(address indexed owner, uint256 amount);
@@ -114,7 +115,7 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         totalTokensDeployed++;
         totalFeesCollected += msg.value;
 
-        emit TokenDeployed(name, symbol, tokenAddress, totalSupply, msg.sender);
+        emit TokenDeployed(name, symbol, tokenAddress, totalSupply, msg.sender, true);
         return tokenAddress;
     }
 
