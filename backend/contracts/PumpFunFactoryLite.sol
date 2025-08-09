@@ -20,6 +20,12 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     error PumpFunFactoryLite__TotalSupplyTooHigh(uint256 supply, uint256 maxSupply);
     error PumpFunFactoryLite__TokenNotDeployedByFactory();
     error PumpFunFactoryLite__InvalidTokenAmount();
+    error PumpFunFactoryLite__OnlyTokenOwner();
+    error PumpFunFactoryLite__TokenAlreadyLocked();
+    error PumpFunFactoryLite__TokenNotLocked();
+    error PumpFunFactoryLite__LockNotExpired();
+    error PumpFunFactoryLite__InvalidLockDuration();
+    error PumpFunFactoryLite__InsufficientTokenBalance();
 
     // Events
     event TokenDeployed(
@@ -34,12 +40,39 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     event EtherWithdrawn(address indexed owner, uint256 amount);
     event DEXPoolCreated(address indexed token, address indexed pair, uint256 tokenAmount, uint256 ethAmount);
     event DEXManagerUpdated(address indexed oldManager, address indexed newManager);
+    event TokensLocked(
+        address indexed token,
+        address indexed owner,
+        uint256 tokenAmount,
+        uint256 ethAmount,
+        uint256 lockDuration,
+        uint256 unlockTime,
+        string description
+    );
+    event TokensUnlocked(
+        address indexed token,
+        address indexed owner,
+        uint256 tokenAmount,
+        uint256 ethAmount
+    );
 
     // Structs
     struct TokenInfo {
         address tokenAddress;
         address creator;
         uint256 deploymentTime;
+    }
+
+    struct TokenLock {
+        address tokenAddress;
+        address owner;
+        uint256 tokenAmount;
+        uint256 ethAmount;
+        uint256 lockTime;
+        uint256 unlockTime;
+        uint256 lockDuration;
+        string description;
+        bool isActive;
     }
 
     // State Variables
@@ -60,11 +93,19 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     uint256 public constant PREMIUM_FEE_MULTIPLIER = 5;   // 0.05 * 5 = 0.25 ETH
     uint256 public constant ULTIMATE_FEE_MULTIPLIER = 10; // 0.05 * 10 = 0.5 ETH
 
+    // Token Lock constants
+    uint256 public constant MIN_LOCK_DURATION = 1 days;
+    uint256 public constant MAX_LOCK_DURATION = 365 days;
+
     // Mappings
     mapping(address => address[]) public creatorTokens;
     mapping(address => bool) public isDeployedToken;
     mapping(address => TokenInfo) public tokenInfo;
     address[] public allDeployedTokens;
+
+    // Token Lock mappings
+    mapping(address => TokenLock) public tokenLocks; // token => lock info
+    mapping(address => bool) public isTokenLocked;
 
     // Statistics
     uint256 public totalTokensDeployed;
@@ -254,6 +295,124 @@ contract PumpFunFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     // Functions for backwards compatibility
     function getAirdropContract() external pure returns (address) {
         return address(0); // No airdrop contract in simplified version
+    }
+
+    /**
+     * @dev Lock tokens with ETH collateral to build community trust
+     * Only the token creator/owner can lock tokens
+     */
+    function lockTokens(
+        address tokenAddress,
+        uint256 tokenAmount,
+        uint256 lockDuration,
+        string memory description
+    ) external payable nonReentrant {
+        // Validate inputs
+        if (!isDeployedToken[tokenAddress]) revert PumpFunFactoryLite__TokenNotDeployedByFactory();
+        if (isTokenLocked[tokenAddress]) revert PumpFunFactoryLite__TokenAlreadyLocked();
+        if (tokenInfo[tokenAddress].creator != msg.sender) revert PumpFunFactoryLite__OnlyTokenOwner();
+        if (lockDuration < MIN_LOCK_DURATION || lockDuration > MAX_LOCK_DURATION) {
+            revert PumpFunFactoryLite__InvalidLockDuration();
+        }
+        if (tokenAmount == 0) revert PumpFunFactoryLite__InvalidTokenAmount();
+        if (msg.value == 0) revert PumpFunFactoryLite__InvalidParameters();
+
+        // Check token balance
+        IERC20 token = IERC20(tokenAddress);
+        if (token.balanceOf(msg.sender) < tokenAmount) revert PumpFunFactoryLite__InsufficientTokenBalance();
+
+        // Transfer tokens to this contract
+        token.transferFrom(msg.sender, address(this), tokenAmount);
+
+        // Create lock
+        uint256 unlockTime = block.timestamp + lockDuration;
+        tokenLocks[tokenAddress] = TokenLock({
+            tokenAddress: tokenAddress,
+            owner: msg.sender,
+            tokenAmount: tokenAmount,
+            ethAmount: msg.value,
+            lockTime: block.timestamp,
+            unlockTime: unlockTime,
+            lockDuration: lockDuration,
+            description: description,
+            isActive: true
+        });
+        
+        isTokenLocked[tokenAddress] = true;
+
+        emit TokensLocked(
+            tokenAddress,
+            msg.sender,
+            tokenAmount,
+            msg.value,
+            lockDuration,
+            unlockTime,
+            description
+        );
+    }
+
+    /**
+     * @dev Unlock tokens after lock period expires
+     */
+    function unlockTokens(address tokenAddress) external nonReentrant {
+        if (!isTokenLocked[tokenAddress]) revert PumpFunFactoryLite__TokenNotLocked();
+        
+        TokenLock storage lockInfo = tokenLocks[tokenAddress];
+        if (lockInfo.owner != msg.sender) revert PumpFunFactoryLite__OnlyTokenOwner();
+        if (block.timestamp < lockInfo.unlockTime) revert PumpFunFactoryLite__LockNotExpired();
+        if (!lockInfo.isActive) revert PumpFunFactoryLite__TokenNotLocked();
+
+        // Transfer tokens back to owner
+        IERC20(tokenAddress).transfer(msg.sender, lockInfo.tokenAmount);
+        
+        // Return ETH collateral
+        (bool success,) = payable(msg.sender).call{value: lockInfo.ethAmount}("");
+        if (!success) revert PumpFunFactoryLite__TransferFailed();
+
+        // Mark lock as inactive
+        lockInfo.isActive = false;
+        isTokenLocked[tokenAddress] = false;
+
+        emit TokensUnlocked(
+            tokenAddress,
+            msg.sender,
+            lockInfo.tokenAmount,
+            lockInfo.ethAmount
+        );
+    }
+
+    /**
+     * @dev Get token lock information
+     */
+    function getTokenLock(address tokenAddress) external view returns (TokenLock memory) {
+        return tokenLocks[tokenAddress];
+    }
+
+    /**
+     * @dev Check if token is currently locked
+     */
+    function isTokenCurrentlyLocked(address tokenAddress) external view returns (bool) {
+        if (!isTokenLocked[tokenAddress]) return false;
+        TokenLock memory lockInfo = tokenLocks[tokenAddress];
+        return lockInfo.isActive && block.timestamp < lockInfo.unlockTime;
+    }
+
+    /**
+     * @dev Get time remaining until unlock (returns 0 if unlocked or expired)
+     */
+    function getTimeUntilUnlock(address tokenAddress) external view returns (uint256) {
+        if (!isTokenLocked[tokenAddress]) return 0;
+        TokenLock memory lockInfo = tokenLocks[tokenAddress];
+        if (!lockInfo.isActive || block.timestamp >= lockInfo.unlockTime) return 0;
+        return lockInfo.unlockTime - block.timestamp;
+    }
+
+    /**
+     * @dev Get days remaining until unlock (returns 0 if unlocked or expired)
+     */
+    function getDaysUntilUnlock(address tokenAddress) external view returns (uint256) {
+        uint256 timeRemaining = this.getTimeUntilUnlock(tokenAddress);
+        return timeRemaining / 1 days;
     }
 
     // Receive ETH

@@ -5,12 +5,11 @@ import {
   useChainId,
   useWriteContract,
 } from "wagmi";
-import { formatEther, Address } from "viem";
+import { formatEther, Address, formatUnits, parseUnits } from "viem";
 import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from "../lib/contracts/addresses";
 import {
   useTokenDEX,
-  useTokenLock,
 } from "../lib/hooks/useTokenContracts";
 import { PUMPFUN_DEX_MANAGER_ABI } from '../lib/contracts/abis';
 import { parseEther } from "viem";
@@ -244,6 +243,7 @@ const TokenManager = () => {
     const [activeTab, setActiveTab] = useState("dex");
     const [lockAmount, setLockAmount] = useState("");
     const [lockDuration, setLockDuration] = useState(30);
+    const [lockDescription, setLockDescription] = useState("Team tokens locked to build community trust");
     const [liquidityAmount, setLiquidityAmount] = useState("");
     const [ethAmount, setEthAmount] = useState("");
     const [poolTokenAmount, setPoolTokenAmount] = useState("");
@@ -273,13 +273,45 @@ const TokenManager = () => {
 
     // Initialize hooks for blockchain interactions
     const dex = useTokenDEX(tokenAddress as Address);
-    const lock = useTokenLock(tokenAddress as Address);
     const { writeContract } = useWriteContract();
+
+    // Read token balance of the user
+    const { data: tokenBalance } = useReadContract({
+      address: tokenAddress as Address,
+      abi: PUMPFUN_TOKEN_ABI,
+      functionName: 'balanceOf',
+      args: [address as Address],
+      query: {
+        enabled: !!tokenAddress && !!address && isConnected,
+      },
+    });
+
+    // Check if token is currently locked
+    const { data: isCurrentlyLocked } = useReadContract({
+      address: contractAddresses.PUMPFUN_FACTORY,
+      abi: PUMPFUN_FACTORY_ABI,
+      functionName: 'isTokenCurrentlyLocked',
+      args: [tokenAddress as Address],
+      query: {
+        enabled: !!tokenAddress && !!contractAddresses.PUMPFUN_FACTORY,
+      },
+    });
+
+    // Get existing lock info if any
+    const { data: tokenLockInfo } = useReadContract({
+      address: contractAddresses.PUMPFUN_FACTORY,
+      abi: PUMPFUN_FACTORY_ABI,
+      functionName: 'getTokenLock',
+      args: [tokenAddress as Address],
+      query: {
+        enabled: !!tokenAddress && !!contractAddresses.PUMPFUN_FACTORY,
+      },
+    });
 
     const tabs = [
       { id: "dex", label: "💱 DEX Trading", icon: "💱" },
       { id: "liquidity", label: "💧 Liquidity", icon: "💧" },
-      { id: "lock", label: "🔐 Token Lock", icon: "🔐" },
+      { id: "trust-lock", label: "🔒 Trust Lock", icon: "🔒" },
     ];
 
     const dexHash = async () => {
@@ -790,81 +822,202 @@ const TokenManager = () => {
             </div>
           )}
 
-          {activeTab === "lock" && (
+          {activeTab === "trust-lock" && (
             <div className="space-y-6">
+              {/* Trust Lock Information Banner */}
+              <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">🔒</div>
+                  <div>
+                    <h3 className="text-blue-200 font-semibold mb-2">Trust Lock Mechanism</h3>
+                    <p className="text-blue-200 text-sm">
+                      Lock your tokens with ETH commitment to demonstrate long-term commitment to your community. 
+                      This builds investor confidence by showing you won't dump tokens and run away.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Lock Tokens */}
+                {/* Lock Tokens Form */}
                 <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">
-                    Lock Tokens
+                  <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
+                    🔐 Create Trust Lock
                   </h4>
                   <div className="space-y-3">
                     <div>
                       <label className="block text-gray-300 text-sm mb-1">
-                        Amount to Lock
+                        Token Amount to Lock
                       </label>
                       <input
                         type="number"
                         value={lockAmount}
                         onChange={(e) => setLockAmount(e.target.value)}
                         className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                        placeholder="Enter amount"
+                        placeholder="10000"
                       />
+                      <p className="text-xs text-gray-400 mt-1">Amount of {selectedTokenInfo?.symbol} tokens to lock</p>
                     </div>
                     <div>
                       <label className="block text-gray-300 text-sm mb-1">
-                        Duration (days)
+                        Lock Duration (days)
                       </label>
                       <input
                         type="number"
                         value={lockDuration}
-                        onChange={(e) =>
-                          setLockDuration(Number(e.target.value))
-                        }
+                        onChange={(e) => setLockDuration(Number(e.target.value))}
                         min="1"
                         max="365"
                         className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
                       />
+                      <p className="text-xs text-gray-400 mt-1">How long to lock tokens (1-365 days)</p>
+                    </div>
+                    <div>
+                      <label className="block text-gray-300 text-sm mb-1">
+                        Description (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={lockDescription}
+                        onChange={(e) => setLockDescription(e.target.value)}
+                        className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
+                        placeholder="Team tokens locked to build community trust"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Public description for the community</p>
+                    </div>
+                    <div className="bg-gray-600 rounded p-3">
+                      <div className="text-sm space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Unlock Date:</span>
+                          <span className="text-white">
+                            {new Date(Date.now() + lockDuration * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Tokens to Lock:</span>
+                          <span className="text-green-400 font-medium">
+                            {lockAmount} {selectedTokenInfo?.symbol}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     <button
-                      disabled={!isConnected}
-                      className="w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
+                      disabled={!isConnected || !lockAmount || !lockDuration || (isCurrentlyLocked === true)}
+                      onClick={async () => {
+                        try {
+                          if (!tokenAddress) {
+                            throw new Error('Token address is required');
+                          }
+
+                          const tokenAmount = parseFloat(lockAmount);
+                          if (tokenAmount <= 0) {
+                            throw new Error('Token amount must be greater than 0');
+                          }
+
+                          if (lockDuration < 1 || lockDuration > 365) {
+                            throw new Error('Lock duration must be between 1 and 365 days');
+                          }
+
+                          // Check if requested amount exceeds available balance
+                          if (tokenBalance) {
+                            const availableBalance = parseFloat(formatUnits(tokenBalance as bigint, 18));
+                            if (tokenAmount > availableBalance) {
+                              throw new Error(`Requested amount (${tokenAmount}) exceeds available balance (${availableBalance.toFixed(2)})`);
+                            }
+                          }
+
+                          const tokenAmountWei = parseUnits(lockAmount, 18);
+                          const lockDurationSeconds = lockDuration * 24 * 60 * 60;
+
+                          // Use the lockTokens function from the factory contract
+                          await writeContract({
+                            address: contractAddresses.PUMPFUN_FACTORY as Address,
+                            abi: PUMPFUN_FACTORY_ABI,
+                            functionName: 'lockTokens',
+                            args: [
+                              tokenAddress as Address,
+                              tokenAmountWei,
+                              lockDurationSeconds,
+                              lockDescription || `Locked ${tokenAmount} ${selectedTokenInfo?.symbol} for ${lockDuration} days`
+                            ],
+                            value: parseEther('0'), // No ETH required for token locking
+                          });
+
+                          // Reset form after successful lock
+                          setLockAmount('');
+                          setLockDuration(30);
+                          setLockDescription('Team tokens locked to build community trust');
+                        } catch (error) {
+                          console.error('Error locking tokens:', error);
+                          showErrorAlert(
+                            'Lock Failed', 
+                            (error as any)?.message || 'Failed to lock tokens'
+                          );
+                        }
+                      }}
+                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors font-medium"
                     >
-                      Lock Tokens
+                      {isCurrentlyLocked ? 'Token Already Locked' : '🔐 Lock Tokens'}
                     </button>
                   </div>
                 </div>
 
-                {/* Locked Tokens Info */}
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">
-                    Locked Tokens
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="bg-gray-600 rounded p-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-300">Locked Amount:</span>
-                        <span className="text-white font-medium">
-                          50,000 {selectedTokenInfo?.symbol}
-                        </span>
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        <span className="text-gray-300">Unlock Date:</span>
-                        <span className="text-yellow-400 font-medium">
-                          Jan 15, 2025
-                        </span>
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        <span className="text-gray-300">Days Remaining:</span>
-                        <span className="text-white font-medium">45 days</span>
+                {/* Current Lock Status */}
+                {tokenLockInfo && (tokenLockInfo as any).isActive && (
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
+                      🔒 Current Token Lock
+                    </h4>
+                    <div className="p-4 bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border border-yellow-500/50 rounded-lg">
+                      <div className="text-yellow-200 text-sm">
+                        <div className="font-medium mb-2 text-yellow-300">🔒 Token Currently Locked:</div>
+                        <ul className="text-xs space-y-1">
+                          <li>Amount: {formatUnits((tokenLockInfo as any).tokenAmount, 18)} {selectedTokenInfo?.symbol}</li>
+                          <li>Lock Duration: {Math.floor(Number((tokenLockInfo as any).lockDuration) / (24 * 60 * 60))} days</li>
+                          <li>Description: {(tokenLockInfo as any).description}</li>
+                          <li>Unlock Time: {new Date(Number((tokenLockInfo as any).unlockTime) * 1000).toLocaleDateString()}</li>
+                        </ul>
                       </div>
                     </div>
-                    <div className="text-center text-gray-400 text-sm py-2">
-                      No other locked positions
+                  </div>
+                )}
+
+                {/* No Lock Display */}
+                {!tokenLockInfo || !(tokenLockInfo as any).isActive && (
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
+                      🔒 Token Lock Status
+                    </h4>
+                    <div className="text-center text-gray-400 text-sm py-8">
+                      <div className="text-4xl mb-2">🔓</div>
+                      <p>No active token lock</p>
+                      <p className="text-xs mt-1">Create a lock to build community trust</p>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Community Trust Stats */}
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
+                  📊 Token Lock Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <p className="text-gray-400 text-sm">Lock Status</p>
+                    <p className="text-white font-bold">
+                      {(tokenLockInfo && (tokenLockInfo as any).isActive) ? '🔒 Locked' : '🔓 Unlocked'}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-gray-400 text-sm">Trust Score</p>
+                    <p className="text-green-400 font-bold">
+                      {(tokenLockInfo && (tokenLockInfo as any).isActive) ? '🔒 High' : '⚠️ Low'}
+                    </p>
                   </div>
                 </div>
               </div>
+
             </div>
           )}
         </div>

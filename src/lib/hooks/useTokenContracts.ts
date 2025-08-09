@@ -524,6 +524,7 @@ export const useTokenDEX = (tokenAddress: Address) => {
 
 export const useTokenLock = (tokenAddress?: Address) => {
   const [isLocking, setIsLocking] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
 
   const chainId = useChainId();
   const { address } = useAccount();
@@ -535,39 +536,126 @@ export const useTokenLock = (tokenAddress?: Address) => {
       hash,
     });
 
-  // Note: The factory contract doesn't have a liquidityInfo function
-  // This would need to be implemented if liquidity lock tracking is needed
+  // Get token lock information from factory contract
+  const { data: tokenLockData, refetch: refetchTokenLock } = useReadContract({
+    address: contractAddresses.PUMPFUN_FACTORY,
+    abi: PUMPFUN_FACTORY_ABI,
+    functionName: "getTokenLock",
+    args: tokenAddress ? [tokenAddress] : undefined,
+  });
+
+  // Check if token is currently locked
+  const { data: isTokenLocked, refetch: refetchLockStatus } = useReadContract({
+    address: contractAddresses.PUMPFUN_FACTORY,
+    abi: PUMPFUN_FACTORY_ABI,
+    functionName: "isTokenCurrentlyLocked",
+    args: tokenAddress ? [tokenAddress] : undefined,
+  });
+
+  // Get days until unlock
+  const { data: daysUntilUnlock, refetch: refetchDaysUntilUnlock } = useReadContract({
+    address: contractAddresses.PUMPFUN_FACTORY,
+    abi: PUMPFUN_FACTORY_ABI,
+    functionName: "getDaysUntilUnlock",
+    args: tokenAddress ? [tokenAddress] : undefined,
+  });
+
+  // Reset loading states when transaction is confirmed or failed
+  useEffect(() => {
+    if (isConfirmed || error) {
+      setIsLocking(false);
+      setIsUnlocking(false);
+      // Refetch data after successful transaction
+      if (isConfirmed) {
+        refetchTokenLock();
+        refetchLockStatus();
+        refetchDaysUntilUnlock();
+      }
+    }
+  }, [isConfirmed, error, refetchTokenLock, refetchLockStatus, refetchDaysUntilUnlock]);
 
   const lockTokens = async (
-    ethAmount: string,
     tokenAmount: string,
-    duration: number
+    ethAmount: string,
+    duration: number,
+    description: string = "Token lock for community trust"
   ) => {
     if (!tokenAddress) throw new Error("Token address required");
+    if (!address) throw new Error("Wallet not connected");
 
     setIsLocking(true);
     try {
-      // TODO: Implement liquidity locking functionality
-      // The factory contract doesn't currently have a locking function
-      // This would need to be implemented in the smart contract first
-      console.warn("Liquidity locking not yet implemented in smart contract");
-      throw new Error("Liquidity locking functionality not yet available");
-    } finally {
+      const tokenAmountWei = parseEther(tokenAmount);
+      const ethAmountWei = parseEther(ethAmount);
+      const durationInSeconds = duration * 24 * 60 * 60; // Convert days to seconds
+
+      // First approve tokens to the factory contract
+      await writeContract({
+        address: tokenAddress,
+        abi: PUMPFUN_TOKEN_ABI,
+        functionName: "approve",
+        args: [contractAddresses.PUMPFUN_FACTORY, tokenAmountWei],
+      });
+
+      // Wait a bit for approval transaction
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Lock the tokens using factory contract
+      await writeContract({
+        address: contractAddresses.PUMPFUN_FACTORY,
+        abi: PUMPFUN_FACTORY_ABI,
+        functionName: "lockTokens",
+        args: [tokenAddress, tokenAmountWei, BigInt(durationInSeconds), description],
+        value: ethAmountWei,
+      });
+
+    } catch (error) {
       setIsLocking(false);
+      throw error;
+    }
+  };
+
+  const unlockTokens = async () => {
+    if (!tokenAddress) throw new Error("Token address required");
+    if (!address) throw new Error("Wallet not connected");
+
+    setIsUnlocking(true);
+    try {
+      await writeContract({
+        address: contractAddresses.PUMPFUN_FACTORY,
+        abi: PUMPFUN_FACTORY_ABI,
+        functionName: "unlockTokens",
+        args: [tokenAddress],
+      });
+    } catch (error) {
+      setIsUnlocking(false);
+      throw error;
     }
   };
 
   return {
     // State
     isLocking,
+    isUnlocking,
     isConfirming,
     isConfirmed,
     error,
 
     // Data
-    // liquidityInfo would be available if implemented in the contract
+    tokenLockData,
+    isTokenLocked: isTokenLocked as boolean,
+    daysUntilUnlock: daysUntilUnlock ? Number(daysUntilUnlock) : 0,
+    activeLocks: tokenLockData && (tokenLockData as any).isActive ? [tokenLockData] : [],
+    totalLocked: tokenLockData ? formatEther((tokenLockData as any).tokenAmount || BigInt(0)) : "0",
+    totalETHLocked: tokenLockData ? formatEther((tokenLockData as any).ethAmount || BigInt(0)) : "0",
+    userLockIds: tokenLockData && (tokenLockData as any).isActive && 
+                 (tokenLockData as any).owner === address ? ["current"] : [],
 
     // Functions
     lockTokens,
+    unlockTokens,
+    refetchTokenLock,
+    refetchLockStatus,
+    refetchDaysUntilUnlock,
   };
 };
