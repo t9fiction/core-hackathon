@@ -52,7 +52,7 @@ const Governance = () => {
         {/* Governance Stats */}
         <GovernanceStats />
 
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-2 gap-8 items-start">
           {/* Create Proposal */}
           <CreateProposalForm onProposalCreated={handleProposalCreated} />
 
@@ -63,7 +63,7 @@ const Governance = () => {
               All Proposals
             </h3>
             
-            <div className="max-h-96 overflow-y-auto">
+            <div className="h-[700px] overflow-y-auto">
               <ProposalList 
                 key={refreshKey} // Force re-render when proposals are updated
                 onProposalUpdated={handleProposalUpdated}

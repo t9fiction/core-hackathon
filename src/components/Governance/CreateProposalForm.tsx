@@ -60,6 +60,15 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
     enabled: selectedToken !== '0x',
   });
 
+  // Get user's token balance for the selected token
+  const { data: userTokenBalance } = useSmartContractRead({
+    address: selectedToken,
+    abi: PUMPFUN_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    enabled: selectedToken !== '0x' && !!address,
+  });
+
   // Set default token when tokens are loaded
   useEffect(() => {
     if (allTokens && Array.isArray(allTokens) && allTokens.length > 0 && selectedToken === '0x') {
@@ -87,6 +96,11 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
 
   const currentProposalType = PROPOSAL_TYPES.find(type => type.id === proposalType);
 
+  // Check if user has minimum tokens required (1000 tokens)
+  const MIN_TOKENS_REQUIRED = parseEther('1000');
+  const hasMinimumTokens = userTokenBalance && userTokenBalance >= MIN_TOKENS_REQUIRED;
+  const userTokenBalanceFormatted = userTokenBalance ? formatEther(userTokenBalance) : '0';
+
   const addAirdropRecipient = () => {
     setAirdropRecipients([...airdropRecipients, { address: '', amount: '' }]);
   };
@@ -104,6 +118,15 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
   const validateForm = (): boolean => {
     if (!selectedToken || selectedToken === '0x') {
       showErrorAlert('Invalid Input', 'Please select a token');
+      return false;
+    }
+
+    // Check minimum token balance requirement
+    if (!hasMinimumTokens) {
+      showErrorAlert(
+        'Insufficient Token Balance',
+        `You need at least 1,000 ${tokenSymbol || 'tokens'} to create a proposal. Your current balance: ${parseFloat(userTokenBalanceFormatted).toLocaleString()} ${tokenSymbol || 'tokens'}.`
+      );
       return false;
     }
 
@@ -216,9 +239,25 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
             )) : null}
           </select>
           {selectedToken !== '0x' && tokenName && tokenSymbol ? (
-            <p className="mt-1 text-xs text-slate-400">
-              Selected: {tokenName as string} ({tokenSymbol as string})
-            </p>
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-slate-400">
+                Selected: {tokenName as string} ({tokenSymbol as string})
+              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-300">
+                  Your Balance: {parseFloat(userTokenBalanceFormatted).toLocaleString()} {tokenSymbol as string}
+                </p>
+                {!hasMinimumTokens && userTokenBalance !== undefined ? (
+                  <p className="text-xs text-red-400 font-medium">
+                    Need 1,000+ to create proposals
+                  </p>
+                ) : hasMinimumTokens ? (
+                  <p className="text-xs text-green-400 font-medium">
+                    ✓ Eligible to create proposals
+                  </p>
+                ) : null}
+              </div>
+            </div>
           ) : null}
         </div>
 
@@ -353,7 +392,7 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting || isPending || isConfirming}
+          disabled={isSubmitting || isPending || isConfirming || !hasMinimumTokens}
           className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
         >
           {isSubmitting && !isPending && !isConfirming ? (
@@ -379,9 +418,16 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
           )}
         </button>
 
-        <p className="text-xs text-slate-400 text-center">
-          Creating a proposal will initiate a blockchain transaction that requires gas fees
-        </p>
+        <div className="text-center space-y-1">
+          {!hasMinimumTokens && userTokenBalance !== undefined ? (
+            <p className="text-xs text-red-400">
+              ⚠️ You need at least 1,000 {tokenSymbol || 'tokens'} to create proposals
+            </p>
+          ) : null}
+          <p className="text-xs text-slate-400">
+            Creating a proposal will initiate a blockchain transaction that requires gas fees
+          </p>
+        </div>
       </form>
     </div>
   );
