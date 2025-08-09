@@ -14,8 +14,7 @@ const TokenDeploymentForm: React.FC<TokenDeploymentFormProps> = ({ onDeploymentS
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
-    totalSupply: '',
-    lockPeriod: '30'
+    totalSupply: ''
   });
 
   const contractAddress = getContractAddresses(chainId).PUMPFUN_FACTORY;
@@ -49,17 +48,10 @@ const TokenDeploymentForm: React.FC<TokenDeploymentFormProps> = ({ onDeploymentS
       return;
     }
 
-    const lockDays = parseInt(formData.lockPeriod);
-    if (lockDays < 30) {
-      alert('Lock period must be at least 30 days');
-      return;
-    }
-
     try {
       console.log('Deploying token:', {
         ...formData,
         totalSupply: supplyNum,
-        lockPeriod: lockDays,
         fee: currentTier.fee,
         contractAddress
       });
@@ -84,7 +76,7 @@ const TokenDeploymentForm: React.FC<TokenDeploymentFormProps> = ({ onDeploymentS
     if (isSuccess && hash && onDeploymentSuccess) {
       onDeploymentSuccess(hash);
       // Reset form
-      setFormData({ name: '', symbol: '', totalSupply: '', lockPeriod: '30' });
+      setFormData({ name: '', symbol: '', totalSupply: '' });
     }
   }, [isSuccess, hash, onDeploymentSuccess]);
 
@@ -141,21 +133,6 @@ const TokenDeploymentForm: React.FC<TokenDeploymentFormProps> = ({ onDeploymentS
               </div>
             </div>
           )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Liquidity Lock Period (Days)</label>
-          <select
-            value={formData.lockPeriod}
-            onChange={(e) => handleInputChange('lockPeriod', e.target.value)}
-            className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="30">30 days (Minimum)</option>
-            <option value="60">60 days</option>
-            <option value="90">90 days</option>
-            <option value="180">180 days</option>
-            <option value="365">365 days</option>
-          </select>
         </div>
 
         {error && (

@@ -14,7 +14,6 @@ const DeployToken = ({ totalSupply, renderTierInfo }: DeployTokenProps) => {
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [localTotalSupply, setLocalTotalSupply] = useState('');
-  const [liquidityLockDays, setLiquidityLockDays] = useState(30);
   const [tier, setTier] = useState<'STANDARD' | 'PREMIUM' | 'ULTIMATE'>('STANDARD');
   const chainId = useChainId();
 
@@ -45,16 +44,10 @@ const DeployToken = ({ totalSupply, renderTierInfo }: DeployTokenProps) => {
       return;
     }
 
-    if (liquidityLockDays < 30) {
-      alert('Liquidity lock period must be at least 30 days');
-      return;
-    }
-
     console.log("Deploying token with:", {
       name,
       symbol,
       totalSupply: supplyNum,
-      liquidityLockDays,
       fee: fee.toString(),
       contractAddress
     });
@@ -131,18 +124,6 @@ const DeployToken = ({ totalSupply, renderTierInfo }: DeployTokenProps) => {
             <option value="PREMIUM">Premium - Up to 500M tokens</option>
             <option value="ULTIMATE">Ultimate - Up to 1B tokens</option>
           </select>
-        </div>
-
-        <div>
-          <label className="block text-gray-300 font-medium mb-2">Liquidity Lock Period</label>
-          <input
-            type="number"
-            value={liquidityLockDays}
-            onChange={(e) => setLiquidityLockDays(Number(e.target.value))}
-            min="30"
-            className="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:outline-none"
-          />
-          <p className="text-sm text-gray-400 mt-1">Minimum 30 days required</p>
         </div>
       </div>
 
