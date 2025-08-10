@@ -408,7 +408,7 @@ const TokenManager = () => {
           args: [
             tokenAddress as Address,
             tokenAmountWei,
-            lockDurationSeconds,
+            BigInt(lockDurationSeconds),
             lockDescription || `Locked ${tokenAmount} ${selectedTokenInfo?.symbol} for ${lockDuration} days`
           ],
           value: ethAmountWei,
