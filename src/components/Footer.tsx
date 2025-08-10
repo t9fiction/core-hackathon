@@ -86,7 +86,6 @@ const Footer = () => {
               <li><a href="https://twitter.com/chaincraft" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm">Twitter</a></li>
               <li><a href="https://t.me/chaincraft" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm">Telegram</a></li>
               <li><a href="mailto:support@chaincraft.io" className="text-gray-400 hover:text-white transition-colors text-sm">Contact Us</a></li>
-              <li><a href="#status" className="text-gray-400 hover:text-white transition-colors text-sm">Status</a></li>
             </ul>
           </div>
         </div>

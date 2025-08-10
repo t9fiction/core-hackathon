@@ -12,11 +12,15 @@ const {
   API_URL_basesepolia,
   API_URL_base,
   BASESCAN_API_KEY,
+  MAIN_PRIVATE_KEY,
 } = process.env;
 
 // Ensure environment variables are defined
 if (!PRIVATE_KEY) {
   throw new Error("Please set your PRIVATE_KEY in a .env file");
+}
+if(!MAIN_PRIVATE_KEY) {
+  throw new Error("Please set your MAIN_PRIVATE_KEY in a .env file")
 }
 
 if (!API_URL_sepolia) {
@@ -26,12 +30,6 @@ if (!API_URL_sepolia) {
 if (!ETHERSCAN_API_KEY) {
   throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
 }
-// if (!API_URL_basesepolia) {
-//   throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
-// }
-// if (!BASESCAN_API_KEY) {
-//   throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
-// }
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -53,14 +51,16 @@ const config: HardhatUserConfig = {
       url: API_URL_sepolia,
       accounts: [PRIVATE_KEY!],
     },
-    // baseSepolia: {
-    //   url: API_URL_basesepolia,
-    //   accounts: [PRIVATE_KEY!],
-    // },
-    // base: {
-    //   url: API_URL_base,
-    //   accounts: [PRIVATE_KEY!],
-    // },
+    core_mainnet: {
+      url: "https://rpc.coredao.org/",
+      accounts: [MAIN_PRIVATE_KEY],
+      chainId: 1116,
+    },
+    core_testnet2: {
+      url: "https://rpc.test2.btcs.network",
+      accounts: [PRIVATE_KEY],
+      chainId: 1114,
+    },
   },
   etherscan: {
     apiKey: {
