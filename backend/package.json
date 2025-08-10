@@ -1,0 +1,32 @@
+{
+  "name": "chaincraft-hardhat",
+  "version": "1.0.0",
+  "description": "ChainCraft meme token factory with anti-rug pull features",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "test:token": "npx hardhat test test/ChainCraftToken.test.js",
+    "test:factory": "npx hardhat test test/ChainCraftFactoryLite.test.js",
+    "test:integration": "npx hardhat test test/Integration.test.js",
+    "test:dex": "npx hardhat test test/ChainCraftDEXManager.test.js",
+    "test:coverage": "npx hardhat coverage",
+    "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia",
+    "deploy:base": "npx hardhat run scripts/deploy.js --network base",
+    "deploy:dex:sepolia": "npx hardhat ignition deploy ignition/modules/ChainCraftDEXManager.ts --network sepolia",
+    "deploy:test-token:sepolia": "npx hardhat run scripts/deploy-test-token.js --network sepolia",
+    "create:dex-pool:sepolia": "npx hardhat run scripts/create-dex-pool.js --network sepolia",
+    "clean": "npx hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.0.0",
+    "hardhat": "^2.25.0"
+  },
+  "dependencies": {
+    "@nomicfoundation/hardhat-ignition": "^0.15.12",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.13",
+    "@openzeppelin/contracts": "^5.3.0",
+    "@uniswap/v3-core": "^1.0.1",
+    "@uniswap/v3-periphery": "^1.4.4",
+    "dotenv": "^17.0.1"
+  }
+}
