@@ -6,7 +6,7 @@ import { TokenDeploymentForm } from '../../components/TokenDeployment';
 import { DEXPoolCreator } from '../../components/DEX';
 import { PoolInformation } from '../../components/PoolInfo';
 import { LiquidityManager } from '../../components/LiquidityManagement';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 
 interface TokenInfo {
@@ -32,12 +32,12 @@ const Token = () => {
 
   // Fetch user's deployed tokens
   const { data: tokenAddresses } = useReadContract({
-    address: contractAddresses?.PUMPFUN_FACTORY as `0x${string}`,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses?.CHAINCRAFT_FACTORY as `0x${string}`,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getTokensByCreator',
     args: [address!],
     query: {
-      enabled: isConnected && !!address && !!contractAddresses?.PUMPFUN_FACTORY,
+      enabled: isConnected && !!address && !!contractAddresses?.CHAINCRAFT_FACTORY,
     },
   });
 
@@ -88,17 +88,17 @@ const Token = () => {
     // Fetch name, symbol, totalSupply from token contract
     const { data: name } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "name",
     });
     const { data: symbol } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "symbol",
     });
     const { data: totalSupply } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "totalSupply",
     });
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { Address, formatEther, parseEther } from 'viem';
-import { PUMPFUN_DEX_MANAGER_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
-// import { PUMPFUN_DEX_MANAGER } from '../../lib/contracts/addresses';
+import { CHAINCRAFT_DEX_MANAGER_ABI, CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
+// import { CHAINCRAFT_DEX_MANAGER } from '../../lib/contracts/addresses';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { showSuccessAlert, showErrorAlert } from '../../lib/swal-config';
 import { useSmartContractRead, useIsFallbackMode } from '../../lib/hooks/useSmartContract';
@@ -58,13 +58,13 @@ export const BuySellTokens = ({
   // Get token info from contract
   const { data: contractTokenName } = useSmartContractRead({
     address: tokenAddress,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'name',
   });
 
   const { data: contractTokenSymbol } = useSmartContractRead({
     address: tokenAddress,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'symbol',
   });
 
@@ -75,7 +75,7 @@ export const BuySellTokens = ({
   // Get token balance
   const { data: tokenBalance } = useSmartContractRead({
     address: tokenAddress,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [address!],
     enabled: !!address,
@@ -84,9 +84,9 @@ export const BuySellTokens = ({
   // Get token allowance for DEX Manager
   const { data: tokenAllowance } = useSmartContractRead({
     address: tokenAddress,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'allowance',
-    args: [address!, contractAddresses.PUMPFUN_DEX_MANAGER],
+    args: [address!, contractAddresses.CHAINCRAFT_DEX_MANAGER],
     enabled: !!address,
   });
 
@@ -111,8 +111,8 @@ export const BuySellTokens = ({
 
   // Get token price for estimates (temporary fallback)
   const { data: tokenPriceData } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_DEX_MANAGER,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: 'getTokenPrice',
     args: [tokenAddress],
     enabled: true,
@@ -155,8 +155,8 @@ export const BuySellTokens = ({
       console.log("Slippage Tolerance:", slippageTolerance);
       
       await writeContract({
-        address: contractAddresses.PUMPFUN_DEX_MANAGER,
-        abi: PUMPFUN_DEX_MANAGER_ABI,
+        address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+        abi: CHAINCRAFT_DEX_MANAGER_ABI,
         functionName: 'swapExactETHForTokensWithSlippage',
         args: [tokenAddress, 3000, slippageTolerance],
         value: amountIn,
@@ -181,9 +181,9 @@ export const BuySellTokens = ({
     try {
       await writeContract({
         address: tokenAddress,
-        abi: PUMPFUN_TOKEN_ABI,
+        abi: CHAINCRAFT_TOKEN_ABI,
         functionName: 'approve',
-        args: [contractAddresses.PUMPFUN_DEX_MANAGER, parseEther(_amount)], // Approve large amount
+        args: [contractAddresses.CHAINCRAFT_DEX_MANAGER, parseEther(_amount)], // Approve large amount
       });
     } catch (error: any) {
       console.error('Error approving tokens:', error);
@@ -213,8 +213,8 @@ export const BuySellTokens = ({
       console.log("Slippage Tolerance:", slippageTolerance);
       
       await writeContract({
-        address: contractAddresses.PUMPFUN_DEX_MANAGER,
-        abi: PUMPFUN_DEX_MANAGER_ABI,
+        address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+        abi: CHAINCRAFT_DEX_MANAGER_ABI,
         functionName: 'swapExactTokensForETHWithSlippage',
         args: [tokenAddress, 3000, amountIn, slippageTolerance],
       });

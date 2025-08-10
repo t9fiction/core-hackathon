@@ -8,8 +8,8 @@ import {
 } from "wagmi";
 import { parseEther, parseUnits, Address } from "viem";
 import {
-  PUMPFUN_FACTORY_ABI,
-  PUMPFUN_TOKEN_ABI,
+  CHAINCRAFT_FACTORY_ABI,
+  CHAINCRAFT_TOKEN_ABI,
 } from "../../lib/contracts/abis";
 import { getContractAddresses } from "../../lib/contracts/addresses";
 
@@ -67,9 +67,9 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
   // Check token allowance
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: tokenAddress,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: "allowance",
-    args: address && tokenAddress ? [address, contractAddresses.PUMPFUN_FACTORY] : undefined,
+    args: address && tokenAddress ? [address, contractAddresses.CHAINCRAFT_FACTORY] : undefined,
     query: {
       enabled: !!(address && tokenAddress),
     },
@@ -120,9 +120,9 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
       
       await writeApproval({
         address: tokenAddress,
-        abi: PUMPFUN_TOKEN_ABI,
+        abi: CHAINCRAFT_TOKEN_ABI,
         functionName: "approve",
-        args: [contractAddresses.PUMPFUN_FACTORY, tokenAmountWei],
+        args: [contractAddresses.CHAINCRAFT_FACTORY, tokenAmountWei],
       });
     } catch (error: any) {
       console.error("Error approving token:", error);
@@ -163,13 +163,13 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
         tokenAmount: tokenAmountWei.toString(),
         ethAmount: ethAmountWei.toString(),
         fee,
-        contractAddress: contractAddresses.PUMPFUN_FACTORY,
+        contractAddress: contractAddresses.CHAINCRAFT_FACTORY,
       });
 
       // Create pool via factory
       await writeContract({
-        address: contractAddresses.PUMPFUN_FACTORY,
-        abi: PUMPFUN_FACTORY_ABI,
+        address: contractAddresses.CHAINCRAFT_FACTORY,
+        abi: CHAINCRAFT_FACTORY_ABI,
         functionName: "createDEXPool",
         args: [tokenAddress, tokenAmountWei, fee],
         value: ethAmountWei,

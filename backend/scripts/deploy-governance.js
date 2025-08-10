@@ -76,8 +76,8 @@ async function main() {
     console.log(`// In src/lib/contracts/addresses.ts`);
     console.log(`${chainId}: {`);
     console.log(`  // ... other addresses ...`);
-    console.log(`  PUMPFUN_GOVERNANCE: '${governanceAddress}',`);
-    console.log(`  PUMPFUN_AIRDROP: '${airdropAddress}',`);
+    console.log(`  CHAINCRAFT_GOVERNANCE: '${governanceAddress}',`);
+    console.log(`  CHAINCRAFT_AIRDROP: '${airdropAddress}',`);
     console.log(`},`);
     console.log("");
 

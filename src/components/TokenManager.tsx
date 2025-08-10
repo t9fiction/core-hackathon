@@ -6,12 +6,12 @@ import {
   useWriteContract,
 } from "wagmi";
 import { formatEther, Address, formatUnits, parseUnits } from "viem";
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from "../lib/contracts/addresses";
 import {
   useTokenDEX,
 } from "../lib/hooks/useTokenContracts";
-import { PUMPFUN_DEX_MANAGER_ABI } from '../lib/contracts/abis';
+import { CHAINCRAFT_DEX_MANAGER_ABI } from '../lib/contracts/abis';
 import { parseEther } from "viem";
 import Link from "next/link";
 import { showErrorAlert } from '../lib/swal-config';
@@ -33,12 +33,12 @@ const TokenManager = () => {
   const [selectedToken, setSelectedToken] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  const contractAddress = getContractAddresses(chainId).PUMPFUN_FACTORY;
+  const contractAddress = getContractAddresses(chainId).CHAINCRAFT_FACTORY;
 
   // Get all tokens created by the user
   const { data: creatorTokens } = useReadContract({
     address: contractAddress,
-    abi: PUMPFUN_FACTORY_ABI,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: "getTokensByCreator",
     args: address ? [address] : undefined,
   });
@@ -46,7 +46,7 @@ const TokenManager = () => {
   // Get all deployed tokens
   const { data: allTokens } = useReadContract({
     address: contractAddress,
-    abi: PUMPFUN_FACTORY_ABI,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: "getAllDeployedTokens",
   });
 
@@ -63,7 +63,7 @@ const TokenManager = () => {
     // Get token info from factory contract
     const { data: tokenInfo } = useReadContract({
       address: contractAddress,
-      abi: PUMPFUN_FACTORY_ABI,
+      abi: CHAINCRAFT_FACTORY_ABI,
       functionName: "getTokenInfo",
       args: [tokenAddress as Address],
     });
@@ -71,19 +71,19 @@ const TokenManager = () => {
     // Get token details from the token contract
     const { data: tokenName } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "name",
     });
 
     const { data: tokenSymbol } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "symbol",
     });
 
     const { data: totalSupply } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "totalSupply",
     });
 
@@ -227,7 +227,7 @@ const TokenManager = () => {
           Manage
         </button>
         <Link
-          href={`https://sepolia.etherscan.io/token/${token.tokenAddress}`}
+          href={chainId === 1114 ? `https://scan.test2.btcs.network/address/${token.tokenAddress}` : `https://sepolia.etherscan.io/token/${token.tokenAddress}`}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -261,8 +261,8 @@ const TokenManager = () => {
 
     // Get token price for estimates
     const { data: tokenPriceData } = useReadContract({
-      address: contractAddresses.PUMPFUN_DEX_MANAGER,
-      abi: PUMPFUN_DEX_MANAGER_ABI,
+      address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+      abi: CHAINCRAFT_DEX_MANAGER_ABI,
       functionName: 'getTokenPrice',
       args: [tokenAddress as Address],
       query: {
@@ -282,7 +282,7 @@ const TokenManager = () => {
     // Read token balance of the user
     const { data: tokenBalance } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: 'balanceOf',
       args: [address as Address],
       query: {
@@ -292,34 +292,34 @@ const TokenManager = () => {
 
     // Check if token is currently locked
     const { data: isCurrentlyLocked } = useReadContract({
-      address: contractAddresses.PUMPFUN_FACTORY,
-      abi: PUMPFUN_FACTORY_ABI,
+      address: contractAddresses.CHAINCRAFT_FACTORY,
+      abi: CHAINCRAFT_FACTORY_ABI,
       functionName: 'isTokenCurrentlyLocked',
       args: [tokenAddress as Address],
       query: {
-        enabled: !!tokenAddress && !!contractAddresses.PUMPFUN_FACTORY,
+        enabled: !!tokenAddress && !!contractAddresses.CHAINCRAFT_FACTORY,
       },
     });
 
     // Get existing lock info if any
     const { data: tokenLockInfo } = useReadContract({
-      address: contractAddresses.PUMPFUN_FACTORY,
-      abi: PUMPFUN_FACTORY_ABI,
+      address: contractAddresses.CHAINCRAFT_FACTORY,
+      abi: CHAINCRAFT_FACTORY_ABI,
       functionName: 'getTokenLock',
       args: [tokenAddress as Address],
       query: {
-        enabled: !!tokenAddress && !!contractAddresses.PUMPFUN_FACTORY,
+        enabled: !!tokenAddress && !!contractAddresses.CHAINCRAFT_FACTORY,
       },
     });
 
     // Check current allowance for token locking
     const { data: currentAllowance, refetch: refetchAllowance } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: 'allowance',
-      args: [address as Address, contractAddresses.PUMPFUN_FACTORY as Address],
+      args: [address as Address, contractAddresses.CHAINCRAFT_FACTORY as Address],
       query: {
-        enabled: !!tokenAddress && !!address && !!contractAddresses.PUMPFUN_FACTORY && isConnected,
+        enabled: !!tokenAddress && !!address && !!contractAddresses.CHAINCRAFT_FACTORY && isConnected,
       },
     });
 
@@ -344,9 +344,9 @@ const TokenManager = () => {
         
         await writeContract({
           address: tokenAddress as Address,
-          abi: PUMPFUN_TOKEN_ABI,
+          abi: CHAINCRAFT_TOKEN_ABI,
           functionName: 'approve',
-          args: [contractAddresses.PUMPFUN_FACTORY as Address, tokenAmountWei],
+          args: [contractAddresses.CHAINCRAFT_FACTORY as Address, tokenAmountWei],
         });
 
         // Wait for approval and refetch allowance
@@ -402,8 +402,8 @@ const TokenManager = () => {
 
         // Lock tokens
         await writeContract({
-          address: contractAddresses.PUMPFUN_FACTORY as Address,
-          abi: PUMPFUN_FACTORY_ABI,
+          address: contractAddresses.CHAINCRAFT_FACTORY as Address,
+          abi: CHAINCRAFT_FACTORY_ABI,
           functionName: 'lockTokens',
           args: [
             tokenAddress as Address,
@@ -461,8 +461,8 @@ const TokenManager = () => {
       try {
         const amountIn = parseEther(buyAmount);
         await writeContract({
-          address: contractAddresses.PUMPFUN_DEX_MANAGER,
-          abi: PUMPFUN_DEX_MANAGER_ABI,
+          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+          abi: CHAINCRAFT_DEX_MANAGER_ABI,
           functionName: 'swapExactETHForTokensWithSlippage',
           args: [tokenAddress as Address, 3000, 500n], // 5% slippage
           value: amountIn,
@@ -487,9 +487,9 @@ const TokenManager = () => {
         // Approve tokens to DEX Manager
         await writeContract({
           address: tokenAddress as Address,
-          abi: PUMPFUN_TOKEN_ABI,
+          abi: CHAINCRAFT_TOKEN_ABI,
           functionName: 'approve',
-          args: [contractAddresses.PUMPFUN_DEX_MANAGER, amountIn],
+          args: [contractAddresses.CHAINCRAFT_DEX_MANAGER, amountIn],
         });
 
         // Wait a bit for approval
@@ -497,8 +497,8 @@ const TokenManager = () => {
         
         // Execute sell
         await writeContract({
-          address: contractAddresses.PUMPFUN_DEX_MANAGER,
-          abi: PUMPFUN_DEX_MANAGER_ABI,
+          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+          abi: CHAINCRAFT_DEX_MANAGER_ABI,
           functionName: 'swapExactTokensForETHWithSlippage',
           args: [tokenAddress as Address, 3000, amountIn, 500n], // 5% slippage
         });
@@ -1190,14 +1190,28 @@ const TokenManager = () => {
     );
   }
 
-  if (chainId !== 11155111) {
+  // Support both Sepolia (11155111) and Core testnet2 (1114)
+  const supportedChains = [11155111, 1114];
+  const networkNames = {
+    11155111: 'Sepolia',
+    1114: 'Core Testnet2'
+  };
+  
+  if (!supportedChains.includes(chainId)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="text-center text-white">
           <h2 className="text-2xl font-bold mb-4">Unsupported Network</h2>
-          <p className="text-gray-400">
-            Please switch to the Sepolia testnet to use this feature.
+          <p className="text-gray-400 mb-4">
+            Please switch to a supported network to use this feature.
           </p>
+          <div className="text-sm text-gray-500">
+            <p>Supported networks:</p>
+            <ul className="mt-2 space-y-1">
+              <li>• Sepolia Testnet</li>
+              <li>• Core Testnet2</li>
+            </ul>
+          </div>
         </div>
       </div>
     );

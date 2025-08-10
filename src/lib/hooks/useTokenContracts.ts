@@ -10,10 +10,10 @@ import {
   UNISWAP_V3_FACTORY_ABI,
   UNISWAP_V3_POOL_ABI,
   NONFUNGIBLE_POSITION_MANAGER_ABI,
-  PUMPFUN_GOVERNANCE_ABI,
-  PUMPFUN_DEX_MANAGER_ABI,
-  PUMPFUN_TOKEN_ABI,
-  PUMPFUN_FACTORY_ABI,
+  CHAINCRAFT_GOVERNANCE_ABI,
+  CHAINCRAFT_DEX_MANAGER_ABI,
+  CHAINCRAFT_TOKEN_ABI,
+  CHAINCRAFT_FACTORY_ABI,
 } from "../contracts/abis";
 import { parseEther, formatEther, Address, parseUnits } from "viem";
 import { getContractAddresses } from "../contracts/addresses";
@@ -55,15 +55,15 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
   // Read user's voting power for a token
   const { data: votingPower } = useReadContract({
     address: tokenAddress,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
   });
 
   // Read active proposals count
   const { data: proposalCount } = useReadContract({
-    address: contractAddresses.PUMPFUN_GOVERNANCE,
-    abi: PUMPFUN_GOVERNANCE_ABI,
+    address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+    abi: CHAINCRAFT_GOVERNANCE_ABI,
     functionName: "proposalCount",
   });
 
@@ -77,15 +77,15 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
   // These hooks need to be created in the component that uses them
   // We'll provide helper functions to create the hook configurations
   const getProposalConfig = (proposalId: number) => ({
-    address: contractAddresses.PUMPFUN_GOVERNANCE,
-    abi: PUMPFUN_GOVERNANCE_ABI,
+    address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+    abi: CHAINCRAFT_GOVERNANCE_ABI,
     functionName: "getProposal" as const,
     args: [BigInt(proposalId)],
   });
 
   const hasVotedConfig = (proposalId: number) => ({
-    address: contractAddresses.PUMPFUN_GOVERNANCE,
-    abi: PUMPFUN_GOVERNANCE_ABI,
+    address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+    abi: CHAINCRAFT_GOVERNANCE_ABI,
     functionName: "hasVotedOnProposal" as const,
     args: address ? [BigInt(proposalId), address] : undefined,
   });
@@ -104,8 +104,8 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
       const amountsBigInt = amounts.map((amount) => parseEther(amount));
 
       const txHash = await writeContract({
-        address: contractAddresses.PUMPFUN_GOVERNANCE,
-        abi: PUMPFUN_GOVERNANCE_ABI,
+        address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+        abi: CHAINCRAFT_GOVERNANCE_ABI,
         functionName: "createProposal",
         args: [
           tokenAddress,
@@ -128,8 +128,8 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
     setIsVoting(true);
     try {
       await writeContract({
-        address: contractAddresses.PUMPFUN_GOVERNANCE,
-        abi: PUMPFUN_GOVERNANCE_ABI,
+        address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+        abi: CHAINCRAFT_GOVERNANCE_ABI,
         functionName: "vote",
         args: [BigInt(proposalId), support],
       });
@@ -142,8 +142,8 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
     setIsExecuting(true);
     try {
       await writeContract({
-        address: contractAddresses.PUMPFUN_GOVERNANCE,
-        abi: PUMPFUN_GOVERNANCE_ABI,
+        address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+        abi: CHAINCRAFT_GOVERNANCE_ABI,
         functionName: "executeProposal",
         args: [BigInt(proposalId)],
       });
@@ -176,7 +176,7 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
 
 export const useTokenDEX = (tokenAddress: Address) => {
   const { address: userAddress } = useAccount();
-  const chainId = 11155111; // Sepolia Testnet
+  const chainId = useChainId(); // Dynamic chain detection
   const contractAddresses = getContractAddresses(chainId);
   const [isCreatingPool, setIsCreatingPool] = useState(false);
   const [poolInfo, setPoolInfo] = useState<PoolInfo | null>(null);
@@ -187,32 +187,34 @@ export const useTokenDEX = (tokenAddress: Address) => {
 
   const { writeContractAsync } = useWriteContract();
 
-  const WETH_ADDRESS = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
+  // Use dynamic WETH address based on current chain
+  const WETH_ADDRESS = contractAddresses.WETH;
+  // These Uniswap addresses would need to be configured per chain in production
   const UNISWAP_V3_FACTORY_ADDRESS =
-    "0x0227628f3F023bb0B980b67D528571c95c6DaC1c";
+    chainId === 11155111 ? "0x0227628f3F023bb0B980b67D528571c95c6DaC1c" : "0x0000000000000000000000000000000000000000";
   const NONFUNGIBLE_POSITION_MANAGER_ADDRESS =
-    "0x1238536071E1c677A632429e3655c799b22cDA52";
+    chainId === 11155111 ? "0x1238536071E1c677A632429e3655c799b22cDA52" : "0x0000000000000000000000000000000000000000";
 
   // Read pool info from DEX Manager
   const { data: poolInfoData, refetch: refetchPoolInfo } = useReadContract({
-    address: contractAddresses.PUMPFUN_DEX_MANAGER,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getPoolInfo",
     args: [tokenAddress, WETH_ADDRESS, 3000], // Default 0.3% fee
   });
 
   // Read token stats from DEX Manager
   const { data: tokenStats, refetch: refetchTokenStats } = useReadContract({
-    address: contractAddresses.PUMPFUN_DEX_MANAGER,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getTokenStats",
     args: [tokenAddress],
   });
 
   // Check if token is authorized
   const { data: isAuthorized } = useReadContract({
-    address: contractAddresses.PUMPFUN_DEX_MANAGER,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "authorizedTokens",
     args: [tokenAddress],
   });
@@ -250,15 +252,15 @@ export const useTokenDEX = (tokenAddress: Address) => {
       // First approve the factory to spend tokens
       await writeContractAsync({
         address: tokenAddress,
-        abi: PUMPFUN_TOKEN_ABI,
+        abi: CHAINCRAFT_TOKEN_ABI,
         functionName: "approve",
-        args: [contractAddresses.PUMPFUN_FACTORY, tokenAmountWei],
+        args: [contractAddresses.CHAINCRAFT_FACTORY, tokenAmountWei],
       });
 
       // Create pool via factory
       const tx = await writeContractAsync({
-        address: contractAddresses.PUMPFUN_FACTORY,
-        abi: PUMPFUN_FACTORY_ABI,
+        address: contractAddresses.CHAINCRAFT_FACTORY,
+        abi: CHAINCRAFT_FACTORY_ABI,
         functionName: "createDEXPool",
         args: [tokenAddress, tokenAmountWei, fee],
         value: ethAmountWei,
@@ -297,14 +299,14 @@ export const useTokenDEX = (tokenAddress: Address) => {
 
       await writeContractAsync({
         address: tokenAddress,
-        abi: PUMPFUN_TOKEN_ABI, // Use ERC20 ABI for approval
+        abi: CHAINCRAFT_TOKEN_ABI, // Use ERC20 ABI for approval
         functionName: "approve",
         args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS, tokenAmountWei],
       });
 
       await writeContractAsync({
         address: WETH_ADDRESS,
-        abi: PUMPFUN_TOKEN_ABI, // Use ERC20 ABI for WETH approval
+        abi: CHAINCRAFT_TOKEN_ABI, // Use ERC20 ABI for WETH approval
         functionName: "approve",
         args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS, ethAmountWei],
       });
@@ -385,8 +387,8 @@ export const useTokenDEX = (tokenAddress: Address) => {
       if (!isAuthorized) {
         console.log('Token not authorized, authorizing first...');
         await writeContractAsync({
-          address: contractAddresses.PUMPFUN_DEX_MANAGER,
-          abi: PUMPFUN_DEX_MANAGER_ABI,
+          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+          abi: CHAINCRAFT_DEX_MANAGER_ABI,
           functionName: "authorizeToken",
           args: [tokenAddress],
         });
@@ -410,16 +412,16 @@ export const useTokenDEX = (tokenAddress: Address) => {
         console.log('Approving tokens...');
         await writeContractAsync({
           address: tokenAddress,
-          abi: PUMPFUN_TOKEN_ABI,
+          abi: CHAINCRAFT_TOKEN_ABI,
           functionName: "approve",
-          args: [contractAddresses.PUMPFUN_DEX_MANAGER, tokenAmountWei],
+          args: [contractAddresses.CHAINCRAFT_DEX_MANAGER, tokenAmountWei],
         });
 
         // Create pool with ETH
         console.log('Creating pool with ETH...');
         const tx = await writeContractAsync({
-          address: contractAddresses.PUMPFUN_DEX_MANAGER,
-          abi: PUMPFUN_DEX_MANAGER_ABI,
+          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+          abi: CHAINCRAFT_DEX_MANAGER_ABI,
           functionName: "createLiquidityPoolWithETH",
           args: [
             tokenAddress, // token
@@ -452,9 +454,9 @@ export const useTokenDEX = (tokenAddress: Address) => {
         console.log('Approving tokens...');
         await writeContractAsync({
           address: tokenAddress,
-          abi: PUMPFUN_TOKEN_ABI,
+          abi: CHAINCRAFT_TOKEN_ABI,
           functionName: "approve",
-          args: [contractAddresses.PUMPFUN_DEX_MANAGER, tokenAmountWei],
+          args: [contractAddresses.CHAINCRAFT_DEX_MANAGER, tokenAmountWei],
         });
 
         // Add liquidity to existing pool
@@ -473,8 +475,8 @@ export const useTokenDEX = (tokenAddress: Address) => {
         });
         
         const tx = await writeContractAsync({
-          address: contractAddresses.PUMPFUN_DEX_MANAGER,
-          abi: PUMPFUN_DEX_MANAGER_ABI,
+          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+          abi: CHAINCRAFT_DEX_MANAGER_ABI,
           functionName: "addLiquidity",
           args: [
             token0,
@@ -538,24 +540,24 @@ export const useTokenLock = (tokenAddress?: Address) => {
 
   // Get token lock information from factory contract
   const { data: tokenLockData, refetch: refetchTokenLock } = useReadContract({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses.CHAINCRAFT_FACTORY,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: "getTokenLock",
     args: tokenAddress ? [tokenAddress] : undefined,
   });
 
   // Check if token is currently locked
   const { data: isTokenLocked, refetch: refetchLockStatus } = useReadContract({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses.CHAINCRAFT_FACTORY,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: "isTokenCurrentlyLocked",
     args: tokenAddress ? [tokenAddress] : undefined,
   });
 
   // Get days until unlock
   const { data: daysUntilUnlock, refetch: refetchDaysUntilUnlock } = useReadContract({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses.CHAINCRAFT_FACTORY,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: "getDaysUntilUnlock",
     args: tokenAddress ? [tokenAddress] : undefined,
   });
@@ -592,9 +594,9 @@ export const useTokenLock = (tokenAddress?: Address) => {
       // First approve tokens to the factory contract
       await writeContract({
         address: tokenAddress,
-        abi: PUMPFUN_TOKEN_ABI,
+        abi: CHAINCRAFT_TOKEN_ABI,
         functionName: "approve",
-        args: [contractAddresses.PUMPFUN_FACTORY, tokenAmountWei],
+        args: [contractAddresses.CHAINCRAFT_FACTORY, tokenAmountWei],
       });
 
       // Wait a bit for approval transaction
@@ -602,8 +604,8 @@ export const useTokenLock = (tokenAddress?: Address) => {
 
       // Lock the tokens using factory contract
       await writeContract({
-        address: contractAddresses.PUMPFUN_FACTORY,
-        abi: PUMPFUN_FACTORY_ABI,
+        address: contractAddresses.CHAINCRAFT_FACTORY,
+        abi: CHAINCRAFT_FACTORY_ABI,
         functionName: "lockTokens",
         args: [tokenAddress, tokenAmountWei, BigInt(durationInSeconds), description],
         value: ethAmountWei,
@@ -622,8 +624,8 @@ export const useTokenLock = (tokenAddress?: Address) => {
     setIsUnlocking(true);
     try {
       await writeContract({
-        address: contractAddresses.PUMPFUN_FACTORY,
-        abi: PUMPFUN_FACTORY_ABI,
+        address: contractAddresses.CHAINCRAFT_FACTORY,
+        abi: CHAINCRAFT_FACTORY_ABI,
         functionName: "unlockTokens",
         args: [tokenAddress],
       });

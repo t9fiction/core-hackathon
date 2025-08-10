@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { Address, formatEther } from 'viem';
-import { PUMPFUN_DEX_MANAGER_ABI, PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
+import { CHAINCRAFT_DEX_MANAGER_ABI, CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from '../lib/contracts/addresses';
 import { useTokenDEX } from '../lib/hooks/useTokenContracts';
 import DEXPoolCreator from '../components/DEX/DEXPoolCreator';
@@ -37,27 +37,27 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
 
   // Get pool info for different fee tiers - same as PoolInformation component
   const { data: poolInfo500 } = useReadContract({
-    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getPoolInfo",
     args: [tokenAddress, WETH_ADDRESS as Address, 500],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
   const { data: poolInfo3000 } = useReadContract({
-    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getPoolInfo",
     args: [tokenAddress, WETH_ADDRESS as Address, 3000],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
   const { data: poolInfo10000 } = useReadContract({
-    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getPoolInfo",
     args: [tokenAddress, WETH_ADDRESS as Address, 10000],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
   // Check if there are any active pools
@@ -383,22 +383,22 @@ const DEXPage = () => {
 
   // Fetch user's deployed tokens (when connected)
   const { data: userTokenAddresses } = useReadContract({
-    address: contractAddresses?.PUMPFUN_FACTORY as `0x${string}`,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses?.CHAINCRAFT_FACTORY as `0x${string}`,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getTokensByCreator',
     args: [address!],
     query: {
-      enabled: isConnected && !!address && !!contractAddresses?.PUMPFUN_FACTORY,
+      enabled: isConnected && !!address && !!contractAddresses?.CHAINCRAFT_FACTORY,
     },
   });
 
   // Fetch all deployed tokens (always available)
   const { data: allTokenAddresses } = useReadContract({
-    address: contractAddresses?.PUMPFUN_FACTORY as `0x${string}`,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses?.CHAINCRAFT_FACTORY as `0x${string}`,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getAllDeployedTokens',
     query: {
-      enabled: !!contractAddresses?.PUMPFUN_FACTORY,
+      enabled: !!contractAddresses?.CHAINCRAFT_FACTORY,
     },
   });
 
@@ -409,7 +409,7 @@ const DEXPage = () => {
   // Debug token addresses - commented out to prevent infinite logging
   // console.log('Token Addresses Data:', {
   //   tokenAddresses,
-  //   enabled: isConnected && !!address && !!contractAddresses?.PUMPFUN_FACTORY,
+  //   enabled: isConnected && !!address && !!contractAddresses?.CHAINCRAFT_FACTORY,
   //   args: [address]
   // });
 
@@ -561,17 +561,17 @@ const DEXPage = () => {
     // Fetch name, symbol, totalSupply from token contract
     const { data: name } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "name",
     });
     const { data: symbol } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "symbol",
     });
     const { data: totalSupply } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "totalSupply",
     });
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useReadContract } from 'wagmi';
 import { parseEther, parseUnits, Address, formatUnits } from 'viem';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 
 interface LiquidityManagerProps {
@@ -37,7 +37,7 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
   // Read token balance of the user
   const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
     address: tokenAddress as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [address as Address],
     query: {
@@ -47,34 +47,34 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
 
   // Check if token is currently locked
   const { data: isCurrentlyLocked } = useReadContract({
-    address: contractAddresses?.PUMPFUN_FACTORY as Address,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses?.CHAINCRAFT_FACTORY as Address,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'isTokenCurrentlyLocked',
     args: [tokenAddress as Address],
     query: {
-      enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_FACTORY,
+      enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_FACTORY,
     },
   });
 
   // Get existing lock info if any
   const { data: tokenLockInfo } = useReadContract({
-    address: contractAddresses?.PUMPFUN_FACTORY as Address,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses?.CHAINCRAFT_FACTORY as Address,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getTokenLock',
     args: [tokenAddress as Address],
     query: {
-      enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_FACTORY,
+      enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_FACTORY,
     },
   });
 
   // Check current allowance for token locking
   const { data: currentAllowance, refetch: refetchAllowance } = useReadContract({
     address: tokenAddress as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'allowance',
-    args: [address as Address, contractAddresses?.PUMPFUN_FACTORY as Address],
+    args: [address as Address, contractAddresses?.CHAINCRAFT_FACTORY as Address],
     query: {
-      enabled: !!tokenAddress && !!address && !!contractAddresses?.PUMPFUN_FACTORY && isConnected,
+      enabled: !!tokenAddress && !!address && !!contractAddresses?.CHAINCRAFT_FACTORY && isConnected,
     },
   });
 
@@ -110,9 +110,9 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
       
       await writeContract({
         address: tokenAddress as Address,
-        abi: PUMPFUN_TOKEN_ABI,
+        abi: CHAINCRAFT_TOKEN_ABI,
         functionName: 'approve',
-        args: [contractAddresses?.PUMPFUN_FACTORY as Address, tokenAmountWei],
+        args: [contractAddresses?.CHAINCRAFT_FACTORY as Address, tokenAmountWei],
       });
 
       // Wait for approval and refetch allowance
@@ -185,18 +185,18 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
         tokenAmount: tokenAmountWei.toString(),
         lockDuration: lockDurationSeconds,
         description: formData.description || `Locked ${tokenAmount} ${tokenSymbol} for ${lockDuration} days`,
-        contractAddress: contractAddresses?.PUMPFUN_FACTORY
+        contractAddress: contractAddresses?.CHAINCRAFT_FACTORY
       });
 
       // Use the lockTokens function from the factory contract
       writeContract({
-        address: contractAddresses?.PUMPFUN_FACTORY as Address,
-        abi: PUMPFUN_FACTORY_ABI,
+        address: contractAddresses?.CHAINCRAFT_FACTORY as Address,
+        abi: CHAINCRAFT_FACTORY_ABI,
         functionName: 'lockTokens',
         args: [
           tokenAddress,
           tokenAmountWei,
-          lockDurationSeconds,
+          BigInt(lockDurationSeconds),
           formData.description || `Locked ${tokenAmount} ${tokenSymbol} for ${lockDuration} days`
         ],
         value: parseEther(formData.ethAmount), // ETH collateral required for trust lock

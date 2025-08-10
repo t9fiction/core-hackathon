@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAccount } from 'wagmi';
 import { useSmartContractRead } from '../lib/hooks/useSmartContract';
-import { PUMPFUN_TOKEN_ABI } from '../lib/contracts/abis';
+import { CHAINCRAFT_TOKEN_ABI } from '../lib/contracts/abis';
 import { formatEther, Address } from 'viem';
 
 interface TokenBalanceCheckerProps {
@@ -18,14 +18,14 @@ const TokenBalanceChecker: React.FC<TokenBalanceCheckerProps> = ({
   // Get total supply
   const { data: totalSupply } = useSmartContractRead({
     address: tokenAddress as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'totalSupply',
   });
 
   // Get user balance
   const { data: userBalance } = useSmartContractRead({
     address: tokenAddress as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
   });
@@ -33,14 +33,14 @@ const TokenBalanceChecker: React.FC<TokenBalanceCheckerProps> = ({
   // Get token owner
   const { data: tokenOwner } = useSmartContractRead({
     address: tokenAddress as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'owner',
   });
 
   // Get owner balance (to verify tokens were minted to owner)
   const { data: ownerBalance } = useSmartContractRead({
     address: tokenAddress as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: tokenOwner ? [tokenOwner as Address] : undefined,
   });

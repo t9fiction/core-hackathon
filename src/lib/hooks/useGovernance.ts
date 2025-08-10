@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { Address, parseEther } from 'viem';
-import { PUMPFUN_GOVERNANCE_ABI } from '../contracts/abis/governance';
+import { CHAINCRAFT_GOVERNANCE_ABI } from '../contracts/abis/governance';
 import { getContractAddresses } from '../contracts/addresses';
 import { useSmartContractRead } from './useSmartContract';
 import { showSuccessAlert, showErrorAlert } from '../swal-config';
@@ -74,8 +74,8 @@ export function useGovernance() {
 
   // Get total proposal count
   const { data: proposalCount } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_GOVERNANCE,
-    abi: PUMPFUN_GOVERNANCE_ABI,
+    address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+    abi: CHAINCRAFT_GOVERNANCE_ABI,
     functionName: 'proposalCount',
   });
 
@@ -100,8 +100,8 @@ export function useGovernance() {
 
     try {
       await writeContract({
-        address: contractAddresses.PUMPFUN_GOVERNANCE,
-        abi: PUMPFUN_GOVERNANCE_ABI,
+        address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+        abi: CHAINCRAFT_GOVERNANCE_ABI,
         functionName: 'createProposal',
         args: [tokenAddress, description, BigInt(proposalType), proposedValue, recipients, amounts],
       });
@@ -126,8 +126,8 @@ export function useGovernance() {
 
     try {
       await writeContract({
-        address: contractAddresses.PUMPFUN_GOVERNANCE,
-        abi: PUMPFUN_GOVERNANCE_ABI,
+        address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+        abi: CHAINCRAFT_GOVERNANCE_ABI,
         functionName: 'vote',
         args: [BigInt(proposalId), support],
       });
@@ -152,8 +152,8 @@ export function useGovernance() {
 
     try {
       await writeContract({
-        address: contractAddresses.PUMPFUN_GOVERNANCE,
-        abi: PUMPFUN_GOVERNANCE_ABI,
+        address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+        abi: CHAINCRAFT_GOVERNANCE_ABI,
         functionName: 'executeProposal',
         args: [BigInt(proposalId)],
       });
@@ -182,7 +182,7 @@ export function useGovernance() {
       try {
         // We'll use the smart contract read hook to get individual proposals
         // This is a simplified approach - in production you might want to batch these calls
-        const proposalData = await contractAddresses.PUMPFUN_GOVERNANCE;
+        const proposalData = await contractAddresses.CHAINCRAFT_GOVERNANCE;
         // For now, we'll return proposal IDs and let components handle individual fetching
         proposals.push({ id: i } as Proposal);
       } catch (error) {
@@ -212,8 +212,8 @@ export function useProposal(proposalId: number | undefined) {
   const contractAddresses = getContractAddresses(chainId);
 
   const { data: proposalData } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_GOVERNANCE,
-    abi: PUMPFUN_GOVERNANCE_ABI,
+    address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+    abi: CHAINCRAFT_GOVERNANCE_ABI,
     functionName: 'getProposal',
     args: proposalId !== undefined ? [BigInt(proposalId)] : undefined,
     enabled: proposalId !== undefined,
@@ -294,8 +294,8 @@ export function useHasVoted(proposalId: number | undefined, voterAddress?: Addre
   const voter = voterAddress || address;
 
   const { data: hasVoted } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_GOVERNANCE,
-    abi: PUMPFUN_GOVERNANCE_ABI,
+    address: contractAddresses.CHAINCRAFT_GOVERNANCE,
+    abi: CHAINCRAFT_GOVERNANCE_ABI,
     functionName: 'hasVotedOnProposal',
     args: proposalId !== undefined && voter ? [BigInt(proposalId), voter] : undefined,
     enabled: proposalId !== undefined && !!voter,

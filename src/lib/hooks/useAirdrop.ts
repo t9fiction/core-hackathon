@@ -4,7 +4,7 @@ import { Address } from 'viem';
 import { getContractAddresses } from '../contracts/addresses';
 import { useSmartContractRead } from './useSmartContract';
 import { showSuccessAlert, showErrorAlert } from '../swal-config';
-import { PUMPFUN_AIRDROP_ABI } from '../contracts/abis';
+import { CHAINCRAFT_AIRDROP_ABI } from '../contracts/abis';
 
 export interface AirdropInfo {
   merkleRoot: string;
@@ -40,8 +40,8 @@ export function useAirdrop() {
 
     try {
       await writeContract({
-        address: contractAddresses.PUMPFUN_AIRDROP,
-        abi: PUMPFUN_AIRDROP_ABI,
+        address: contractAddresses.CHAINCRAFT_AIRDROP,
+        abi: CHAINCRAFT_AIRDROP_ABI,
         functionName: 'claimAirdrop',
         args: [tokenAddress, amount, merkleProof as `0x${string}`[]],
       });
@@ -77,8 +77,8 @@ export function useAirdropInfo(tokenAddress: Address | undefined) {
   const contractAddresses = getContractAddresses(chainId);
 
   const { data: airdropData } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_AIRDROP,
-    abi: PUMPFUN_AIRDROP_ABI,
+    address: contractAddresses.CHAINCRAFT_AIRDROP,
+    abi: CHAINCRAFT_AIRDROP_ABI,
     functionName: 'getAirdropInfo',
     args: tokenAddress ? [tokenAddress] : undefined,
     enabled: !!tokenAddress,
@@ -104,8 +104,8 @@ export function useCanClaim(tokenAddress: Address | undefined) {
   const contractAddresses = getContractAddresses(chainId);
 
   const { data: canClaim } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_AIRDROP,
-    abi: PUMPFUN_AIRDROP_ABI,
+    address: contractAddresses.CHAINCRAFT_AIRDROP,
+    abi: CHAINCRAFT_AIRDROP_ABI,
     functionName: 'canClaim',
     args: tokenAddress && address ? [tokenAddress, address] : undefined,
     enabled: !!tokenAddress && !!address,
@@ -121,8 +121,8 @@ export function useHasClaimed(tokenAddress: Address | undefined) {
   const contractAddresses = getContractAddresses(chainId);
 
   const { data: hasClaimed } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_AIRDROP,
-    abi: PUMPFUN_AIRDROP_ABI,
+    address: contractAddresses.CHAINCRAFT_AIRDROP,
+    abi: CHAINCRAFT_AIRDROP_ABI,
     functionName: 'hasClaimed',
     args: tokenAddress && address ? [tokenAddress, address] : undefined,
     enabled: !!tokenAddress && !!address,
@@ -137,8 +137,8 @@ export function useAirdropStats() {
   const contractAddresses = getContractAddresses(chainId);
 
   const { data: statsData } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_AIRDROP,
-    abi: PUMPFUN_AIRDROP_ABI,
+    address: contractAddresses.CHAINCRAFT_AIRDROP,
+    abi: CHAINCRAFT_AIRDROP_ABI,
     functionName: 'getContractStats',
   });
 

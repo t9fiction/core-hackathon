@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { parseEther } from 'viem';
-import { PUMPFUN_FACTORY_ABI } from '../../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 
 interface TokenDeploymentFormProps {
@@ -17,7 +17,7 @@ const TokenDeploymentForm: React.FC<TokenDeploymentFormProps> = ({ onDeploymentS
     totalSupply: ''
   });
 
-  const contractAddress = getContractAddresses(chainId).PUMPFUN_FACTORY;
+  const contractAddress = getContractAddresses(chainId).CHAINCRAFT_FACTORY;
   const { writeContract, data: hash, error, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
@@ -58,7 +58,7 @@ const TokenDeploymentForm: React.FC<TokenDeploymentFormProps> = ({ onDeploymentS
 
       await writeContract({
         address: contractAddress,
-        abi: PUMPFUN_FACTORY_ABI,
+        abi: CHAINCRAFT_FACTORY_ABI,
         functionName: 'deployToken',
         args: [formData.name, formData.symbol, BigInt(supplyNum)],
         value: parseEther(currentTier.fee.toString()),

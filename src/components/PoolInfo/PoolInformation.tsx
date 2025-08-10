@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Address, formatEther } from 'viem';
 import { useChainId, useReadContract } from 'wagmi';
 import { CONTRACT_ADDRESSES as ADDRESSES } from "../../lib/contracts/addresses"
-import { PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
+import { CHAINCRAFT_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 
 interface PoolData {
@@ -50,45 +50,45 @@ const PoolInformation: React.FC<PoolInformationProps> = ({
 
   // Get detailed pool info for different fee tiers
   const { data: poolInfo500, isLoading: loading500 } = useReadContract({
-    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getDetailedPoolInfo",
     args: [tokenAddress!, WETH_ADDRESS as Address, 500],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
   const { data: poolInfo3000, isLoading: loading3000 } = useReadContract({
-    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getDetailedPoolInfo",
     args: [tokenAddress!, WETH_ADDRESS as Address, 3000],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
   const { data: poolInfo10000, isLoading: loading10000 } = useReadContract({
-    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getDetailedPoolInfo",
     args: [tokenAddress!, WETH_ADDRESS as Address, 10000],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
   // Get token stats
   const { data: tokenStats, isLoading: loadingStats } = useReadContract({
-    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "getTokenStats",
     args: [tokenAddress!],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
   // Check if token is authorized
   const { data: isAuthorized, isLoading: loadingAuth } = useReadContract({
-    address: contractAddresses?.PUMPFUN_DEX_MANAGER as Address,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "authorizedTokens",
     args: [tokenAddress!],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.PUMPFUN_DEX_MANAGER }
+    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
   const loading = loading500 || loading3000 || loading10000 || loadingStats || loadingAuth;

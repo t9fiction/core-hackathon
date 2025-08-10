@@ -3,7 +3,7 @@ import { Address, parseEther, formatEther } from 'viem';
 import { useAccount } from 'wagmi';
 import { useGovernance, PROPOSAL_TYPES, ProposalTypeConfig } from '../../lib/hooks/useGovernance';
 import { useSmartContractRead } from '../../lib/hooks/useSmartContract';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { showErrorAlert, showSuccessAlert } from '../../lib/swal-config';
 
@@ -33,29 +33,29 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
 
   // Get available tokens
   const { data: allTokens } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses.CHAINCRAFT_FACTORY,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getAllDeployedTokens',
   });
 
   // Get token info for selected token
   const { data: tokenName } = useSmartContractRead({
     address: selectedToken,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'name',
     enabled: selectedToken !== '0x',
   });
 
   const { data: tokenSymbol } = useSmartContractRead({
     address: selectedToken,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'symbol',
     enabled: selectedToken !== '0x',
   });
 
   const { data: tokenDecimals } = useSmartContractRead({
     address: selectedToken,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'decimals',
     enabled: selectedToken !== '0x',
   });
@@ -63,7 +63,7 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({ onProposalCreat
   // Get user's token balance for the selected token
   const { data: userTokenBalance } = useSmartContractRead({
     address: selectedToken,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     enabled: selectedToken !== '0x' && !!address,

@@ -1,7 +1,7 @@
 import { JSX, useState } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { parseEther } from 'viem';
-import { PUMPFUN_FACTORY_ABI } from '../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI } from '../lib/contracts/abis';
 import { getContractAddresses, SUPPLY_TIERS } from '../lib/contracts/addresses';
 
 interface DeployTokenProps {
@@ -17,7 +17,7 @@ const DeployToken = ({ totalSupply, renderTierInfo }: DeployTokenProps) => {
   const [tier, setTier] = useState<'STANDARD' | 'PREMIUM' | 'ULTIMATE'>('STANDARD');
   const chainId = useChainId();
 
-  const contractAddress = getContractAddresses(chainId).PUMPFUN_FACTORY;
+  const contractAddress = getContractAddresses(chainId).CHAINCRAFT_FACTORY;
   const selectedTier = SUPPLY_TIERS[tier];
   const fee = selectedTier.baseFee;
 
@@ -55,7 +55,7 @@ const DeployToken = ({ totalSupply, renderTierInfo }: DeployTokenProps) => {
     try {
       writeContract({
         address: contractAddress,
-        abi: PUMPFUN_FACTORY_ABI,
+        abi: CHAINCRAFT_FACTORY_ABI,
         functionName: 'deployToken',
         args: [name, symbol, BigInt(supplyNum)],
         value: parseEther(fee.toString()),

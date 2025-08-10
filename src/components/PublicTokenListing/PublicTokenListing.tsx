@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useChainId } from 'wagmi';
 import { Address, formatEther } from 'viem';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI, PUMPFUN_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI, CHAINCRAFT_DEX_MANAGER_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { useSmartContractRead } from '../../lib/hooks/useSmartContract';
 
@@ -32,8 +32,8 @@ const PublicTokenListing: React.FC<PublicTokenListingProps> = ({ onSelectToken }
 
   // Get all deployed tokens from factory
   const { data: allTokens, isLoading: isLoadingTokens } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses.CHAINCRAFT_FACTORY,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getAllDeployedTokens',
   });
 
@@ -202,36 +202,36 @@ const TokenCard: React.FC<TokenCardProps> = ({ token, onSelect, onDataUpdate }) 
   // Get token name
   const { data: tokenName } = useSmartContractRead({
     address: token.address as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'name',
   });
 
   // Get token symbol
   const { data: tokenSymbol } = useSmartContractRead({
     address: token.address as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'symbol',
   });
 
   // Get total supply
   const { data: totalSupply } = useSmartContractRead({
     address: token.address as Address,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'totalSupply',
   });
 
   // Get token info from factory
   const { data: tokenInfo } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses.CHAINCRAFT_FACTORY,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getTokenInfo',
     args: [token.address as Address],
   });
 
   // Get pool info from DEX manager
   const { data: poolInfo } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_DEX_MANAGER,
-    abi: PUMPFUN_DEX_MANAGER_ABI,
+    address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+    abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: 'getPoolInfo',
     args: [token.address as Address, WETH_ADDRESS, 3000],
   });

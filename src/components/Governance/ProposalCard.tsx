@@ -11,7 +11,7 @@ import {
   Proposal
 } from '../../lib/hooks/useGovernance';
 import { useSmartContractRead } from '../../lib/hooks/useSmartContract';
-import { PUMPFUN_TOKEN_ABI } from '../../lib/contracts/abis/token';
+import { CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis/token';
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -27,14 +27,14 @@ const ProposalCard: React.FC<ProposalCardProps> = ({ proposal, onProposalUpdated
   // Get token information
   const { data: tokenName } = useSmartContractRead({
     address: proposal?.token,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'name',
     enabled: !!proposal?.token,
   });
 
   const { data: tokenSymbol } = useSmartContractRead({
     address: proposal?.token,
-    abi: PUMPFUN_TOKEN_ABI,
+    abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'symbol',
     enabled: !!proposal?.token,
   });

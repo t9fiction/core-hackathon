@@ -453,7 +453,7 @@ describe('useAirdrop', () => {
       // Mock getContractAddresses to return null addresses
       jest.doMock('../../contracts/addresses', () => ({
         getContractAddresses: () => ({
-          PUMPFUN_GOVERNANCE_AIRDROP: null
+          CHAINCRAFT_GOVERNANCE_AIRDROP: null
         })
       }))
 

@@ -1,9 +1,5 @@
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
-import dotenv from "dotenv";
-
-// Load environment variables from .env file
-dotenv.config();
+require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 
 const {
   PRIVATE_KEY,
@@ -13,14 +9,16 @@ const {
   API_URL_base,
   BASESCAN_API_KEY,
   MAIN_PRIVATE_KEY,
+  CORE_TESTNET_API_KEY,
+  CORE_MAINNET_API_KEY,
 } = process.env;
 
 // Ensure environment variables are defined
 if (!PRIVATE_KEY) {
   throw new Error("Please set your PRIVATE_KEY in a .env file");
 }
-if(!MAIN_PRIVATE_KEY) {
-  throw new Error("Please set your MAIN_PRIVATE_KEY in a .env file")
+if (!MAIN_PRIVATE_KEY) {
+  throw new Error("Please set your MAIN_PRIVATE_KEY in a .env file");
 }
 
 if (!API_URL_sepolia) {
@@ -31,7 +29,7 @@ if (!ETHERSCAN_API_KEY) {
   throw new Error("Please set your ETHERSCAN_API_KEY in a .env file");
 }
 
-const config: HardhatUserConfig = {
+module.exports = {
   solidity: {
     version: "0.8.24",
     settings: {
@@ -49,7 +47,7 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: API_URL_sepolia,
-      accounts: [PRIVATE_KEY!],
+      accounts: [PRIVATE_KEY],
     },
     core_mainnet: {
       url: "https://rpc.coredao.org/",
@@ -60,15 +58,19 @@ const config: HardhatUserConfig = {
       url: "https://rpc.test2.btcs.network",
       accounts: [PRIVATE_KEY],
       chainId: 1114,
+      gasPrice: 20000000000, // 20 gwei
+      gas: 8000000,
+      timeout: 60000,
+      // EIP-1559 gas settings
+      maxFeePerGas: 20000000000, // 20 gwei
+      maxPriorityFeePerGas: 1000000000, // 1 gwei (minimum required)
     },
   },
   etherscan: {
     apiKey: {
-      sepolia: ETHERSCAN_API_KEY as string,
-      // base: BASESCAN_API_KEY as string,
-      // baseSepolia: BASESCAN_API_KEY as string,
+      sepolia: ETHERSCAN_API_KEY,
+      ...(CORE_TESTNET_API_KEY && { core_testnet2: CORE_TESTNET_API_KEY }),
+      ...(CORE_MAINNET_API_KEY && { core_mainnet: CORE_MAINNET_API_KEY }),
     },
   },
 };
-
-export default config;

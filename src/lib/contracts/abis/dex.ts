@@ -1,5 +1,5 @@
 // ChainCraft DEX Manager Contract ABI
-export const PUMPFUN_DEX_MANAGER_ABI = [
+export const CHAINCRAFT_DEX_MANAGER_ABI = [
   {
     inputs: [
       { internalType: "address", name: "_swapRouter", type: "address" },

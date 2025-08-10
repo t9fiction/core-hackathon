@@ -8,5 +8,8 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true
-  }
+  },
+  "exclude": [
+    "ignition/modules/PumpFunDEXManager.ts"
+  ]
 }

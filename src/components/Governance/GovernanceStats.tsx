@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGovernance } from '../../lib/hooks/useGovernance';
 import { useSmartContractRead } from '../../lib/hooks/useSmartContract';
-import { PUMPFUN_FACTORY_ABI } from '../../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { useChainId } from 'wagmi';
 
@@ -12,8 +12,8 @@ const GovernanceStats: React.FC = () => {
 
   // Get total tokens deployed (for context)
   const { data: totalTokensDeployed } = useSmartContractRead({
-    address: contractAddresses.PUMPFUN_FACTORY,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses.CHAINCRAFT_FACTORY,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'totalTokensDeployed',
   });
 

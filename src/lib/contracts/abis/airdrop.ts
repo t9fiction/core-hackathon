@@ -1,4 +1,4 @@
-export const PUMPFUN_AIRDROP_ABI = [
+export const CHAINCRAFT_AIRDROP_ABI = [
   {
     inputs: [
       { internalType: "address", name: "_governanceContract", type: "address" },

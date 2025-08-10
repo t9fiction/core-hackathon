@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { Address, formatEther } from 'viem';
 import { showErrorAlert, showSuccessAlert, showLoadingAlert, updateAlert } from '../../lib/swal-config';
-import { PUMPFUN_FACTORY_ABI, PUMPFUN_TOKEN_ABI, PUMPFUN_GOVERNANCE_ABI } from '../../lib/contracts/abis';
+import { CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI, CHAINCRAFT_GOVERNANCE_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { useTokenGovernance } from '../../lib/hooks/useTokenContracts';
 
@@ -51,22 +51,22 @@ const Governance = () => {
 
   // Fetch user's deployed tokens
   const { data: tokenAddresses } = useReadContract({
-    address: contractAddresses?.PUMPFUN_FACTORY as `0x${string}`,
-    abi: PUMPFUN_FACTORY_ABI,
+    address: contractAddresses?.CHAINCRAFT_FACTORY as `0x${string}`,
+    abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getTokensByCreator',
     args: [address!],
     query: {
-      enabled: isConnected && !!address && !!contractAddresses?.PUMPFUN_FACTORY,
+      enabled: isConnected && !!address && !!contractAddresses?.CHAINCRAFT_FACTORY,
     },
   });
 
   // Fetch proposal count for selected token
   const { data: proposalCount } = useReadContract({
-    address: contractAddresses?.PUMPFUN_GOVERNANCE as `0x${string}`,
-    abi: PUMPFUN_GOVERNANCE_ABI,
+    address: contractAddresses?.CHAINCRAFT_GOVERNANCE as `0x${string}`,
+    abi: CHAINCRAFT_GOVERNANCE_ABI,
     functionName: 'proposalCount',
     query: {
-      enabled: !!contractAddresses?.PUMPFUN_GOVERNANCE,
+      enabled: !!contractAddresses?.CHAINCRAFT_GOVERNANCE,
     },
   });
 
@@ -74,17 +74,17 @@ const Governance = () => {
   const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
     const { data: name } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "name",
     });
     const { data: symbol } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "symbol",
     });
     const { data: totalSupply } = useReadContract({
       address: tokenAddress as Address,
-      abi: PUMPFUN_TOKEN_ABI,
+      abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "totalSupply",
     });
 
@@ -105,12 +105,12 @@ const Governance = () => {
   // Individual Proposal Fetcher
   const ProposalDataFetcher = ({ proposalId, onDataFetched }: { proposalId: number, onDataFetched: (data: Proposal) => void }) => {
     const { data: proposalData } = useReadContract({
-      address: contractAddresses?.PUMPFUN_GOVERNANCE as `0x${string}`,
-      abi: PUMPFUN_GOVERNANCE_ABI,
+      address: contractAddresses?.CHAINCRAFT_GOVERNANCE as `0x${string}`,
+      abi: CHAINCRAFT_GOVERNANCE_ABI,
       functionName: 'getProposal',
       args: [BigInt(proposalId)],
       query: {
-        enabled: !!contractAddresses?.PUMPFUN_GOVERNANCE && proposalId >= 0,
+        enabled: !!contractAddresses?.CHAINCRAFT_GOVERNANCE && proposalId >= 0,
       },
     });
 

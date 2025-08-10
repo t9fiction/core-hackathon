@@ -1,5 +1,5 @@
 // ChainCraft Factory Contract ABI
-export const PUMPFUN_FACTORY_ABI = [
+export const CHAINCRAFT_FACTORY_ABI = [
   { inputs: [], stateMutability: "nonpayable", type: "constructor" },
   {
     inputs: [{ internalType: "address", name: "owner", type: "address" }],

@@ -1,4 +1,4 @@
-export const PUMPFUN_GOVERNANCE_ABI = [
+export const CHAINCRAFT_GOVERNANCE_ABI = [
   { inputs: [], stateMutability: "nonpayable", type: "constructor" },
   {
     inputs: [{ internalType: "address", name: "owner", type: "address" }],
