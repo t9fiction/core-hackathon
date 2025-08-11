@@ -12,19 +12,19 @@ import GovernanceAirdropModule from "./ChainCraftGovernanceAirdrop";
  */
 const DeployWithSushiModule = buildModule("DeployWithSushi", (m) => {
   // Use environment variables or fallback to generic addresses for testing
-  const SUSHI_SWAP_ROUTER_SEPOLIA = process.env.SUSHI_SWAP_ROUTER || "0x93c31c9C729A249b2877F7699e178F4720407733";
-  const SUSHI_POSITION_MANAGER_SEPOLIA = process.env.SUSHI_POSITION_MANAGER || "0x544bA588efD839d2692Fc31EA991cD39993c135F";
-  const SUSHI_V3_FACTORY_SEPOLIA = process.env.SUSHI_FACTORY || "0x1f2FCf1d036b375b384012e61D3AA33F8C256bbE";
-  const SUSHI_QUOTER_V2_SEPOLIA = process.env.UNISWAP_V2_QUOTER || "0x039e87AB90205F9d87c5b40d4B28e2Be45dA4a20";
-  const WETH_SEPOLIA = process.env.WETH_ADDRESS || "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
+  const SUSHI_SWAP_ROUTER = "0x3ced11c610556e5292fbc2e75d68c3899098c14c";
+  const SUSHI_POSITION_MANAGER = "0xf4d73326c13a4fc5fd7a064217e12780e9bd62c3";
+  const SUSHI_V3_FACTORY = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4";
+  const SUSHI_QUOTER_V2 = "";
+  const WCORE = "0x40375c92d9faf44d2f9db9bd9ba41a3317a2404f";
 
   // Deploy core infrastructure with SushiSwap integration
   const pumpFunDEXManager = m.contract("ChainCraftDEXManager", [
-    SUSHI_SWAP_ROUTER_SEPOLIA,
-    SUSHI_POSITION_MANAGER_SEPOLIA,
-    SUSHI_V3_FACTORY_SEPOLIA,
-    SUSHI_QUOTER_V2_SEPOLIA,
-    WETH_SEPOLIA,
+    SUSHI_SWAP_ROUTER,
+    SUSHI_POSITION_MANAGER,
+    SUSHI_V3_FACTORY,
+    SUSHI_QUOTER_V2,
+    WCORE,
   ]);
 
   // Deploy ChainCraftFactoryLite
