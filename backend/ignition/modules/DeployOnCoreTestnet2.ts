@@ -21,7 +21,7 @@ const CORE_TESTNET2_CONFIG = {
  * - Uses WCORE as the wrapped native token
  * - Configured for Core testnet2 DEX infrastructure
  */
-const DeployOnCoreTestnet2 = buildModule("DeployOnCoreTestnet2", (m: any) => {
+const DeployOnCoreTestnet2 = buildModule("DeployOnCoreTestnet2", (m) => {
   console.log("Deploying ChainCraft Protocol on Core Testnet2...");
   console.log("WCORE Address:", CORE_TESTNET2_CONFIG.WETH);
 
@@ -57,9 +57,7 @@ const DeployOnCoreTestnet2 = buildModule("DeployOnCoreTestnet2", (m: any) => {
     dexManager,
     // Governance infrastructure 
     governance,
-    airdrop,
-    // Configuration used
-    config: CORE_TESTNET2_CONFIG
+    airdrop
   };
 });
 

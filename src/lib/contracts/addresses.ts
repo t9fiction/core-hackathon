@@ -47,7 +47,7 @@ export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
     CHAINCRAFT_GOVERNANCE: '0x44652C54bD053fB339912a2Ce28030Fda19edFd9', // Replace with actual deployed address on Core
     CHAINCRAFT_DEX_MANAGER: '0x8BA9a1E63b82DEB901b1311aD293B4039142Ea60', // Replace with actual deployed address on Core
     CHAINCRAFT_AIRDROP: '0x102A628D8a53a997F5aE6d9182255BBC54e8ccb6', // Replace with actual deployed address on Core
-    WETH: '0x40375C92d9FAf44d2f9db9Bd9ba41a3317a2404f', // WCORE on Core DAO
+    WETH: '0xeab3ac417c4d6df6b143346a46fee1b847b50296', // WCORE on Core DAO (SushiSwap compatible)
   },
   // Core DAO Testnet2 (matches hardhat config)
   1114: {

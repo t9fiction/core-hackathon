@@ -150,17 +150,16 @@ export const BuySellTokens = ({
     setIsLoading(true);
     
     try {
-      const amountIn = parseEther(buyAmount);
-      const slippageTolerance = 500n; // 5% slippage in basis points (500 = 5%)
-      console.log("Slippage Tolerance:", slippageTolerance);
-      
-      await writeContract({
-        address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-        abi: CHAINCRAFT_DEX_MANAGER_ABI,
-        functionName: 'swapExactETHForTokensWithSlippage',
-        args: [tokenAddress, 3000, slippageTolerance],
-        value: amountIn,
-      });
+        const amountIn = parseEther(buyAmount);
+        const slippageTolerance = 500n; // 5% slippage in basis points (500 = 5%)
+        
+        await writeContract({
+          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+          abi: CHAINCRAFT_DEX_MANAGER_ABI,
+          functionName: 'swapExactETHForTokensWithSlippage',
+          args: [tokenAddress, 3000, slippageTolerance],
+          value: amountIn,
+        });
       
       setBuyAmount('');
     } catch (error: any) {
@@ -201,23 +200,20 @@ export const BuySellTokens = ({
     setIsLoading(true);
     
     try {
-      // First approve tokens if needed
-      // if (needsApproval) {
+        // First approve tokens if needed
         await handleApproveToken(sellAmount);
         // Wait a bit for the approval to be processed
         await new Promise(resolve => setTimeout(resolve, 2000));
-      // }
-      
-      const amountIn = parseEther(sellAmount);
-      const slippageTolerance = 500n; // 5% slippage in basis points (500 = 5%)
-      console.log("Slippage Tolerance:", slippageTolerance);
-      
-      await writeContract({
-        address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-        abi: CHAINCRAFT_DEX_MANAGER_ABI,
-        functionName: 'swapExactTokensForETHWithSlippage',
-        args: [tokenAddress, 3000, amountIn, slippageTolerance],
-      });
+        
+        const amountIn = parseEther(sellAmount);
+        const slippageTolerance = 500n; // 5% slippage in basis points (500 = 5%)
+        
+        await writeContract({
+          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+          abi: CHAINCRAFT_DEX_MANAGER_ABI,
+          functionName: 'swapExactTokensForETHWithSlippage',
+          args: [tokenAddress, 3000, amountIn, slippageTolerance],
+        });
       
       setSellAmount('');
     } catch (error: any) {
