@@ -38,9 +38,9 @@ export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
   },
   // Core DAO Mainnet
   1116: {
-    CHAINCRAFT_FACTORY: '0x322ae249923d378a7a92Cc58C578DaC6270d6b4b', // ChainCraftFactoryLite - Core DAO mainnet
-    CHAINCRAFT_GOVERNANCE: '0x293dd95dC7A8Ce74dFF03DE130b16d9748b90d29', // ChainCraftGovernance - Core DAO mainnet
-    CHAINCRAFT_DEX_MANAGER: '0x795132570275CF47c2f0641e7ed36e81Fc6bF244', // ChainCraftDEXManager - Core DAO mainnet (updated with new WCORE)
+    CHAINCRAFT_FACTORY: '0x6C38Fdd5263175738eA4bA775f7dC1a446fFe00F', // NEW ChainCraftFactoryLite - Core DAO mainnet
+    CHAINCRAFT_GOVERNANCE: '0x9995d8A4a5E58fA9e179c00a73384dd0f78AcaDB', // NEW ChainCraftGovernance - Core DAO mainnet
+    CHAINCRAFT_DEX_MANAGER: '0x795132570275CF47c2f0641e7ed36e81Fc6bF244', // ChainCraftDEXManager - Core DAO mainnet (keep existing)
     WETH: '0x40375c92d9faf44d2f9db9bd9ba41a3317a2404f', // WCORE on Core DAO (SushiSwap compatible) - CORRECTED ADDRESS
   },
   // Core DAO Testnet2 (matches hardhat config)

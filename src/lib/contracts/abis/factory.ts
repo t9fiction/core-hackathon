@@ -149,56 +149,6 @@ export const CHAINCRAFT_FACTORY_ABI = [
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "oldManager",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "newManager",
-        "type": "address"
-      }
-    ],
-    "name": "DEXManagerUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "pair",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "tokenAmount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "ethAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "DEXPoolCreated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": false,
         "internalType": "uint256",
         "name": "oldFee",
@@ -250,25 +200,6 @@ export const CHAINCRAFT_FACTORY_ABI = [
       }
     ],
     "name": "OwnershipTransferred",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "token",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "creator",
-        "type": "address"
-      }
-    ],
-    "name": "TokenAuthorizedForTrading",
     "type": "event"
   },
   {
@@ -551,19 +482,6 @@ export const CHAINCRAFT_FACTORY_ABI = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "tokenAddress",
-        "type": "address"
-      }
-    ],
-    "name": "authorizeDEXTrading",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
         "name": "",
         "type": "address"
       },
@@ -611,19 +529,6 @@ export const CHAINCRAFT_FACTORY_ABI = [
       }
     ],
     "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "dexManager",
-    "outputs": [
-      {
-        "internalType": "contract ChainCraftDEXManager",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1018,19 +923,6 @@ export const CHAINCRAFT_FACTORY_ABI = [
   {
     "inputs": [],
     "name": "renounceOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address payable",
-        "name": "_dexManager",
-        "type": "address"
-      }
-    ],
-    "name": "setDEXManager",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

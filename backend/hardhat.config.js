@@ -50,12 +50,12 @@ module.exports = {
       accounts: [PRIVATE_KEY],
     },
     core_mainnet: {
-      url: "https://rpc.coredao.org/",
+      url: "https://1rpc.io/core",
       accounts: [MAIN_PRIVATE_KEY],
       chainId: 1116,
-      gasPrice: 60000000000, // 60 gwei (includes priority fee)
+      gasPrice: 20000000000, // 20 gwei
       gas: 8000000,
-      timeout: 60000,
+      timeout: 120000, // 2 minutes timeout
     },
     core_testnet2: {
       url: "https://rpc.test2.btcs.network",
@@ -69,11 +69,14 @@ module.exports = {
       maxPriorityFeePerGas: 1000000000, // 1 gwei (minimum required)
     },
   },
+  sourcify: {
+    enabled: true
+  },
   etherscan: {
     apiKey: {
       sepolia: ETHERSCAN_API_KEY,
       ...(CORE_TESTNET_API_KEY && { core_testnet2: CORE_TESTNET_API_KEY }),
-      ...(CORE_MAINNET_API_KEY && { core_mainnet: CORE_MAINNET_API_KEY }),
+      core_mainnet: CORE_MAINNET_API_KEY || "dummy-key",
     },
     customChains: [
       {

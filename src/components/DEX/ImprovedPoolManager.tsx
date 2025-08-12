@@ -90,6 +90,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
   const [currentStep, setCurrentStep] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [liquidityExecuted, setLiquidityExecuted] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -159,6 +160,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     setIsProcessing(true);
     setError(null);
     setSuccess(null);
+    setLiquidityExecuted(false); // Reset execution flag
     
     try {
       // Check if we need token approval first
@@ -196,6 +198,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     setIsProcessing(true);
     setError(null);
     setSuccess(null);
+    setLiquidityExecuted(false); // Reset execution flag
     
     try {
       // Check if we need approval first
@@ -327,10 +330,11 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
   }, [isAuthSuccess, tokenAddress, formData.tokenAmount, sushiV2Addresses?.router, writeApproval]);
 
   useEffect(() => {
-    if (isApprovalSuccess) {
+    if (isApprovalSuccess && !liquidityExecuted) {
       refetchAllowance();
       if (pairExists) {
         // If pool exists, proceed directly to add liquidity
+        setLiquidityExecuted(true);
         setTimeout(() => proceedToAddLiquidity(), 1000);
       } else {
         // If pool doesn't exist, create it first
@@ -338,17 +342,18 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
         setTimeout(() => createPairOnly(), 1000);
       }
     }
-  }, [isApprovalSuccess, pairExists, refetchAllowance]);
+  }, [isApprovalSuccess, pairExists, refetchAllowance, liquidityExecuted]);
 
   useEffect(() => {
-    if (isCreateSuccess) {
+    if (isCreateSuccess && !liquidityExecuted) {
       setCurrentStep("Pool created! Adding initial liquidity...");
+      setLiquidityExecuted(true);
       // Refetch pair info to update UI state
       refetchPairInfo();
       // Auto-proceed to add liquidity after creating pair
       setTimeout(() => proceedToAddLiquidity(), 1000);
     }
-  }, [isCreateSuccess, refetchPairInfo]);
+  }, [isCreateSuccess, refetchPairInfo, liquidityExecuted]);
 
   useEffect(() => {
     if (isLiquiditySuccess) {
