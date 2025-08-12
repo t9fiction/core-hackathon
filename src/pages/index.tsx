@@ -19,11 +19,11 @@ const ChainCraftApp = () => {
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
 
   const handleTokenSelect = (tokenAddress: string) => {
-    // We'll need to fetch token details when selected
+    // Don't set Loading... placeholders - let the modal fetch the data itself
     setSelectedToken({
       address: tokenAddress,
-      name: 'Loading...',
-      symbol: 'Loading...'
+      name: '', // Empty string instead of Loading...
+      symbol: '' // Empty string instead of Loading...
     });
     setIsTradeModalOpen(true);
   };

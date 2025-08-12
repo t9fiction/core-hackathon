@@ -48,8 +48,8 @@ const PublicTokenListing: React.FC<PublicTokenListingProps> = ({ onSelectToken }
     setIsLoadingDetails(true);
     const initialDetails: TokenInfo[] = (allTokens as Address[]).map(address => ({
       address,
-      name: 'Loading...',
-      symbol: 'Loading...',
+      name: '',
+      symbol: '',
       creator: '0x...',
       deploymentTime: BigInt(0),
       totalSupply: '0',
@@ -312,8 +312,16 @@ const TokenCard: React.FC<TokenCardProps> = ({ token, onSelect, onDataUpdate }) 
     return 'from-slate-600 to-slate-700';
   };
 
-  const displayName = tokenName as string || 'Loading...';
-  const displaySymbol = tokenSymbol as string || '...';
+  const displayName = tokenName as string || 'Token';
+  const displaySymbol = tokenSymbol as string || 'TOKEN';
+
+  // Generate proper initials for display
+  const getDisplayInitials = (symbol: string) => {
+    if (!symbol || symbol === 'TOKEN') {
+      return '?';
+    }
+    return symbol.slice(0, 2).toUpperCase();
+  };
 
   return (
     <div className="group bg-slate-700 border border-slate-600 rounded-lg hover:border-slate-500 hover:shadow-lg hover:scale-105 transition-all duration-300 overflow-hidden">
@@ -331,7 +339,7 @@ const TokenCard: React.FC<TokenCardProps> = ({ token, onSelect, onDataUpdate }) 
           <div className="relative z-10 text-center">
             <div className="w-12 h-12 bg-white/25 rounded-xl flex items-center justify-center mb-2 mx-auto backdrop-blur-sm">
               <span className="text-lg font-bold text-white">
-                {displaySymbol.slice(0, 2).toUpperCase()}
+                {getDisplayInitials(displaySymbol)}
               </span>
             </div>
             <p className="text-white font-medium text-sm">${displaySymbol}</p>

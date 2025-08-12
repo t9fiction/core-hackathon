@@ -411,16 +411,16 @@ const DEXPage = () => {
     if (token) {
       setSelectedTokenForTrade({
         address: tokenAddress,
-        name: token.name || 'Loading...',
-        symbol: token.symbol || '...',
+        name: token.name || '',
+        symbol: token.symbol || '',
       });
       setIsTradeModalOpen(true);
     } else {
-      // If token details not available, set with placeholder data
+      // If token details not available, set with empty strings
       setSelectedTokenForTrade({
         address: tokenAddress,
-        name: 'Loading...',
-        symbol: '...',
+        name: '',
+        symbol: '',
       });
       setIsTradeModalOpen(true);
     }

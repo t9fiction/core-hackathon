@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Address } from 'viem';
+import { useReadContract } from 'wagmi';
+import { CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
 import { BuySellTokens } from '../BuySellTokens/BuySellTokens';
 
 interface TokenTradeModalProps {
@@ -20,6 +22,42 @@ const TokenTradeModal: React.FC<TokenTradeModalProps> = ({
   onTransactionComplete
 }) => {
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
+
+  // Fetch token data directly from contract
+  const { data: contractTokenName } = useReadContract({
+    address: tokenAddress as Address,
+    abi: CHAINCRAFT_TOKEN_ABI,
+    functionName: 'name',
+    query: {
+      enabled: !!tokenAddress && isOpen,
+    },
+  });
+
+  const { data: contractTokenSymbol } = useReadContract({
+    address: tokenAddress as Address,
+    abi: CHAINCRAFT_TOKEN_ABI,
+    functionName: 'symbol',
+    query: {
+      enabled: !!tokenAddress && isOpen,
+    },
+  });
+
+  // Use contract data if props are empty or still loading
+  const displayName = tokenName && tokenName !== 'Loading...' && tokenName !== '' 
+    ? tokenName 
+    : (contractTokenName as string) || 'Token';
+  
+  const displaySymbol = tokenSymbol && tokenSymbol !== 'Loading...' && tokenSymbol !== '' 
+    ? tokenSymbol 
+    : (contractTokenSymbol as string) || 'TOKEN';
+
+  // Generate display initials for avatar
+  const getDisplayInitials = (symbol: string) => {
+    if (!symbol || symbol === 'TOKEN' || symbol === 'Loading...') {
+      return '?';
+    }
+    return symbol.slice(0, 2).toUpperCase();
+  };
 
   // Close modal with Escape key
   useEffect(() => {
@@ -63,12 +101,12 @@ const TokenTradeModal: React.FC<TokenTradeModalProps> = ({
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 bg-slate-700 border border-slate-600 rounded-lg flex items-center justify-center">
                 <span className="text-lg font-bold text-white">
-                  {tokenSymbol.slice(0, 2).toUpperCase()}
+                  {getDisplayInitials(displaySymbol)}
                 </span>
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white">{tokenName}</h2>
-                <p className="text-sm text-slate-400">${tokenSymbol}</p>
+                <h2 className="text-xl font-semibold text-white">{displayName}</h2>
+                <p className="text-sm text-slate-400">${displaySymbol}</p>
               </div>
             </div>
             
@@ -93,7 +131,7 @@ const TokenTradeModal: React.FC<TokenTradeModalProps> = ({
                     : 'text-slate-300 hover:text-white hover:bg-slate-600'
                 }`}
               >
-                Buy {tokenSymbol}
+                Buy {displaySymbol}
               </button>
               <button
                 onClick={() => setActiveTab('sell')}
@@ -103,7 +141,7 @@ const TokenTradeModal: React.FC<TokenTradeModalProps> = ({
                     : 'text-slate-300 hover:text-white hover:bg-slate-600'
                 }`}
               >
-                Sell {tokenSymbol}
+                Sell {displaySymbol}
               </button>
             </div>
           </div>
@@ -112,8 +150,8 @@ const TokenTradeModal: React.FC<TokenTradeModalProps> = ({
           <div className="p-6">
             <BuySellTokens
               tokenAddress={tokenAddress as Address}
-              tokenName={tokenName}
-              tokenSymbol={tokenSymbol}
+              tokenName={displayName}
+              tokenSymbol={displaySymbol}
               defaultTab={activeTab}
               onTabChange={(tab) => setActiveTab(tab as 'buy' | 'sell')}
               embedded={true}
