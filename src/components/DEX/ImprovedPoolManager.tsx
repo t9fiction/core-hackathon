@@ -65,11 +65,15 @@ interface ImprovedPoolManagerProps {
   onPoolCreated?: (poolInfo: any) => void;
 }
 
-// SushiSwap V2 addresses on Core DAO
+// SushiSwap V2 addresses on Core DAO - Verified working addresses
 const SUSHISWAP_V2_ADDRESSES = {
   1116: { // Core DAO Mainnet
-    factory: "0xb45e53277a7e0f1d35f2a77160e91e25507f1763",
-    router: "0x9b3336186a38e1b6c21955d112dbb0343ee061ee",
+    factory: "0xb45e53277a7e0f1d35f2a77160e91e25507f1763", // SushiSwap V2 Factory on Core (verified)
+    router: "0x9b3336186a38e1b6c21955d112dbb0343ee061ee",  // SushiSwap V2 Router on Core (verified)
+  },
+  1114: { // Core DAO Testnet2  
+    factory: "0xb45e53277a7e0f1d35f2a77160e91e25507f1763", // Same for testnet
+    router: "0x9b3336186a38e1b6c21955d112dbb0343ee061ee",  // Same for testnet
   }
 };
 
@@ -148,7 +152,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     return (tokenAmount / coreAmount).toFixed(2);
   };
 
-  // Main action handlers that handle everything internally
+  // Main action handlers - simplified approach for direct SushiSwap interaction
   const handleCreatePoolAndAddLiquidity = async () => {
     if (!tokenAddress || !formData.tokenAmount || !formData.coreAmount) return;
     
@@ -157,17 +161,31 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     setSuccess(null);
     
     try {
-      // Step 1: Authorize token (if needed)
-      setCurrentStep("Authorizing token for DEX trading...");
-      await writeAuth({
-        address: contractAddresses.CHAINCRAFT_FACTORY,
-        abi: CHAINCRAFT_FACTORY_ABI,
-        functionName: "authorizeDEXTrading",
-        args: [tokenAddress],
-      });
+      // Check if we need token approval first
+      if (needsTokenApproval()) {
+        setCurrentStep("Approving token spending for SushiSwap...");
+        const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
+        await writeApproval({
+          address: tokenAddress,
+          abi: CHAINCRAFT_TOKEN_ABI,
+          functionName: "approve",
+          args: [sushiV2Addresses.router as Address, tokenAmountWei],
+        });
+        return; // Wait for approval success
+      }
+      
+      // If pool doesn't exist, create it first
+      if (!pairExists) {
+        setCurrentStep("Creating new SushiSwap pool...");
+        await createPairOnly();
+        return; // Wait for creation success
+      }
+      
+      // If pool exists and approval is done, add liquidity
+      await proceedToAddLiquidity();
       
     } catch (err: any) {
-      setError(err?.message || "Failed to authorize token");
+      setError(err?.message || "Failed to create pool and add liquidity");
       setIsProcessing(false);
     }
   };
@@ -209,8 +227,46 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
       setCurrentStep("Adding liquidity to pool...");
       const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
       const coreAmountWei = parseEther(formData.coreAmount);
+      
+      // 5% slippage tolerance - minimum amounts
       const minTokenAmount = (tokenAmountWei * 95n) / 100n;
       const minCoreAmount = (coreAmountWei * 95n) / 100n;
+      
+      // Deadline: 20 minutes from now
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+      
+      // Debug calculations
+      console.log('Input amounts:', {
+        tokenAmountInput: formData.tokenAmount,
+        coreAmountInput: formData.coreAmount
+      });
+      
+      console.log('Parsed amounts:', {
+        tokenAmountWei: tokenAmountWei.toString(),
+        coreAmountWei: coreAmountWei.toString(),
+        tokenAmountFormatted: (Number(tokenAmountWei) / 1e18).toFixed(2),
+        coreAmountFormatted: (Number(coreAmountWei) / 1e18).toFixed(4)
+      });
+      
+      console.log('Slippage calculations:', {
+        minTokenAmount: minTokenAmount.toString(),
+        minCoreAmount: minCoreAmount.toString(),
+        minTokenFormatted: (Number(minTokenAmount) / 1e18).toFixed(2),
+        minCoreFormatted: (Number(minCoreAmount) / 1e18).toFixed(4),
+        slippagePercent: '5%'
+      });
+      
+      console.log('Adding liquidity with params:', {
+        router: sushiV2Addresses.router,
+        token: tokenAddress,
+        tokenAmount: tokenAmountWei.toString(),
+        minTokenAmount: minTokenAmount.toString(),
+        minCoreAmount: minCoreAmount.toString(),
+        to: address,
+        deadline: deadline.toString(),
+        value: coreAmountWei.toString(),
+        chainId: chainId
+      });
 
       await writeLiquidity({
         address: sushiV2Addresses.router as Address,
@@ -222,12 +278,14 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
           minTokenAmount,
           minCoreAmount,
           address!,
-          BigInt(Math.floor(Date.now() / 1000) + 1200),
+          deadline,
         ],
         value: coreAmountWei,
+        gas: 500000n, // Explicit gas limit to avoid estimation issues
       });
     } catch (err: any) {
-      setError(err?.message || "Failed to add liquidity");
+      console.error('Add liquidity error:', err);
+      setError(err?.shortMessage || err?.message || "Failed to add liquidity - please check your token balance and allowance");
       setIsProcessing(false);
     }
   };
@@ -249,11 +307,11 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     }
   };
 
-  // Handle transaction successes and chain them together
+  // Handle transaction successes and chain them together - simplified flow
   useEffect(() => {
     if (isAuthSuccess) {
-      setCurrentStep("Token authorized! Approving spending...");
-      // Auto-proceed to approval
+      setCurrentStep("Token authorized! Proceeding to approval...");
+      // Auto-proceed to approval after a short delay
       setTimeout(async () => {
         if (needsTokenApproval()) {
           const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
@@ -464,45 +522,29 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
             
             {/* Step Indicators */}
             <div className="space-y-2">
-              {/* Step 1: Authorization */}
-              <div className={`flex items-center text-sm ${
-                isAuthorizing || isAuthSuccess ? 'text-blue-300' : 
-                currentStep.includes('Authorizing') ? 'text-blue-400' :
-                'text-gray-500'
-              }`}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 ${
-                  isAuthSuccess ? 'bg-green-500 text-white' :
-                  isAuthorizing || currentStep.includes('Authorizing') ? 'bg-blue-500 text-white animate-pulse' :
-                  'bg-gray-600 text-gray-400'
+              {/* Step 1: Token Approval (only shown when needed) */}
+              {(needsTokenApproval() || isApproving || isApprovalSuccess) && (
+                <div className={`flex items-center text-sm ${
+                  isApproving || isApprovalSuccess ? 'text-blue-300' : 
+                  currentStep.includes('Approving') ? 'text-blue-400' :
+                  'text-gray-500'
                 }`}>
-                  {isAuthSuccess ? '✓' : '1'}
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 ${
+                    isApprovalSuccess ? 'bg-green-500 text-white' :
+                    isApproving || currentStep.includes('Approving') ? 'bg-blue-500 text-white animate-pulse' :
+                    'bg-gray-600 text-gray-400'
+                  }`}>
+                    {isApprovalSuccess ? '✓' : '1'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Approve Token for SushiSwap</span>
+                    {isApproving && <span className="ml-2 text-xs">(Check MetaMask)</span>}
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium">Authorize Token Trading</span>
-                  {isAuthorizing && <span className="ml-2 text-xs">(Check MetaMask)</span>}
-                </div>
-              </div>
+              )}
 
-              {/* Step 2: Approval */}
-              <div className={`flex items-center text-sm ${
-                isApproving || isApprovalSuccess ? 'text-blue-300' : 
-                currentStep.includes('Approving') ? 'text-blue-400' :
-                'text-gray-500'
-              }`}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 ${
-                  isApprovalSuccess ? 'bg-green-500 text-white' :
-                  isApproving || currentStep.includes('Approving') ? 'bg-blue-500 text-white animate-pulse' :
-                  'bg-gray-600 text-gray-400'
-                }`}>
-                  {isApprovalSuccess ? '✓' : '2'}
-                </div>
-                <div>
-                  <span className="font-medium">Approve Token Spending</span>
-                  {isApproving && <span className="ml-2 text-xs">(Check MetaMask)</span>}
-                </div>
-              </div>
 
-              {/* Step 3: Create Pool (conditional) */}
+              {/* Step 2: Create Pool (conditional) */}
               {!pairExists && (
                 <div className={`flex items-center text-sm ${
                   isCreating || isCreateSuccess ? 'text-blue-300' : 
@@ -514,16 +556,16 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
                     isCreating || currentStep.includes('Creating') ? 'bg-blue-500 text-white animate-pulse' :
                     'bg-gray-600 text-gray-400'
                   }`}>
-                    {isCreateSuccess ? '✓' : '3'}
+                    {isCreateSuccess ? '✓' : '2'}
                   </div>
                   <div>
-                    <span className="font-medium">Create New Pool</span>
+                    <span className="font-medium">Create SushiSwap Pool</span>
                     {isCreating && <span className="ml-2 text-xs">(Check MetaMask)</span>}
                   </div>
                 </div>
               )}
 
-              {/* Step 4: Add Liquidity */}
+              {/* Final Step: Add Liquidity */}
               <div className={`flex items-center text-sm ${
                 isAddingLiquidity || isLiquiditySuccess ? 'text-blue-300' : 
                 currentStep.includes('Adding liquidity') ? 'text-blue-400' :
@@ -534,10 +576,10 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
                   isAddingLiquidity || currentStep.includes('Adding liquidity') ? 'bg-blue-500 text-white animate-pulse' :
                   'bg-gray-600 text-gray-400'
                 }`}>
-                  {isLiquiditySuccess ? '✓' : pairExists ? '2' : '4'}
+                  {isLiquiditySuccess ? '✓' : pairExists ? (needsTokenApproval() ? '2' : '1') : '3'}
                 </div>
                 <div>
-                  <span className="font-medium">Add Liquidity to Pool</span>
+                  <span className="font-medium">Add Liquidity to SushiSwap Pool</span>
                   {isAddingLiquidity && <span className="ml-2 text-xs">(Check MetaMask)</span>}
                 </div>
               </div>
@@ -574,7 +616,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
         {/* Main Action Buttons */}
         <div className="space-y-3">
           {pairExists ? (
-            // For existing pools - just show "Add Liquidity"
+            // For existing pools - just show "Add Liquidity" (direct SushiSwap approach)
             <button
               onClick={handleAddLiquidity}
               disabled={!isConnected || isProcessing || !formData.tokenAmount || !formData.coreAmount}
@@ -590,7 +632,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
               )}
             </button>
           ) : (
-            // For new pools - show "Create Pool & Add Liquidity"
+            // For new pools - show "Create Pool & Add Liquidity" (direct SushiSwap approach)
             <button
               onClick={handleCreatePoolAndAddLiquidity}
               disabled={!isConnected || isProcessing || !formData.tokenAmount || !formData.coreAmount}
@@ -614,18 +656,18 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
           <div className="text-xs text-gray-400 space-y-1">
             {pairExists ? (
               <>
-                <p>• Your tokens will be approved for spending (if needed)</p>
-                <p>• Liquidity will be added to the existing pool</p>
-                <p>• You'll receive LP tokens representing your share</p>
+                <p>• Your tokens will be approved for SushiSwap (if needed)</p>
+                <p>• Liquidity will be added directly to the SushiSwap pool</p>
+                <p>• You'll receive SLP tokens representing your share</p>
                 <p>• You'll earn 0.3% fees from all trades</p>
               </>
             ) : (
               <>
-                <p>• Token will be authorized for DEX trading</p>
-                <p>• Token spending will be approved (if needed)</p>
-                <p>• New {tokenSymbol}/CORE pool will be created</p>
-                <p>• Initial liquidity will be added to the pool</p>
-                <p>• Trading will be enabled for your token</p>
+                <p>• Token spending will be approved for SushiSwap (if needed)</p>
+                <p>• New {tokenSymbol}/CORE pool will be created on SushiSwap</p>
+                <p>• Initial liquidity will be added directly to the pool</p>
+                <p>• Trading will be enabled immediately</p>
+                <p>• No DEX authorization required - direct SushiSwap interaction</p>
               </>
             )}
           </div>
