@@ -110,7 +110,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
   const { isSuccess: isLiquiditySuccess } = useWaitForTransactionReceipt({ hash: liquidityHash });
 
   // Check if pair already exists
-  const { data: existingPair, isLoading: isCheckingPair } = useReadContract({
+  const { data: existingPair, isLoading: isCheckingPair, refetch: refetchPairInfo } = useReadContract({
     address: sushiV2Addresses?.factory as Address,
     abi: SUSHISWAP_V2_FACTORY_ABI,
     functionName: "getPair",
@@ -285,10 +285,12 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
   useEffect(() => {
     if (isCreateSuccess) {
       setCurrentStep("Pool created! Adding initial liquidity...");
+      // Refetch pair info to update UI state
+      refetchPairInfo();
       // Auto-proceed to add liquidity after creating pair
       setTimeout(() => proceedToAddLiquidity(), 1000);
     }
-  }, [isCreateSuccess]);
+  }, [isCreateSuccess, refetchPairInfo]);
 
   useEffect(() => {
     if (isLiquiditySuccess) {
@@ -452,13 +454,106 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
           </div>
         </div>
 
-        {/* Current Step Display */}
-        {isProcessing && currentStep && (
-          <div className="p-3 bg-blue-900/50 border border-blue-500 rounded-lg mb-4">
-            <p className="text-blue-300 text-sm flex items-center">
+        {/* Transaction Progress Display */}
+        {isProcessing && (
+          <div className="p-4 bg-blue-900/30 border border-blue-500/50 rounded-lg mb-4">
+            <h4 className="text-blue-200 font-semibold mb-3 flex items-center">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400 mr-2"></div>
-              {currentStep}
-            </p>
+              Transaction in Progress
+            </h4>
+            
+            {/* Step Indicators */}
+            <div className="space-y-2">
+              {/* Step 1: Authorization */}
+              <div className={`flex items-center text-sm ${
+                isAuthorizing || isAuthSuccess ? 'text-blue-300' : 
+                currentStep.includes('Authorizing') ? 'text-blue-400' :
+                'text-gray-500'
+              }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 ${
+                  isAuthSuccess ? 'bg-green-500 text-white' :
+                  isAuthorizing || currentStep.includes('Authorizing') ? 'bg-blue-500 text-white animate-pulse' :
+                  'bg-gray-600 text-gray-400'
+                }`}>
+                  {isAuthSuccess ? '✓' : '1'}
+                </div>
+                <div>
+                  <span className="font-medium">Authorize Token Trading</span>
+                  {isAuthorizing && <span className="ml-2 text-xs">(Check MetaMask)</span>}
+                </div>
+              </div>
+
+              {/* Step 2: Approval */}
+              <div className={`flex items-center text-sm ${
+                isApproving || isApprovalSuccess ? 'text-blue-300' : 
+                currentStep.includes('Approving') ? 'text-blue-400' :
+                'text-gray-500'
+              }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 ${
+                  isApprovalSuccess ? 'bg-green-500 text-white' :
+                  isApproving || currentStep.includes('Approving') ? 'bg-blue-500 text-white animate-pulse' :
+                  'bg-gray-600 text-gray-400'
+                }`}>
+                  {isApprovalSuccess ? '✓' : '2'}
+                </div>
+                <div>
+                  <span className="font-medium">Approve Token Spending</span>
+                  {isApproving && <span className="ml-2 text-xs">(Check MetaMask)</span>}
+                </div>
+              </div>
+
+              {/* Step 3: Create Pool (conditional) */}
+              {!pairExists && (
+                <div className={`flex items-center text-sm ${
+                  isCreating || isCreateSuccess ? 'text-blue-300' : 
+                  currentStep.includes('Creating') ? 'text-blue-400' :
+                  'text-gray-500'
+                }`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 ${
+                    isCreateSuccess ? 'bg-green-500 text-white' :
+                    isCreating || currentStep.includes('Creating') ? 'bg-blue-500 text-white animate-pulse' :
+                    'bg-gray-600 text-gray-400'
+                  }`}>
+                    {isCreateSuccess ? '✓' : '3'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Create New Pool</span>
+                    {isCreating && <span className="ml-2 text-xs">(Check MetaMask)</span>}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Add Liquidity */}
+              <div className={`flex items-center text-sm ${
+                isAddingLiquidity || isLiquiditySuccess ? 'text-blue-300' : 
+                currentStep.includes('Adding liquidity') ? 'text-blue-400' :
+                'text-gray-500'
+              }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs mr-3 ${
+                  isLiquiditySuccess ? 'bg-green-500 text-white' :
+                  isAddingLiquidity || currentStep.includes('Adding liquidity') ? 'bg-blue-500 text-white animate-pulse' :
+                  'bg-gray-600 text-gray-400'
+                }`}>
+                  {isLiquiditySuccess ? '✓' : pairExists ? '2' : '4'}
+                </div>
+                <div>
+                  <span className="font-medium">Add Liquidity to Pool</span>
+                  {isAddingLiquidity && <span className="ml-2 text-xs">(Check MetaMask)</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Current Action Description */}
+            {currentStep && (
+              <div className="mt-3 p-2 bg-blue-800/50 rounded text-xs text-blue-200">
+                <strong>Current:</strong> {currentStep}
+              </div>
+            )}
+
+            {/* MetaMask Help */}
+            <div className="mt-3 p-2 bg-yellow-900/30 border border-yellow-500/30 rounded text-xs text-yellow-200">
+              <strong>💡 Note:</strong> Each step requires a separate MetaMask confirmation. Please check your wallet when prompted.
+            </div>
           </div>
         )}
 

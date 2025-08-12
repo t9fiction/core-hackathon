@@ -103,7 +103,10 @@ const UniversalPoolManager: React.FC<UniversalPoolManagerProps> = ({
     address: sushiV2Addresses?.factory as Address,
     abi: SUSHISWAP_V2_FACTORY_ABI,
     functionName: "getPair",
-    args: [tokenAddress, contractAddresses.WETH],
+    args: [
+      tokenAddress as Address, 
+      contractAddresses.WETH as Address
+    ],
     query: {
       enabled: !!(tokenAddress && contractAddresses.WETH && sushiV2Addresses?.factory),
     },
