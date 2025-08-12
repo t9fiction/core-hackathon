@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 import "./ChainCraftToken.sol";
-import "./ChainCraftDEXManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -39,8 +38,6 @@ contract ChainCraftFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     );
     event EtherFeeUpdated(uint256 oldFee, uint256 newFee);
     event EtherWithdrawn(address indexed owner, uint256 amount);
-    event DEXPoolCreated(address indexed token, address indexed pair, uint256 tokenAmount, uint256 ethAmount);
-    event DEXManagerUpdated(address indexed oldManager, address indexed newManager);
     event TokensLocked(
         address indexed token,
         address indexed owner,
@@ -55,10 +52,6 @@ contract ChainCraftFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         address indexed owner,
         uint256 tokenAmount,
         uint256 ethAmount
-    );
-    event TokenAuthorizedForTrading(
-        address indexed token,
-        address indexed creator
     );
 
     // Structs
@@ -84,9 +77,6 @@ contract ChainCraftFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     uint256 public etherFee = 0.05 ether; // Base fee is now 0.05 ETH
     uint256 public constant MAX_FEE = 1 ether;
     uint256 public constant MIN_TOTAL_SUPPLY = 1000;
-
-    // DEX Integration
-    ChainCraftDEXManager public dexManager;
 
     // Tiered max supply limits
     uint256 public constant STANDARD_MAX_SUPPLY = 100000000; // 100M tokens
@@ -117,15 +107,6 @@ contract ChainCraftFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     uint256 public totalFeesCollected;
 
     constructor() Ownable(msg.sender) {}
-
-    /**
-     * @dev Set the DEX manager contract
-     */
-    function setDEXManager(address payable _dexManager) external onlyOwner {
-        address oldManager = address(dexManager);
-        dexManager = ChainCraftDEXManager(_dexManager);
-        emit DEXManagerUpdated(oldManager, _dexManager);
-    }
 
     /**
      * @dev Deploy a new simple token - all tokens minted to creator
@@ -163,21 +144,6 @@ contract ChainCraftFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
 
         emit TokenDeployed(name, symbol, tokenAddress, totalSupply, msg.sender, true);
         return tokenAddress;
-    }
-
-    /**
-     * @dev Authorize token for DEX trading - simplified version
-     */
-    function authorizeDEXTrading(address tokenAddress) external nonReentrant {
-        if (!isDeployedToken[tokenAddress]) revert ChainCraftFactoryLite__TokenNotDeployedByFactory();
-        if (address(dexManager) == address(0)) revert ChainCraftFactoryLite__InvalidParameters();
-        
-        // Only the token creator can authorize it for trading
-        if (tokenInfo[tokenAddress].creator != msg.sender) revert ChainCraftFactoryLite__NotTokenCreator();
-        
-        dexManager.authorizeTokenFromFactory(tokenAddress);
-        
-        emit TokenAuthorizedForTrading(tokenAddress, msg.sender);
     }
 
     /**

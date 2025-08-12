@@ -28,11 +28,6 @@ async function main() {
   
   const updates = [
     {
-      artifact: "./artifacts/contracts/ChainCraftDEXManager.sol/ChainCraftDEXManager.json",
-      output: "../src/lib/contracts/abis/dex.ts",
-      export: "CHAINCRAFT_DEX_MANAGER_ABI"
-    },
-    {
       artifact: "./artifacts/contracts/ChainCraftFactoryLite.sol/ChainCraftFactoryLite.json",
       output: "../src/lib/contracts/abis/factory.ts",
       export: "CHAINCRAFT_FACTORY_ABI"

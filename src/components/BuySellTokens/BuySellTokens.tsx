@@ -297,12 +297,21 @@ export const BuySellTokens = ({
       // Deadline: 20 minutes from now
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
       
-      console.log('Buying tokens with SushiSwap:', {
+      console.log('🟢 Attempting to buy tokens with SushiSwap:', {
+        chainId,
         amountIn: amountIn.toString(),
+        amountInFormatted: buyAmount + ' CORE',
         minAmountOut: minAmountOut.toString(),
+        minAmountOutFormatted: formatEther(minAmountOut) + ' ' + tokenSymbol,
         path,
+        pathFormatted: ['WCORE', tokenSymbol],
         deadline: deadline.toString(),
-        router: sushiV2Addresses.router
+        router: sushiV2Addresses.router,
+        factory: sushiV2Addresses.factory,
+        pairExists,
+        buyQuoteAvailable: !!(buyQuote && Array.isArray(buyQuote) && buyQuote.length > 1),
+        userAddress: address,
+        timestamp: new Date().toISOString()
       });
       
       await writeContract({
@@ -315,10 +324,19 @@ export const BuySellTokens = ({
       
       setBuyAmount('');
     } catch (error: any) {
-      console.error('Error buying tokens:', error);
+      console.error('🔴 Error buying tokens:', {
+        error,
+        chainId,
+        tokenAddress,
+        buyAmount,
+        pairExists,
+        sushiV2Addresses,
+        contractAddresses,
+        timestamp: new Date().toISOString()
+      });
       showErrorAlert(
         'Transaction Failed',
-        error.shortMessage || error.message || 'Failed to buy tokens via SushiSwap'
+        `Buy transaction failed: ${error.shortMessage || error.message || 'Unknown error'}\n\nCheck console for detailed error information.`
       );
     } finally {
       setIsLoading(false);
