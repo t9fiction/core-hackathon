@@ -26,6 +26,7 @@ contract ChainCraftFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     error ChainCraftFactoryLite__LockNotExpired();
     error ChainCraftFactoryLite__InvalidLockDuration();
     error ChainCraftFactoryLite__InsufficientTokenBalance();
+    error ChainCraftFactoryLite__NotTokenCreator();
 
     // Events
     event TokenDeployed(
@@ -54,6 +55,10 @@ contract ChainCraftFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
         address indexed owner,
         uint256 tokenAmount,
         uint256 ethAmount
+    );
+    event TokenAuthorizedForTrading(
+        address indexed token,
+        address indexed creator
     );
 
     // Structs
@@ -161,20 +166,18 @@ contract ChainCraftFactoryLite is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     /**
-     * @dev Create DEX pool - simplified version
+     * @dev Authorize token for DEX trading - simplified version
      */
-    function createDEXPool(address tokenAddress, uint256 tokenAmount, uint24 fee) external payable nonReentrant {
+    function authorizeDEXTrading(address tokenAddress) external nonReentrant {
         if (!isDeployedToken[tokenAddress]) revert ChainCraftFactoryLite__TokenNotDeployedByFactory();
         if (address(dexManager) == address(0)) revert ChainCraftFactoryLite__InvalidParameters();
-        if (msg.value == 0 || tokenAmount == 0) revert ChainCraftFactoryLite__InvalidTokenAmount();
         
-        IERC20(tokenAddress).transferFrom(msg.sender, address(this), tokenAmount);
-        IERC20(tokenAddress).approve(address(dexManager), tokenAmount);
+        // Only the token creator can authorize it for trading
+        if (tokenInfo[tokenAddress].creator != msg.sender) revert ChainCraftFactoryLite__NotTokenCreator();
+        
         dexManager.authorizeTokenFromFactory(tokenAddress);
-        dexManager.createLiquidityPoolWithETH{value: msg.value}(tokenAddress, fee, tokenAmount);
-
-        address wethToken = dexManager.WETH();
-        emit DEXPoolCreated(tokenAddress, wethToken, tokenAmount, msg.value);
+        
+        emit TokenAuthorizedForTrading(tokenAddress, msg.sender);
     }
 
     /**

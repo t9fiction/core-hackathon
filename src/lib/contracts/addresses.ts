@@ -43,11 +43,11 @@ export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
   },
   // Core DAO Mainnet
   1116: {
-    CHAINCRAFT_FACTORY: '0x17a9814BF9dDBd5ae3C245F668561068984Dd8a4', // Replace with actual deployed address on Core
-    CHAINCRAFT_GOVERNANCE: '0x44652C54bD053fB339912a2Ce28030Fda19edFd9', // Replace with actual deployed address on Core
-    CHAINCRAFT_DEX_MANAGER: '0x8BA9a1E63b82DEB901b1311aD293B4039142Ea60', // Replace with actual deployed address on Core
-    CHAINCRAFT_AIRDROP: '0x102A628D8a53a997F5aE6d9182255BBC54e8ccb6', // Replace with actual deployed address on Core
-    WETH: '0xeab3ac417c4d6df6b143346a46fee1b847b50296', // WCORE on Core DAO (SushiSwap compatible)
+    CHAINCRAFT_FACTORY: '0x322ae249923d378a7a92Cc58C578DaC6270d6b4b', // ChainCraftFactoryLite - Core DAO mainnet
+    CHAINCRAFT_GOVERNANCE: '0x293dd95dC7A8Ce74dFF03DE130b16d9748b90d29', // ChainCraftGovernance - Core DAO mainnet
+    CHAINCRAFT_DEX_MANAGER: '0x795132570275CF47c2f0641e7ed36e81Fc6bF244', // ChainCraftDEXManager - Core DAO mainnet (updated with new WCORE)
+    CHAINCRAFT_AIRDROP: '0x62db40167F6C51467ff7785F5618ae36De3B1bBb', // ChainCraftGovernanceAirdrop - Core DAO mainnet
+    WETH: '0x191e94fa59739e188dce837f7f6978d84727ad01', // WCORE on Core DAO (SushiSwap compatible)
   },
   // Core DAO Testnet2 (matches hardhat config)
   1114: {

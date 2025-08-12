@@ -1,8 +1,8 @@
 // This setup uses Hardhat Ignition to manage smart contract deployments.
 // Learn more about it at https://hardhat.org/ignition
 
-import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
-import GovernanceModule from "./ChainCraftGovernance";
+const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
+const GovernanceModule = require("./ChainCraftGovernance");
 
 /**
  * ChainCraft Governance Airdrop Contract Deployment Module
@@ -23,4 +23,4 @@ const GovernanceAirdropModule = buildModule("ChainCraftGovernanceAirdrop", (m) =
   return { airdrop, governance };
 });
 
-export default GovernanceAirdropModule;
+module.exports = GovernanceAirdropModule;

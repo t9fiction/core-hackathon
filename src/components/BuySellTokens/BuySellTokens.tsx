@@ -151,13 +151,14 @@ export const BuySellTokens = ({
     
     try {
         const amountIn = parseEther(buyAmount);
-        const slippageTolerance = 500n; // 5% slippage in basis points (500 = 5%)
+        // Generate route data (empty for now, RouteProcessor7 can handle simple swaps)
+        const routeData = '0x' as `0x${string}`;
         
         await writeContract({
           address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
           abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: 'swapExactETHForTokensWithSlippage',
-          args: [tokenAddress, 3000, slippageTolerance],
+          functionName: 'swapETHForTokens',
+          args: [tokenAddress, routeData],
           value: amountIn,
         });
       
@@ -206,13 +207,14 @@ export const BuySellTokens = ({
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         const amountIn = parseEther(sellAmount);
-        const slippageTolerance = 500n; // 5% slippage in basis points (500 = 5%)
+        // Generate route data (empty for now, RouteProcessor7 can handle simple swaps)
+        const routeData = '0x' as `0x${string}`;
         
         await writeContract({
           address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
           abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: 'swapExactTokensForETHWithSlippage',
-          args: [tokenAddress, 3000, amountIn, slippageTolerance],
+          functionName: 'swapTokensForETH',
+          args: [tokenAddress, amountIn, routeData],
         });
       
       setSellAmount('');

@@ -53,6 +53,9 @@ module.exports = {
       url: "https://rpc.coredao.org/",
       accounts: [MAIN_PRIVATE_KEY],
       chainId: 1116,
+      gasPrice: 60000000000, // 60 gwei (includes priority fee)
+      gas: 8000000,
+      timeout: 60000,
     },
     core_testnet2: {
       url: "https://rpc.test2.btcs.network",
@@ -72,5 +75,23 @@ module.exports = {
       ...(CORE_TESTNET_API_KEY && { core_testnet2: CORE_TESTNET_API_KEY }),
       ...(CORE_MAINNET_API_KEY && { core_mainnet: CORE_MAINNET_API_KEY }),
     },
+    customChains: [
+      {
+        network: "core_mainnet",
+        chainId: 1116,
+        urls: {
+          apiURL: "https://openapi.coredao.org/api",
+          browserURL: "https://scan.coredao.org"
+        }
+      },
+      {
+        network: "core_testnet2",
+        chainId: 1114,
+        urls: {
+          apiURL: "https://api.test2.btcs.network/api",
+          browserURL: "https://scan.test2.btcs.network"
+        }
+      }
+    ]
   },
 };

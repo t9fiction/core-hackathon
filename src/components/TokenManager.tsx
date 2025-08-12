@@ -259,16 +259,9 @@ const TokenManager = () => {
     const chainId = useChainId();
     const contractAddresses = getContractAddresses(chainId);
 
-    // Get token price for estimates
-    const { data: tokenPriceData } = useReadContract({
-      address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-      abi: CHAINCRAFT_DEX_MANAGER_ABI,
-      functionName: 'getTokenPrice',
-      args: [tokenAddress as Address],
-      query: {
-        enabled: !!tokenAddress
-      }
-    });
+    // Note: Token price calculation would need to be implemented separately
+    // as the current DEX Manager doesn't have a getTokenPrice function
+    const tokenPriceData = null;
 
     // Get token details
     const selectedTokenInfo = tokens.find(
@@ -459,20 +452,49 @@ const TokenManager = () => {
       if (!buyAmount || !tokenAddress) return;
       
       try {
-        const amountIn = parseEther(buyAmount);
+        const ethAmount = parseEther(buyAmount);
+        
+        // Import route calculation at the top of file if not already done
+        const { generateETHToTokenRoute, getEstimatedOutput, calculateMinOutput } = await import('../lib/dex/routeCalculation');
+        
+        // Calculate estimated output and minimum with 5% slippage
+        const estimatedOutput = getEstimatedOutput(
+          contractAddresses.WETH as Address,
+          tokenAddress as Address, 
+          ethAmount
+        );
+        const minOutput = calculateMinOutput(estimatedOutput, 5); // 5% slippage
+        
+        // Generate route for ETH to Token swap
+        const route = generateETHToTokenRoute(
+          tokenAddress as Address,
+          ethAmount,
+          minOutput,
+          address as Address,
+          contractAddresses.WETH as Address
+        );
+        
+        console.log('Buy tokens with route:', {
+          tokenOut: tokenAddress,
+          amountIn: ethAmount.toString(),
+          estimatedOutput: estimatedOutput.toString(),
+          minOutput: minOutput.toString(),
+          route
+        });
+        
         await writeContract({
           address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
           abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: 'swapExactETHForTokensWithSlippage',
-          args: [tokenAddress as Address, 3000, 500n], // 5% slippage
-          value: amountIn,
+          functionName: 'swapETHForTokens',
+          args: [tokenAddress as Address, route as Address],
+          value: ethAmount,
         });
         setBuyAmount('');
       } catch (error) {
         console.error('Error buying tokens:', error);
         showErrorAlert(
-          'Transaction Failed',
-          (error as any)?.message || 'Unknown error occurred while buying tokens'
+          'Swap Failed',
+          (error as any)?.message || 'Failed to execute token purchase. Please try again.'
         );
       }
     };
@@ -481,8 +503,7 @@ const TokenManager = () => {
       if (!sellAmount || !tokenAddress) return;
       
       try {
-        // First approve tokens if needed
-        const amountIn = parseEther(sellAmount);
+        const amountIn = parseUnits(sellAmount, 18);
         
         // Approve tokens to DEX Manager
         await writeContract({
@@ -495,19 +516,46 @@ const TokenManager = () => {
         // Wait a bit for approval
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Execute sell
+        // Import route calculation
+        const { generateTokenToETHRoute, getEstimatedOutput, calculateMinOutput } = await import('../lib/dex/routeCalculation');
+        
+        // Calculate estimated output and minimum with 5% slippage
+        const estimatedOutput = getEstimatedOutput(
+          tokenAddress as Address,
+          contractAddresses.WETH as Address,
+          amountIn
+        );
+        const minOutput = calculateMinOutput(estimatedOutput, 5); // 5% slippage
+        
+        // Generate route for Token to ETH swap
+        const route = generateTokenToETHRoute(
+          tokenAddress as Address,
+          amountIn,
+          minOutput,
+          address as Address,
+          contractAddresses.WETH as Address
+        );
+        
+        console.log('Sell tokens with route:', {
+          tokenIn: tokenAddress,
+          amountIn: amountIn.toString(),
+          estimatedOutput: estimatedOutput.toString(),
+          minOutput: minOutput.toString(),
+          route
+        });
+        
         await writeContract({
           address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
           abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: 'swapExactTokensForETHWithSlippage',
-          args: [tokenAddress as Address, 3000, amountIn, 500n], // 5% slippage
+          functionName: 'swapTokensForETH',
+          args: [tokenAddress as Address, amountIn, route as Address],
         });
         setSellAmount('');
       } catch (error) {
         console.error('Error selling tokens:', error);
         showErrorAlert(
-          'Transaction Failed',
-          (error as any)?.message || 'Unknown error occurred while selling tokens'
+          'Swap Failed',
+          (error as any)?.message || 'Failed to execute token sale. Please try again.'
         );
       }
     };
@@ -580,16 +628,12 @@ const TokenManager = () => {
                           You&apos;ll receive:
                         </span>
                         <span className="text-white font-medium">
-                          ~{buyAmount && tokenPriceData ? 
-                            ((parseFloat(buyAmount) * parseFloat(formatEther(parseEther('1')))) / parseFloat(formatEther(tokenPriceData[0] as bigint))).toFixed(2)
-                            : '0'} {selectedTokenInfo?.symbol}
+                          Price calculation disabled
                         </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Price:</span>
-                        <span>1 ETH = {tokenPriceData ? 
-                          (parseFloat(formatEther(parseEther('1'))) / parseFloat(formatEther(tokenPriceData[0] as bigint))).toFixed(0)
-                          : '0'} {selectedTokenInfo?.symbol}</span>
+                        <span>Note:</span>
+                        <span>Route calculation needed for accurate pricing</span>
                       </div>
                     </div>
                     <button
@@ -626,18 +670,12 @@ const TokenManager = () => {
                           You&apos;ll receive:
                         </span>
                         <span className="text-white font-medium">
-                          ~{sellAmount && tokenPriceData ? 
-                            ((parseFloat(sellAmount) * parseFloat(formatEther(tokenPriceData[0] as bigint))) / parseFloat(formatEther(parseEther('1')))).toFixed(6)
-                            : '0'} ETH
+                          Price calculation disabled
                         </span>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Price:</span>
-                        <span>
-                          1 {selectedTokenInfo?.symbol} = {tokenPriceData ? 
-                            (parseFloat(formatEther(tokenPriceData[0] as bigint)) / parseFloat(formatEther(parseEther('1')))).toFixed(8)
-                            : '0'} ETH
-                        </span>
+                        <span>Note:</span>
+                        <span>Route calculation needed for accurate pricing</span>
                       </div>
                     </div>
                     <button
@@ -1191,10 +1229,10 @@ const TokenManager = () => {
   }
 
   // Support both Sepolia (11155111) and Core testnet2 (1114)
-  const supportedChains = [11155111, 1114];
+  const supportedChains = [11155111, 1116];
   const networkNames = {
     11155111: 'Sepolia',
-    1114: 'Core Testnet2'
+    1114: 'Core DAO'
   };
   
   if (!supportedChains.includes(chainId)) {

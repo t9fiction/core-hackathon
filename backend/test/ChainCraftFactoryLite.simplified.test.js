@@ -23,9 +23,6 @@ describe("ChainCraftFactoryLite (Simplified)", function () {
         const MockDEXManager = await ethers.getContractFactory("ChainCraftDEXManager");
         dexManager = await MockDEXManager.deploy(
             addr1.address, // mock swap router
-            addr1.address, // mock position manager  
-            addr1.address, // mock uniswap factory
-            addr1.address, // mock quoter
             addr1.address  // mock WETH
         );
         await dexManager.waitForDeployment();
@@ -68,7 +65,7 @@ describe("ChainCraftFactoryLite (Simplified)", function () {
                     { value: deploymentFee }
                 )
             ).to.emit(factory, "TokenDeployed")
-            .withArgs(tokenName, tokenSymbol, tokenAddress, totalSupply, creator.address);
+            .withArgs(tokenName, tokenSymbol, tokenAddress, totalSupply, creator.address, true);
         });
 
         it("Should mint all tokens to creator", async function () {
@@ -274,48 +271,22 @@ describe("ChainCraftFactoryLite (Simplified)", function () {
             ).to.emit(factory, "DEXPoolCreated");
         });
 
-        it("Should revert if token not deployed by factory", async function () {
-            // Deploy token directly (not through factory)
-            const ChainCraftToken = await ethers.getContractFactory("ChainCraftToken");
-            const directToken = await ChainCraftToken.deploy(
-                "Direct Token",
-                "DIRECT",
-                1000000,
-                creator.address
-            );
-            await directToken.waitForDeployment();
-            
+        it("Should test DEX trading authorization", async function () {
+            // Test that only token creator can authorize for DEX trading
             await expect(
-                factory.connect(creator).createDEXPool(
-                    await directToken.getAddress(),
-                    tokenAmount,
-                    poolFee,
-                    { value: ethAmount }
-                )
-            ).to.be.revertedWithCustomError(factory, "ChainCraftFactoryLite__TokenNotDeployedByFactory");
+                factory.connect(creator).authorizeDEXTrading(tokenAddress)
+            ).to.emit(factory, "TokenAuthorizedForTrading")
+            .withArgs(tokenAddress, creator.address);
         });
 
-        it("Should revert with zero amounts", async function () {
+        it("Should prevent non-creator from authorizing DEX trading", async function () {
+            // Test that non-creator cannot authorize for DEX trading
             await expect(
-                factory.connect(creator).createDEXPool(
-                    tokenAddress,
-                    0,
-                    poolFee,
-                    { value: ethAmount }
-                )
-            ).to.be.revertedWithCustomError(factory, "ChainCraftFactoryLite__InvalidTokenAmount");
-
-            await expect(
-                factory.connect(creator).createDEXPool(
-                    tokenAddress,
-                    tokenAmount,
-                    poolFee,
-                    { value: 0 }
-                )
-            ).to.be.revertedWithCustomError(factory, "ChainCraftFactoryLite__InvalidTokenAmount");
+                factory.connect(addr1).authorizeDEXTrading(tokenAddress)
+            ).to.be.revertedWithCustomError(factory, "ChainCraftFactoryLite__NotTokenCreator");
         });
 
-        it("Should revert if DEX manager not set", async function () {
+        it("Should revert if DEX manager not set for authorization", async function () {
             // Deploy new factory without DEX manager
             const ChainCraftFactoryLite = await ethers.getContractFactory("ChainCraftFactoryLite");
             const factoryWithoutDEX = await ChainCraftFactoryLite.deploy();
@@ -333,13 +304,9 @@ describe("ChainCraftFactoryLite (Simplified)", function () {
             const event = receipt.logs.find(log => log.eventName === "TokenDeployed");
             const newTokenAddress = event.args[2];
             
+            // Should revert when trying to authorize DEX trading without DEX manager set
             await expect(
-                factoryWithoutDEX.connect(creator).createDEXPool(
-                    newTokenAddress,
-                    tokenAmount,
-                    poolFee,
-                    { value: ethAmount }
-                )
+                factoryWithoutDEX.connect(creator).authorizeDEXTrading(newTokenAddress)
             ).to.be.revertedWithCustomError(factoryWithoutDEX, "ChainCraftFactoryLite__InvalidParameters");
         });
     });

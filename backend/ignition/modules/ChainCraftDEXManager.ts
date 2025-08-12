@@ -8,25 +8,14 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 // Sepolia NonfungiblePositionManager: SUSHI_NPM_SEPOLIA
 // Sepolia Factory: SUSHI_FACTORY_SEPOLIA
 
-const _swapRouter = process.env.SUSHI_SWAP_ROUTER || 'SUSHI_SWAP_ROUTER_SEPOLIA';
-const _positionManager = process.env.SUSHI_POSITION_MANAGER || 'SUSHI_NPM_SEPOLIA';
-const _uniswapV3Factory = process.env.SUSHI_FACTORY || 'SUSHI_FACTORY_SEPOLIA';
-const _quoterV2 = process.env.UNISWAP_V3_QUOTER_V2 || '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3';
-const _weth = process.env.WETH_ADDRESS || '0xfff9976782d46cc05630d1f6ebab18b2324d6b14';
+const SUSHI_SWAP_ROUTER = "0x3ced11c610556e5292fbc2e75d68c3899098c14c";
+const WCORE = "0x191e94fa59739e188dce837f7f6978d84727ad01";
 
 const DEXManagerModule = buildModule("ChainCraftDEXManager", (m) => {
-  const swapRouterParam = m.getParameter("_swapRouter", _swapRouter);
-  const positionManagerParam = m.getParameter("_positionManager", _positionManager);
-  const uniswapV3FactoryParam = m.getParameter("_uniswapV3Factory", _uniswapV3Factory);
-  const quoterV2Param = m.getParameter("_quoterV2", _quoterV2);
-  const wethParam = m.getParameter("_weth", _weth);
   
   const dexManager = m.contract("ChainCraftDEXManager", [
-    swapRouterParam,
-    positionManagerParam,
-    uniswapV3FactoryParam,
-    quoterV2Param,
-    wethParam
+    SUSHI_SWAP_ROUTER, // RouteProcessor7 address
+    WCORE, // Wrapped CORE token
   ]);
 
   return { dexManager };

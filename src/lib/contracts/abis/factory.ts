@@ -1,661 +1,1202 @@
-// ChainCraft Factory Contract ABI
+// ChainCraftFactoryLite Contract ABI - Auto-generated from compiled artifact
 export const CHAINCRAFT_FACTORY_ABI = [
-  { inputs: [], stateMutability: "nonpayable", type: "constructor" },
   {
-    inputs: [{ internalType: "address", name: "owner", type: "address" }],
-    name: "OwnableInvalidOwner",
-    type: "error",
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
   },
   {
-    inputs: [{ internalType: "address", name: "account", type: "address" }],
-    name: "OwnableUnauthorizedAccount",
-    type: "error",
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__EmptyStringParameter",
+    "type": "error"
   },
   {
-    inputs: [],
-    name: "ChainCraftFactoryLite__EmptyStringParameter",
-    type: "error",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "sent", type: "uint256" },
-      { internalType: "uint256", name: "required", type: "uint256" },
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "sent",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "required",
+        "type": "uint256"
+      }
     ],
-    name: "ChainCraftFactoryLite__InsufficientEtherFee",
-    type: "error",
+    "name": "ChainCraftFactoryLite__InsufficientEtherFee",
+    "type": "error"
   },
   {
-    inputs: [],
-    name: "ChainCraftFactoryLite__InsufficientTokenBalance",
-    type: "error",
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__InsufficientTokenBalance",
+    "type": "error"
   },
   {
-    inputs: [{ internalType: "uint256", name: "fee", type: "uint256" }],
-    name: "ChainCraftFactoryLite__InvalidFeeAmount",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "ChainCraftFactoryLite__InvalidLockDuration",
-    type: "error",
-  },
-  { inputs: [], name: "ChainCraftFactoryLite__InvalidParameters", type: "error" },
-  { inputs: [], name: "ChainCraftFactoryLite__InvalidTokenAmount", type: "error" },
-  { inputs: [], name: "ChainCraftFactoryLite__LockNotExpired", type: "error" },
-  { inputs: [], name: "ChainCraftFactoryLite__NoEtherToWithdraw", type: "error" },
-  { inputs: [], name: "ChainCraftFactoryLite__OnlyTokenOwner", type: "error" },
-  { inputs: [], name: "ChainCraftFactoryLite__TokenAlreadyLocked", type: "error" },
-  {
-    inputs: [],
-    name: "ChainCraftFactoryLite__TokenNotDeployedByFactory",
-    type: "error",
-  },
-  { inputs: [], name: "ChainCraftFactoryLite__TokenNotLocked", type: "error" },
-  {
-    inputs: [
-      { internalType: "uint256", name: "supply", type: "uint256" },
-      { internalType: "uint256", name: "maxSupply", type: "uint256" },
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "fee",
+        "type": "uint256"
+      }
     ],
-    name: "ChainCraftFactoryLite__TotalSupplyTooHigh",
-    type: "error",
+    "name": "ChainCraftFactoryLite__InvalidFeeAmount",
+    "type": "error"
   },
-  { inputs: [], name: "ChainCraftFactoryLite__TotalSupplyTooLow", type: "error" },
-  { inputs: [], name: "ChainCraftFactoryLite__TransferFailed", type: "error" },
-  { inputs: [], name: "ReentrancyGuardReentrantCall", type: "error" },
   {
-    anonymous: false,
-    inputs: [
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__InvalidLockDuration",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__InvalidParameters",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__InvalidTokenAmount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__LockNotExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__NoEtherToWithdraw",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__NotTokenCreator",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__OnlyTokenOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__TokenAlreadyLocked",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__TokenNotDeployedByFactory",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__TokenNotLocked",
+    "type": "error"
+  },
+  {
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "oldManager",
-        type: "address",
+        "internalType": "uint256",
+        "name": "supply",
+        "type": "uint256"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "newManager",
-        type: "address",
-      },
+        "internalType": "uint256",
+        "name": "maxSupply",
+        "type": "uint256"
+      }
     ],
-    name: "DEXManagerUpdated",
-    type: "event",
+    "name": "ChainCraftFactoryLite__TotalSupplyTooHigh",
+    "type": "error"
   },
   {
-    anonymous: false,
-    inputs: [
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__TotalSupplyTooLow",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ChainCraftFactoryLite__TransferFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "token",
-        type: "address",
-      },
-      { indexed: true, internalType: "address", name: "pair", type: "address" },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "tokenAmount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "ethAmount",
-        type: "uint256",
-      },
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
     ],
-    name: "DEXPoolCreated",
-    type: "event",
+    "name": "OwnableInvalidOwner",
+    "type": "error"
   },
   {
-    anonymous: false,
-    inputs: [
+    "inputs": [
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "oldFee",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "newFee",
-        type: "uint256",
-      },
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
     ],
-    name: "EtherFeeUpdated",
-    type: "event",
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
   },
   {
-    anonymous: false,
-    inputs: [
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "oldManager",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "indexed": true,
+        "internalType": "address",
+        "name": "newManager",
+        "type": "address"
+      }
     ],
-    name: "EtherWithdrawn",
-    type: "event",
+    "name": "DEXManagerUpdated",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "previousOwner",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "newOwner",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "pair",
+        "type": "address"
       },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "tokenAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "ethAmount",
+        "type": "uint256"
+      }
     ],
-    name: "OwnershipTransferred",
-    type: "event",
+    "name": "DEXPoolCreated",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "string", name: "name", type: "string" },
-      { indexed: true, internalType: "string", name: "symbol", type: "string" },
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "tokenAddress",
-        type: "address",
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "oldFee",
+        "type": "uint256"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "totalSupply",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "creator",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "bool",
-        name: "hasAntiRugProtection",
-        type: "bool",
-      },
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newFee",
+        "type": "uint256"
+      }
     ],
-    name: "TokenDeployed",
-    type: "event",
+    "name": "EtherFeeUpdated",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "token",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "EtherWithdrawn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "tokenAmount",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "ethAmount",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      }
+    ],
+    "name": "TokenAuthorizedForTrading",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "lockDuration",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "unlockTime",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "string",
-        name: "description",
-        type: "string",
-      },
-    ],
-    name: "TokensLocked",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "token",
-        type: "address",
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalSupply",
+        "type": "uint256"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "indexed": false,
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "tokenAmount",
-        type: "uint256",
+        "indexed": false,
+        "internalType": "bool",
+        "name": "hasAntiRugProtection",
+        "type": "bool"
+      }
+    ],
+    "name": "TokenDeployed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "ethAmount",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
-    ],
-    name: "TokensUnlocked",
-    type: "event",
-  },
-  { stateMutability: "payable", type: "fallback" },
-  {
-    inputs: [],
-    name: "MAX_FEE",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "MAX_LOCK_DURATION",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "MIN_LOCK_DURATION",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "MIN_TOTAL_SUPPLY",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "PREMIUM_FEE_MULTIPLIER",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "PREMIUM_MAX_SUPPLY",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "STANDARD_FEE_MULTIPLIER",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "STANDARD_MAX_SUPPLY",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "ULTIMATE_FEE_MULTIPLIER",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "ULTIMATE_MAX_SUPPLY",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    name: "allDeployedTokens",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-      { internalType: "uint256", name: "tokenAmount", type: "uint256" },
-      { internalType: "uint24", name: "fee", type: "uint24" },
-    ],
-    name: "createDEXPool",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "", type: "address" },
-      { internalType: "uint256", name: "", type: "uint256" },
-    ],
-    name: "creatorTokens",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "string", name: "name", type: "string" },
-      { internalType: "string", name: "symbol", type: "string" },
-      { internalType: "uint256", name: "totalSupply", type: "uint256" },
-    ],
-    name: "deployToken",
-    outputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-    ],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "dexManager",
-    outputs: [
-      { internalType: "contract ChainCraftDEXManager", name: "", type: "address" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "etherFee",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getAirdropContract",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "pure",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getAllDeployedTokens",
-    outputs: [{ internalType: "address[]", name: "", type: "address[]" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-    ],
-    name: "getDaysUntilUnlock",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getFactoryStats",
-    outputs: [
       {
-        internalType: "uint256",
-        name: "_totalTokensDeployed",
-        type: "uint256",
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "tokenAmount",
+        "type": "uint256"
       },
-      { internalType: "uint256", name: "_totalFeesCollected", type: "uint256" },
-      { internalType: "uint256", name: "_currentBalance", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "totalSupply", type: "uint256" }],
-    name: "getRequiredFee",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "totalSupply", type: "uint256" }],
-    name: "getSupplyTier",
-    outputs: [
-      { internalType: "string", name: "tier", type: "string" },
-      { internalType: "uint256", name: "maxSupply", type: "uint256" },
-      { internalType: "uint256", name: "feeMultiplier", type: "uint256" },
-    ],
-    stateMutability: "pure",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-    ],
-    name: "getTimeUntilUnlock",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-    ],
-    name: "getTokenInfo",
-    outputs: [
-      { internalType: "address", name: "creator", type: "address" },
-      { internalType: "uint256", name: "deploymentTime", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-    ],
-    name: "getTokenLock",
-    outputs: [
       {
-        components: [
-          { internalType: "address", name: "tokenAddress", type: "address" },
-          { internalType: "address", name: "owner", type: "address" },
-          { internalType: "uint256", name: "tokenAmount", type: "uint256" },
-          { internalType: "uint256", name: "ethAmount", type: "uint256" },
-          { internalType: "uint256", name: "lockTime", type: "uint256" },
-          { internalType: "uint256", name: "unlockTime", type: "uint256" },
-          { internalType: "uint256", name: "lockDuration", type: "uint256" },
-          { internalType: "string", name: "description", type: "string" },
-          { internalType: "bool", name: "isActive", type: "bool" },
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "ethAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "lockDuration",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "unlockTime",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      }
+    ],
+    "name": "TokensLocked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "tokenAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "ethAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "TokensUnlocked",
+    "type": "event"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "fallback"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_FEE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_LOCK_DURATION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_LOCK_DURATION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_TOTAL_SUPPLY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "PREMIUM_FEE_MULTIPLIER",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "PREMIUM_MAX_SUPPLY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "STANDARD_FEE_MULTIPLIER",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "STANDARD_MAX_SUPPLY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ULTIMATE_FEE_MULTIPLIER",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ULTIMATE_MAX_SUPPLY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "allDeployedTokens",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "authorizeDEXTrading",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "creatorTokens",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalSupply",
+        "type": "uint256"
+      }
+    ],
+    "name": "deployToken",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "dexManager",
+    "outputs": [
+      {
+        "internalType": "contract ChainCraftDEXManager",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "etherFee",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAirdropContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllDeployedTokens",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getDaysUntilUnlock",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getFactoryStats",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "_totalTokensDeployed",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_totalFeesCollected",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_currentBalance",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalSupply",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRequiredFee",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalSupply",
+        "type": "uint256"
+      }
+    ],
+    "name": "getSupplyTier",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "tier",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxSupply",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "feeMultiplier",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getTimeUntilUnlock",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getTokenInfo",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deploymentTime",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getTokenLock",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ethAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "unlockTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lockDuration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "isActive",
+            "type": "bool"
+          }
         ],
-        internalType: "struct ChainCraftFactoryLite.TokenLock",
-        name: "",
-        type: "tuple",
+        "internalType": "struct ChainCraftFactoryLite.TokenLock",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      }
+    ],
+    "name": "getTokensByCreator",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "isDeployedToken",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "isTokenCurrentlyLocked",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "isTokenLocked",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
       },
+      {
+        "internalType": "uint256",
+        "name": "tokenAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lockDuration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "lockTokens",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
   },
   {
-    inputs: [{ internalType: "address", name: "creator", type: "address" }],
-    name: "getTokensByCreator",
-    outputs: [{ internalType: "address[]", name: "", type: "address[]" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "isDeployedToken",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
     ],
-    name: "isTokenCurrentlyLocked",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "isTokenLocked",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-      { internalType: "uint256", name: "tokenAmount", type: "uint256" },
-      { internalType: "uint256", name: "lockDuration", type: "uint256" },
-      { internalType: "string", name: "description", type: "string" },
+    "name": "onERC721Received",
+    "outputs": [
+      {
+        "internalType": "bytes4",
+        "name": "",
+        "type": "bytes4"
+      }
     ],
-    name: "lockTokens",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
+    "stateMutability": "pure",
+    "type": "function"
   },
   {
-    inputs: [
-      { internalType: "address", name: "operator", type: "address" },
-      { internalType: "address", name: "from", type: "address" },
-      { internalType: "uint256", name: "tokenId", type: "uint256" },
-      { internalType: "bytes", name: "data", type: "bytes" },
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "onERC721Received",
-    outputs: [{ internalType: "bytes4", name: "", type: "bytes4" }],
-    stateMutability: "pure",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "owner",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "renounceOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address payable", name: "_dexManager", type: "address" },
+    "inputs": [
+      {
+        "internalType": "address payable",
+        "name": "_dexManager",
+        "type": "address"
+      }
     ],
-    name: "setDEXManager",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "setDEXManager",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [{ internalType: "uint256", name: "newFee", type: "uint256" }],
-    name: "setEtherFee",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "tokenInfo",
-    outputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-      { internalType: "address", name: "creator", type: "address" },
-      { internalType: "uint256", name: "deploymentTime", type: "uint256" },
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "newFee",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "setEtherFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "tokenLocks",
-    outputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
-      { internalType: "address", name: "owner", type: "address" },
-      { internalType: "uint256", name: "tokenAmount", type: "uint256" },
-      { internalType: "uint256", name: "ethAmount", type: "uint256" },
-      { internalType: "uint256", name: "lockTime", type: "uint256" },
-      { internalType: "uint256", name: "unlockTime", type: "uint256" },
-      { internalType: "uint256", name: "lockDuration", type: "uint256" },
-      { internalType: "string", name: "description", type: "string" },
-      { internalType: "bool", name: "isActive", type: "bool" },
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "totalFeesCollected",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "totalTokensDeployed",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "newOwner", type: "address" }],
-    name: "transferOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "tokenAddress", type: "address" },
+    "name": "tokenInfo",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deploymentTime",
+        "type": "uint256"
+      }
     ],
-    name: "unlockTokens",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "withdrawFees",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "tokenLocks",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "ethAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lockTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "unlockTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lockDuration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isActive",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
-  { stateMutability: "payable", type: "receive" },
+  {
+    "inputs": [],
+    "name": "totalFeesCollected",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalTokensDeployed",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      }
+    ],
+    "name": "unlockTokens",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawFees",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
 ] as const;
