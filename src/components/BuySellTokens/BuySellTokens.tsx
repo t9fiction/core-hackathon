@@ -1,12 +1,75 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
-import { Address, formatEther, parseEther } from 'viem';
-import { CHAINCRAFT_DEX_MANAGER_ABI, CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
-// import { CHAINCRAFT_DEX_MANAGER } from '../../lib/contracts/addresses';
+import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useChainId, useReadContract } from 'wagmi';
+import { Address, formatEther, parseEther, parseUnits } from 'viem';
+import { CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { showSuccessAlert, showErrorAlert } from '../../lib/swal-config';
-import { useSmartContractRead, useIsFallbackMode } from '../../lib/hooks/useSmartContract';
 import { useTokenApproval } from '../../lib/hooks/useTokenApproval';
+
+// SushiSwap V2 Router ABI (essential functions)
+const SUSHISWAP_V2_ROUTER_ABI = [
+  {
+    inputs: [
+      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
+      { internalType: "address[]", name: "path", type: "address[]" },
+      { internalType: "address", name: "to", type: "address" },
+      { internalType: "uint256", name: "deadline", type: "uint256" },
+    ],
+    name: "swapExactETHForTokens",
+    outputs: [{ internalType: "uint256[]", name: "amounts", type: "uint256[]" }],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
+      { internalType: "address[]", name: "path", type: "address[]" },
+      { internalType: "address", name: "to", type: "address" },
+      { internalType: "uint256", name: "deadline", type: "uint256" },
+    ],
+    name: "swapExactTokensForETH",
+    outputs: [{ internalType: "uint256[]", name: "amounts", type: "uint256[]" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+      { internalType: "address[]", name: "path", type: "address[]" },
+    ],
+    name: "getAmountsOut",
+    outputs: [{ internalType: "uint256[]", name: "amounts", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+// SushiSwap V2 Factory ABI (for pair checking)
+const SUSHISWAP_V2_FACTORY_ABI = [
+  {
+    inputs: [
+      { internalType: "address", name: "tokenA", type: "address" },
+      { internalType: "address", name: "tokenB", type: "address" },
+    ],
+    name: "getPair",
+    outputs: [{ internalType: "address", name: "pair", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+// SushiSwap V2 addresses on Core DAO - Same as ImprovedPoolManager
+const SUSHISWAP_V2_ADDRESSES = {
+  1116: { // Core DAO Mainnet
+    factory: "0xb45e53277a7e0f1d35f2a77160e91e25507f1763",
+    router: "0x9b3336186a38e1b6c21955d112dbb0343ee061ee",
+  },
+  1114: { // Core DAO Testnet2
+    factory: "0xb45e53277a7e0f1d35f2a77160e91e25507f1763",
+    router: "0x9b3336186a38e1b6c21955d112dbb0343ee061ee",
+  }
+};
 
 interface BuySellTokensProps {
   tokenAddress: Address;
@@ -40,11 +103,11 @@ export const BuySellTokens = ({
   
   const { address, isConnected } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
-  const isFallbackMode = useIsFallbackMode();
   
   const chainId = useChainId();
 
   const contractAddresses = getContractAddresses(chainId);
+  const sushiV2Addresses = SUSHISWAP_V2_ADDRESSES[chainId as keyof typeof SUSHISWAP_V2_ADDRESSES];
 
   // Wait for transaction confirmation
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -57,16 +120,22 @@ export const BuySellTokens = ({
   });
 
   // Get token info from contract
-  const { data: contractTokenName } = useSmartContractRead({
+  const { data: contractTokenName } = useReadContract({
     address: tokenAddress,
     abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'name',
+    query: {
+      enabled: !!tokenAddress,
+    },
   });
 
-  const { data: contractTokenSymbol } = useSmartContractRead({
+  const { data: contractTokenSymbol } = useReadContract({
     address: tokenAddress,
     abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'symbol',
+    query: {
+      enabled: !!tokenAddress,
+    },
   });
 
   // Use props if provided, otherwise use contract data
@@ -74,15 +143,30 @@ export const BuySellTokens = ({
   const tokenSymbol = propTokenSymbol || (contractTokenSymbol as string);
 
   // Get token balance
-  const { data: tokenBalance } = useSmartContractRead({
+  const { data: tokenBalance } = useReadContract({
     address: tokenAddress,
     abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [address!],
-    enabled: !!address,
+    query: {
+      enabled: !!address,
+    },
   });
 
-  // Universal approval hook for selling tokens
+  // Check if pair exists on SushiSwap
+  const { data: existingPair } = useReadContract({
+    address: sushiV2Addresses?.factory as Address,
+    abi: SUSHISWAP_V2_FACTORY_ABI,
+    functionName: "getPair",
+    args: [tokenAddress, contractAddresses.WETH],
+    query: {
+      enabled: !!(tokenAddress && contractAddresses.WETH && sushiV2Addresses?.factory),
+    },
+  });
+
+  const pairExists = existingPair && existingPair !== "0x0000000000000000000000000000000000000000";
+
+  // Universal approval hook for selling tokens (SushiSwap Router)
   const {
     needsApproval,
     approve: approveTokens,
@@ -92,7 +176,7 @@ export const BuySellTokens = ({
     spenderName,
   } = useTokenApproval({
     tokenAddress,
-    spenderAddress: contractAddresses.CHAINCRAFT_DEX_MANAGER as Address,
+    spenderAddress: sushiV2Addresses?.router as Address,
     userAddress: address,
     amount: sellAmount || '0',
     decimals: 18,
@@ -103,32 +187,60 @@ export const BuySellTokens = ({
   const [debouncedBuyAmount, setDebouncedBuyAmount] = useState('');
   const [debouncedSellAmount, setDebouncedSellAmount] = useState('');
 
-  // Debounce the amount inputs
+  // Debounce the amount inputs with dependency on pairExists to prevent excessive calls
   useEffect(() => {
+    if (!pairExists) {
+      setDebouncedBuyAmount('');
+      return;
+    }
     const timer = setTimeout(() => {
       setDebouncedBuyAmount(buyAmount);
     }, 500);
     return () => clearTimeout(timer);
-  }, [buyAmount]);
+  }, [buyAmount, pairExists]);
 
   useEffect(() => {
+    if (!pairExists) {
+      setDebouncedSellAmount('');
+      return;
+    }
     const timer = setTimeout(() => {
       setDebouncedSellAmount(sellAmount);
     }, 500);
     return () => clearTimeout(timer);
-  }, [sellAmount]);
+  }, [sellAmount, pairExists]);
 
-  // Get token price for estimates (temporary fallback)
-  const { data: tokenPriceData } = useSmartContractRead({
-    address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-    abi: CHAINCRAFT_DEX_MANAGER_ABI,
-    functionName: 'getTokenPrice',
-    args: [tokenAddress],
-    enabled: true,
+  // Get buy quote from SushiSwap
+  const { data: buyQuote, error: buyQuoteError } = useReadContract({
+    address: sushiV2Addresses?.router as Address,
+    abi: SUSHISWAP_V2_ROUTER_ABI,
+    functionName: "getAmountsOut",
+    args: [
+      debouncedBuyAmount && parseFloat(debouncedBuyAmount) > 0 ? parseEther(debouncedBuyAmount) : parseEther('0.001'),
+      [contractAddresses.WETH, tokenAddress]
+    ],
+    query: {
+      enabled: !!(pairExists && sushiV2Addresses?.router && contractAddresses.WETH && tokenAddress),
+      refetchOnWindowFocus: false,
+      retry: false,
+    },
   });
 
-  // Note: Using getTokenPrice as fallback since getAmountsOutSingleHop is not a view function
-  // This will be replaced with proper quoter implementation later
+  // Get sell quote from SushiSwap  
+  const { data: sellQuote, error: sellQuoteError } = useReadContract({
+    address: sushiV2Addresses?.router as Address,
+    abi: SUSHISWAP_V2_ROUTER_ABI,
+    functionName: "getAmountsOut",
+    args: [
+      debouncedSellAmount && parseFloat(debouncedSellAmount) > 0 ? parseUnits(debouncedSellAmount, 18) : parseUnits('1', 18),
+      [tokenAddress, contractAddresses.WETH]
+    ],
+    query: {
+      enabled: !!(pairExists && sushiV2Addresses?.router && contractAddresses.WETH && tokenAddress),
+      refetchOnWindowFocus: false,
+      retry: false,
+    },
+  });
 
   // Set transaction hash when available
   useEffect(() => {
@@ -155,28 +267,58 @@ export const BuySellTokens = ({
   }, [isConfirmed, txHash, onTransactionComplete]);
 
   const handleBuyTokens = async () => {
-    if (!tokenAddress || !buyAmount || !address) return;
+    if (!tokenAddress || !buyAmount || !address || !sushiV2Addresses) return;
+    
+    if (!pairExists) {
+      showErrorAlert(
+        'Pool Not Available',
+        'No SushiSwap pool exists for this token. Please create a liquidity pool first.'
+      );
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
-        const amountIn = parseEther(buyAmount);
-        // Generate route data (empty for now, RouteProcessor7 can handle simple swaps)
-        const routeData = '0x' as `0x${string}`;
-        
-        await writeContract({
-          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-          abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: 'swapETHForTokens',
-          args: [tokenAddress, routeData],
-          value: amountIn,
-        });
+      const amountIn = parseEther(buyAmount);
+      const path = [contractAddresses.WETH, tokenAddress];
+      
+      // Calculate minimum amount out with 10% slippage for safety
+      let minAmountOut = 1n; // Start with minimal amount
+      
+      if (buyQuote && Array.isArray(buyQuote) && buyQuote.length > 1) {
+        // Scale the quote to the actual input amount
+        const quoteInput = parseEther('0.001');
+        const quoteOutput = buyQuote[1] as bigint;
+        const scaledOutput = (quoteOutput * amountIn) / quoteInput;
+        minAmountOut = (scaledOutput * 90n) / 100n; // 10% slippage
+      }
+      
+      // Deadline: 20 minutes from now
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+      
+      console.log('Buying tokens with SushiSwap:', {
+        amountIn: amountIn.toString(),
+        minAmountOut: minAmountOut.toString(),
+        path,
+        deadline: deadline.toString(),
+        router: sushiV2Addresses.router
+      });
+      
+      await writeContract({
+        address: sushiV2Addresses.router as Address,
+        abi: SUSHISWAP_V2_ROUTER_ABI,
+        functionName: 'swapExactETHForTokens',
+        args: [minAmountOut, path, address, deadline],
+        value: amountIn,
+      });
       
       setBuyAmount('');
     } catch (error: any) {
       console.error('Error buying tokens:', error);
       showErrorAlert(
         'Transaction Failed',
-        error.shortMessage || error.message || 'Unknown error occurred while buying tokens'
+        error.shortMessage || error.message || 'Failed to buy tokens via SushiSwap'
       );
     } finally {
       setIsLoading(false);
@@ -184,7 +326,16 @@ export const BuySellTokens = ({
   };
 
   const handleSellTokens = async () => {
-    if (!tokenAddress || !sellAmount || !address) return;
+    if (!tokenAddress || !sellAmount || !address || !sushiV2Addresses) return;
+    
+    if (!pairExists) {
+      showErrorAlert(
+        'Pool Not Available',
+        'No SushiSwap pool exists for this token. Please create a liquidity pool first.'
+      );
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -195,15 +346,36 @@ export const BuySellTokens = ({
       }
       
       // If approval complete, proceed with selling
-      const amountIn = parseEther(sellAmount);
-      // Generate route data (empty for now, RouteProcessor7 can handle simple swaps)
-      const routeData = '0x' as `0x${string}`;
+      const amountIn = parseUnits(sellAmount, 18);
+      const path = [tokenAddress, contractAddresses.WETH];
+      
+      // Calculate minimum amount out with 10% slippage for safety
+      let minAmountOut = 1n; // Start with minimal amount
+      
+      if (sellQuote && Array.isArray(sellQuote) && sellQuote.length > 1) {
+        // Scale the quote to the actual input amount
+        const quoteInput = parseUnits('1', 18);
+        const quoteOutput = sellQuote[1] as bigint;
+        const scaledOutput = (quoteOutput * amountIn) / quoteInput;
+        minAmountOut = (scaledOutput * 90n) / 100n; // 10% slippage
+      }
+      
+      // Deadline: 20 minutes from now
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+      
+      console.log('Selling tokens with SushiSwap:', {
+        amountIn: amountIn.toString(),
+        minAmountOut: minAmountOut.toString(),
+        path,
+        deadline: deadline.toString(),
+        router: sushiV2Addresses.router
+      });
       
       await writeContract({
-        address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-        abi: CHAINCRAFT_DEX_MANAGER_ABI,
-        functionName: 'swapTokensForETH',
-        args: [tokenAddress, amountIn, routeData],
+        address: sushiV2Addresses.router as Address,
+        abi: SUSHISWAP_V2_ROUTER_ABI,
+        functionName: 'swapExactTokensForETH',
+        args: [amountIn, minAmountOut, path, address, deadline],
       });
     
       setSellAmount('');
@@ -211,7 +383,7 @@ export const BuySellTokens = ({
       console.error('Error selling tokens:', error);
       showErrorAlert(
         'Transaction Failed',
-        error.shortMessage || error.message || 'Unknown error occurred while selling tokens'
+        error.shortMessage || error.message || 'Failed to sell tokens via SushiSwap'
       );
     } finally {
       setIsLoading(false);
@@ -226,30 +398,50 @@ export const BuySellTokens = ({
     }
   }, [approvalSuccess, activeTab, sellAmount]);
 
-  // Calculate values using useMemo (must be before conditional returns)
+  // Calculate values using useMemo with SushiSwap quotes
   const calculateBuyOutput = useMemo(() => {
-    if (!debouncedBuyAmount || !tokenPriceData || isNaN(Number(debouncedBuyAmount))) return '0';
-    if (Array.isArray(tokenPriceData) && tokenPriceData.length > 0) {
-      const price = tokenPriceData[0] as bigint; // price is first element of tuple
-      const ethAmount = parseEther(debouncedBuyAmount);
-      // Simple calculation: ethAmount / price (need to handle decimals properly)
-      const estimated = (ethAmount * parseEther('1')) / price;
-      return formatEther(estimated);
+    if (!debouncedBuyAmount || !buyQuote || isNaN(Number(debouncedBuyAmount)) || !pairExists || parseFloat(debouncedBuyAmount) <= 0) {
+      return '0';
+    }
+    
+    try {
+      if (Array.isArray(buyQuote) && buyQuote.length > 1) {
+        const inputAmount = parseEther(debouncedBuyAmount);
+        const outputAmount = buyQuote[1] as bigint;
+        
+        // Scale the output based on actual input vs quote input
+        const quoteInput = parseEther('0.001');
+        const scaledOutput = (outputAmount * inputAmount) / quoteInput;
+        
+        return formatEther(scaledOutput);
+      }
+    } catch (error) {
+      console.error('Error calculating buy output:', error);
     }
     return '0';
-  }, [debouncedBuyAmount, tokenPriceData]);
+  }, [debouncedBuyAmount, buyQuote, pairExists]);
 
   const calculateSellOutput = useMemo(() => {
-    if (!debouncedSellAmount || !tokenPriceData || isNaN(Number(debouncedSellAmount))) return '0';
-    if (Array.isArray(tokenPriceData) && tokenPriceData.length > 0) {
-      const price = tokenPriceData[0] as bigint; // price is first element of tuple
-      const tokenAmount = parseEther(debouncedSellAmount);
-      // Simple calculation: tokenAmount * price
-      const estimated = (tokenAmount * price) / parseEther('1');
-      return formatEther(estimated);
+    if (!debouncedSellAmount || !sellQuote || isNaN(Number(debouncedSellAmount)) || !pairExists || parseFloat(debouncedSellAmount) <= 0) {
+      return '0';
+    }
+    
+    try {
+      if (Array.isArray(sellQuote) && sellQuote.length > 1) {
+        const inputAmount = parseUnits(debouncedSellAmount, 18);
+        const outputAmount = sellQuote[1] as bigint;
+        
+        // Scale the output based on actual input vs quote input  
+        const quoteInput = parseUnits('1', 18);
+        const scaledOutput = (outputAmount * inputAmount) / quoteInput;
+        
+        return formatEther(scaledOutput);
+      }
+    } catch (error) {
+      console.error('Error calculating sell output:', error);
     }
     return '0';
-  }, [debouncedSellAmount, tokenPriceData]);
+  }, [debouncedSellAmount, sellQuote, pairExists]);
 
   // Processing state combining local loading and approval states
   const isProcessingOverall = isLoading || approvalPending || isConfirming;
@@ -259,15 +451,27 @@ export const BuySellTokens = ({
                            approvalError ? `Approval failed: ${approvalError}` :
                            isLoading ? 'Processing transaction...' : '';
 
+  // Check if SushiSwap is available on this network
+  if (!sushiV2Addresses) {
+    return (
+      <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-6">
+        <h3 className="text-red-300 font-semibold mb-2">SushiSwap Not Available</h3>
+        <p className="text-red-200 text-sm">
+          SushiSwap V2 is not available on this network (Chain ID: {chainId}).
+        </p>
+      </div>
+    );
+  }
+
   if (!isConnected) {
     return (
       <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
         <div className="text-center">
           <h3 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h3>
-          <p className="text-slate-400 mb-4">Please connect your wallet to trade tokens.</p>
+          <p className="text-slate-400 mb-4">Please connect your wallet to trade tokens on SushiSwap.</p>
           <div className="text-xs text-amber-300 bg-amber-400/10 rounded-lg p-3 border border-amber-400/20">
             <p className="mb-1">📊 You can view token information without connecting a wallet.</p>
-            <p>🔒 Connect your wallet to enable trading functionality.</p>
+            <p>🔒 Connect your wallet to enable SushiSwap trading functionality.</p>
           </div>
         </div>
       </div>
@@ -287,13 +491,29 @@ export const BuySellTokens = ({
       <div className={cardClasses}>
         {!embedded && (
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-white">
-              Trade {tokenSymbol as string || 'Token'}
+            <h3 className="text-xl font-semibold text-white flex items-center">
+              <span className="text-blue-400 mr-2">🍣</span>
+              Trade {tokenSymbol as string || 'Token'} on SushiSwap
             </h3>
             <div className="bg-slate-600 px-3 py-1 rounded-lg">
               <span className="text-sm text-slate-300">
-                {isConfirming ? 'Transaction Pending...' : isConfirmed ? 'Transaction Confirmed!' : 'Ready to Trade'}
+                {isConfirming ? 'Transaction Pending...' : isConfirmed ? 'Transaction Confirmed!' : pairExists ? 'Ready to Trade' : 'No Pool Available'}
               </span>
+            </div>
+          </div>
+        )}
+        
+        {/* Pool Status Alert */}
+        {!pairExists && (
+          <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-500/50 rounded-lg">
+            <div className="flex items-center">
+              <span className="text-yellow-400 mr-2">⚠️</span>
+              <div>
+                <p className="text-yellow-300 text-sm font-medium">No SushiSwap Pool Available</p>
+                <p className="text-yellow-200 text-xs mt-1">
+                  Create a liquidity pool first to enable trading for this token.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -361,16 +581,22 @@ export const BuySellTokens = ({
                 className="w-full p-3 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white placeholder-slate-400"
               />
               <div className="text-sm text-slate-400 mt-1">
-                You will receive: ~{parseFloat(calculateBuyOutput).toFixed(6)} {tokenSymbol as string || 'tokens'}
+                {pairExists ? (
+                  `You will receive: ~${parseFloat(calculateBuyOutput).toFixed(6)} ${tokenSymbol as string || 'tokens'}`
+                ) : (
+                  <span className="text-yellow-400">⚠️ No pool available - cannot estimate output</span>
+                )}
               </div>
             </div>
             
             <button
               onClick={handleBuyTokens}
-              disabled={isLoading || isConfirming || !buyAmount || parseFloat(buyAmount) > parseFloat(formatEther(ethBalance?.value || 0n))}
+              disabled={!pairExists || isLoading || isConfirming || !buyAmount || parseFloat(buyAmount) > parseFloat(formatEther(ethBalance?.value || 0n))}
               className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
             >
-              {isLoading || isConfirming ? 'Processing...' : `Buy ${tokenSymbol as string || 'Tokens'}`}
+              {!pairExists ? 'Pool Not Available' :
+               isLoading || isConfirming ? 'Processing...' : 
+               `Buy ${tokenSymbol as string || 'Tokens'} via SushiSwap`}
             </button>
           </div>
         )}
@@ -391,7 +617,11 @@ export const BuySellTokens = ({
                 className="w-full p-3 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent text-white placeholder-slate-400 disabled:opacity-50"
               />
               <div className="text-sm text-slate-400 mt-1">
-                You will receive: ~{parseFloat(calculateSellOutput).toFixed(6)} ETH
+                {pairExists ? (
+                  `You will receive: ~${parseFloat(calculateSellOutput).toFixed(6)} ETH`
+                ) : (
+                  <span className="text-yellow-400">⚠️ No pool available - cannot estimate output</span>
+                )}
               </div>
             </div>
             
@@ -414,24 +644,27 @@ export const BuySellTokens = ({
             
             <button
               onClick={handleSellTokens}
-              disabled={isProcessingOverall || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n))}
+              disabled={!pairExists || isProcessingOverall || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n))}
               className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
             >
-              {isProcessingOverall ? (
+              {!pairExists ? 'Pool Not Available' :
+               isProcessingOverall ? (
                 <span className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   {approvalPending ? 'Approving...' : 'Processing...'}
                 </span>
               ) : (
-                `Sell ${tokenSymbol as string || 'Tokens'}`
+                `Sell ${tokenSymbol as string || 'Tokens'} via SushiSwap`
               )}
             </button>
             
             {/* Help text */}
             <div className="text-xs text-slate-400 text-center">
-              {needsApproval ? 
-                'Token approval will be handled automatically when you sell.' :
-                'Ready to sell - no approval needed.'
+              {!pairExists ? 
+                'Create a SushiSwap pool first to enable trading.' :
+                needsApproval ? 
+                  'Token approval for SushiSwap will be handled automatically when you sell.' :
+                  'Ready to sell via SushiSwap - no approval needed.'
               }
             </div>
           </div>
@@ -456,8 +689,13 @@ export const BuySellTokens = ({
       {!embedded && (
         <div className="bg-slate-700 border border-slate-600 rounded-lg p-4">
           <div className="text-slate-300">
-            <strong>Trading Info:</strong> This interface connects to the ChainCraft DEX for real token trading. 
-            Prices are fetched from the liquidity pool and include a 5% slippage tolerance.
+            <strong>🍣 SushiSwap Integration:</strong> This interface trades directly through SushiSwap V2 on Core DAO. 
+            Prices are fetched in real-time from SushiSwap pools with 5% slippage protection.
+            {pairExists && (
+              <div className="mt-2 text-xs text-green-400">
+                ✅ SushiSwap pool is available and ready for trading
+              </div>
+            )}
           </div>
         </div>
       )}

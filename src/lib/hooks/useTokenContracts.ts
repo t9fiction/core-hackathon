@@ -7,9 +7,6 @@ import {
   useAccount,
 } from "wagmi";
 import {
-  UNISWAP_V3_FACTORY_ABI,
-  UNISWAP_V3_POOL_ABI,
-  NONFUNGIBLE_POSITION_MANAGER_ABI,
   CHAINCRAFT_GOVERNANCE_ABI,
   CHAINCRAFT_DEX_MANAGER_ABI,
   CHAINCRAFT_TOKEN_ABI,
@@ -17,7 +14,6 @@ import {
 } from "../contracts/abis";
 import { parseEther, formatEther, Address, parseUnits } from "viem";
 import { getContractAddresses } from "../contracts/addresses";
-import { getSushiSwapAddresses, isSushiSwapAvailable } from "../contracts/uniswap-addresses";
 
 interface PoolInfo {
   poolAddress: string;
@@ -176,85 +172,28 @@ export const useTokenGovernance = (tokenAddress?: Address) => {
 };
 
 export const useTokenDEX = (tokenAddress: Address) => {
-  const { address: userAddress } = useAccount();
-  const chainId = useChainId(); // Dynamic chain detection
+  const chainId = useChainId();
   const contractAddresses = getContractAddresses(chainId);
-  const [isCreatingPool, setIsCreatingPool] = useState(false);
-  const [poolInfo, setPoolInfo] = useState<PoolInfo | null>(null);
-  const [positionInfo, setPositionInfo] = useState<PositionInfo[]>([]);
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoadingPool, setIsLoadingPool] = useState(false);
-  const [poolExists, setPoolExists] = useState(false);
 
   const { writeContractAsync } = useWriteContract();
 
-  // Use dynamic WETH address based on current chain
-  const WETH_ADDRESS = contractAddresses.WETH;
-  // Get SushiSwap V3 addresses
-  const sushiAddresses = getSushiSwapAddresses(chainId);
-  const UNISWAP_V3_FACTORY_ADDRESS = sushiAddresses.factory;
-  const NONFUNGIBLE_POSITION_MANAGER_ADDRESS = sushiAddresses.positionManager;
-
-  // Note: getPoolInfo and getTokenStats functions don't exist in the current DEX Manager ABI
-  // We'll rely on external pool checking methods or implement pool existence detection differently
-  const poolInfoData = null;
-  const tokenStats = null;
-  
-  const refetchPoolInfo = () => {
-    console.log('Pool info refetch - not implemented yet');
-  };
-  
-  const refetchTokenStats = () => {
-    console.log('Token stats refetch - not implemented yet');
-  };
-
-  // Check if token is authorized
-  const { data: isAuthorized } = useReadContract({
+  // Check if token is authorized in the DEX Manager
+  const { data: isAuthorized, refetch: refetchAuthorization } = useReadContract({
     address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
     abi: CHAINCRAFT_DEX_MANAGER_ABI,
     functionName: "authorizedTokens",
     args: [tokenAddress],
   });
 
-  // Update pool info when data changes
-  useEffect(() => {
-    if (poolInfoData && Array.isArray(poolInfoData) && poolInfoData.length >= 5) {
-      const [tokenId, liquidity, lockExpiry, isActive, createdAt] = poolInfoData as [bigint, bigint, bigint, boolean, bigint];
-      setPoolExists(isActive);
-      if (isActive) {
-        setPoolInfo({
-          poolAddress: "" + tokenId, // We'll get the actual pool address separately
-          token0: tokenAddress < WETH_ADDRESS ? tokenAddress : WETH_ADDRESS,
-          token1: tokenAddress < WETH_ADDRESS ? WETH_ADDRESS : tokenAddress,
-          fee: 3000,
-          liquidity: liquidity.toString(),
-          sqrtPriceX96: "0", // We'll update this if needed
-          tick: 0,
-        });
-      }
-    }
-  }, [poolInfoData, tokenAddress]);
-
-  const createFactoryDEXPool = async (
-    tokenAmount: string,
-    ethAmount: string,
-    fee: number = 3000
-  ) => {
-    setIsCreatingPool(true);
+  const authorizeTokenForTrading = async () => {
+    setIsAuthorizing(true);
     setError(null);
     try {
-      const tokenAmountWei = parseUnits(tokenAmount, 18);
-      const ethAmountWei = parseEther(ethAmount);
+      console.log('Authorizing token for DEX trading...', { tokenAddress });
 
-      console.log('Creating pool via factory with params:', {
-        tokenAddress,
-        tokenAmount: tokenAmountWei.toString(),
-        ethAmount: ethAmountWei.toString(),
-        fee
-      });
-
-      // Step 1: Authorize token for DEX trading via factory
-      console.log('Step 1: Authorizing token for DEX trading...');
+      // Authorize token for DEX trading via factory
       await writeContractAsync({
         address: contractAddresses.CHAINCRAFT_FACTORY,
         abi: CHAINCRAFT_FACTORY_ABI,
@@ -262,269 +201,32 @@ export const useTokenDEX = (tokenAddress: Address) => {
         args: [tokenAddress],
       });
       
-      console.log('Token authorized for DEX trading');
-
-      // Step 2: Authorize the token in the DEX Manager as well
-      console.log('Step 2: Authorizing token in DEX Manager...');
-      await writeContractAsync({
-        address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-        abi: CHAINCRAFT_DEX_MANAGER_ABI,
-        functionName: "authorizeToken",
-        args: [tokenAddress],
-      });
+      console.log('Token authorized for DEX trading successfully');
       
-      console.log('Token authorized in DEX Manager');
+      // Refetch authorization status
+      await refetchAuthorization();
       
-      // Step 3: Create a SushiSwap V3 pool directly since factory doesn't have createDEXPool
-      console.log('Step 3: Creating SushiSwap V3 pool directly...');
-      
-      // Use the createDEXPool method which handles Uniswap V3 creation
-      const tx = await createDEXPool(tokenAmount, ethAmount, fee);
-
-      console.log('Pool creation completed successfully');
-      setPoolExists(true);
-      
-      // Refetch pool info after creation
-      setTimeout(() => {
-        refetchPoolInfo();
-        refetchTokenStats();
-      }, 2000);
-
-      return tx;
+      return true;
     } catch (error: any) {
-      console.error('Error in createFactoryDEXPool:', error);
-      setError(error.message || "Failed to create DEX pool");
+      console.error('Error authorizing token:', error);
+      setError(error.message || "Failed to authorize token");
       throw error;
     } finally {
-      setIsCreatingPool(false);
-    }
-  };
-
-  const createDEXPool = async (
-    tokenAmount: string,
-    ethAmount: string,
-    fee: number
-  ) => {
-    if (!UNISWAP_V3_FACTORY_ADDRESS || UNISWAP_V3_FACTORY_ADDRESS === "0x0000000000000000000000000000000000000000") {
-      throw new Error(`SushiSwap V3 not available on chain ${chainId}`);
-    }
-    
-    if (!NONFUNGIBLE_POSITION_MANAGER_ADDRESS || NONFUNGIBLE_POSITION_MANAGER_ADDRESS === "0x0000000000000000000000000000000000000000") {
-      throw new Error(`SushiSwap V3 Position Manager not available on chain ${chainId}`);
-    }
-    
-    setIsCreatingPool(true);
-    setError(null);
-    try {
-      console.log('Creating SushiSwap V3 pool with parameters:', {
-        tokenAddress,
-        tokenAmount,
-        ethAmount,
-        fee,
-        chainId,
-        factoryAddress: UNISWAP_V3_FACTORY_ADDRESS,
-        positionManagerAddress: NONFUNGIBLE_POSITION_MANAGER_ADDRESS,
-        wcoreAddress: WETH_ADDRESS,
-        network: 'Core DAO Mainnet',
-        dex: 'SushiSwap V3'
-      });
-      
-      const token0 = tokenAddress < WETH_ADDRESS ? tokenAddress : WETH_ADDRESS;
-      const token1 = tokenAddress < WETH_ADDRESS ? WETH_ADDRESS : tokenAddress;
-      const isToken0 = tokenAddress === token0;
-
-      const tokenAmountWei = parseUnits(tokenAmount, 18);
-      const ethAmountWei = parseEther(ethAmount);
-      
-      console.log('Token ordering for SushiSwap V3 on Core DAO:', { 
-        token0, 
-        token1, 
-        isToken0, 
-        tokenAmountWei: tokenAmountWei.toString(), 
-        coreAmountWei: ethAmountWei.toString(),
-        yourTokenAddress: tokenAddress,
-        wcoreAddress: WETH_ADDRESS
-      });
-
-      // Step 1: Approve token to position manager
-      console.log('Step 1: Approving token to position manager...');
-      await writeContractAsync({
-        address: tokenAddress,
-        abi: CHAINCRAFT_TOKEN_ABI,
-        functionName: "approve",
-        args: [NONFUNGIBLE_POSITION_MANAGER_ADDRESS as Address, tokenAmountWei],
-      });
-      console.log('Token approved successfully');
-
-      // Step 1.5: For Core DAO, the Position Manager will automatically wrap CORE to WCORE
-      // We don't need to manually approve WCORE since we're sending native CORE
-      console.log('Step 1.5: Native CORE will be automatically wrapped to WCORE by SushiSwap Position Manager');
-
-      // Step 2: Try to create pool (might fail if already exists, which is ok)
-      console.log('Step 2: Creating pool...');
-      let poolExists = false;
-      try {
-        await writeContractAsync({
-          address: UNISWAP_V3_FACTORY_ADDRESS as Address,
-          abi: UNISWAP_V3_FACTORY_ABI,
-          functionName: "createPool",
-          args: [token0, token1, fee],
-        });
-        console.log('Pool created successfully');
-        poolExists = true;
-      } catch (poolError: any) {
-        console.log('Pool creation failed:', poolError.message);
-        if (poolError.message.includes('already exists') || 
-            poolError.message.includes('PoolAlreadyExists') ||
-            poolError.message.includes('pool already exists') ||
-            poolError.message.includes('Pool already exists')) {
-          console.log('Pool already exists, continuing...');
-          poolExists = true;
-        } else {
-          console.error('Unexpected pool creation error:', poolError);
-          throw new Error(`Failed to create pool: ${poolError.message}`);
-        }
-      }
-
-      if (!poolExists) {
-        throw new Error('Pool creation failed and pool does not exist');
-      }
-
-      // Step 3: Calculate proper tick range for the fee tier
-      console.log('Step 3: Calculating tick range...');
-      const tickSpacing = fee === 500 ? 10 : fee === 3000 ? 60 : 200;
-      
-      // Use a reasonable range instead of full range to avoid issues
-      // Full range can cause problems, use a large but valid range
-      const minTick = -887272; // Actual min tick for most pools
-      const maxTick = 887272;   // Actual max tick for most pools
-      
-      const tickLower = Math.floor(minTick / tickSpacing) * tickSpacing;
-      const tickUpper = Math.floor(maxTick / tickSpacing) * tickSpacing;
-      
-      console.log('Tick range calculated:', { tickLower, tickUpper, tickSpacing, minTick, maxTick });
-
-      // Step 4: Prepare mint parameters with proper amounts
-      console.log('Step 4: Preparing mint parameters...');
-      
-      // Both tokens need amounts for liquidity provision
-      const amount0Desired = isToken0 ? tokenAmountWei : ethAmountWei;
-      const amount1Desired = isToken0 ? ethAmountWei : tokenAmountWei;
-      
-      const mintParams = {
-        token0,
-        token1,
-        fee,
-        tickLower,
-        tickUpper,
-        amount0Desired,
-        amount1Desired,
-        amount0Min: 0n, // Accept any amount of token0 (for slippage)
-        amount1Min: 0n, // Accept any amount of token1 (for slippage)
-        recipient: userAddress as Address,
-        deadline: BigInt(Math.floor(Date.now() / 1000) + 1800), // 30 minutes from now
-      };
-      
-      console.log('SushiSwap V3 Mint parameters for Core DAO:', {
-        ...mintParams,
-        amount0Desired: mintParams.amount0Desired.toString(),
-        amount1Desired: mintParams.amount1Desired.toString(),
-        deadline: mintParams.deadline.toString(),
-        token0Symbol: isToken0 ? 'YOUR_TOKEN' : 'WCORE',
-        token1Symbol: isToken0 ? 'WCORE' : 'YOUR_TOKEN',
-        nativeCoreAmount: ethAmountWei.toString()
-      });
-
-      // Step 5: Mint liquidity position on SushiSwap V3 (Core DAO)
-      console.log('Step 5: Minting liquidity position on SushiSwap V3...');
-      const tx = await writeContractAsync({
-        address: NONFUNGIBLE_POSITION_MANAGER_ADDRESS as Address,
-        abi: NONFUNGIBLE_POSITION_MANAGER_ABI,
-        functionName: "mint",
-        args: [mintParams],
-        value: ethAmountWei, // Send native CORE which will be wrapped to WCORE automatically
-      });
-      
-      console.log('Liquidity position minted successfully:', tx);
-      return tx;
-    } catch (error: any) {
-      console.error('Error creating DEX pool:', error);
-      setError(error.message || "Failed to create DEX pool");
-      throw error;
-    } finally {
-      setIsCreatingPool(false);
-    }
-  };
-
-  const addLiquidity = async (
-    tokenAmount: string,
-    ethAmount: string,
-    fee: number
-  ) => {
-    setError(null);
-    try {
-      console.log('Adding liquidity with params:', {
-        tokenAddress,
-        tokenAmount,
-        ethAmount,
-        fee,
-        WETH_ADDRESS,
-        contractAddresses,
-        isAuthorized
-      });
-
-      // Since the DEX Manager doesn't have pool creation functions, 
-      // we'll use the SushiSwap V3 approach directly
-      console.log('Using direct SushiSwap V3 pool creation approach...');
-      
-      // Check if token is authorized first
-      if (!isAuthorized) {
-        console.log('Token not authorized, authorizing first...');
-        await writeContractAsync({
-          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-          abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: "authorizeToken",
-          args: [tokenAddress],
-        });
-        console.log('Token authorized successfully');
-      }
-      
-      // Create pool using the direct SushiSwap V3 approach
-      const tx = await createDEXPool(tokenAmount, ethAmount, fee);
-      
-      console.log('Pool created/liquidity added successfully:', tx);
-      setPoolExists(true);
-      
-      // Refetch pool info after creation
-      setTimeout(() => {
-        refetchPoolInfo();
-        refetchTokenStats();
-      }, 2000);
-
-      return tx;
-    } catch (error: any) {
-      console.error('Error in addLiquidity:', error);
-      const errorMessage = error?.message || error?.reason || "Failed to add liquidity";
-      setError(errorMessage);
-      throw error;
+      setIsAuthorizing(false);
     }
   };
 
   return {
-    createDEXPool,
-    createFactoryDEXPool,
-    addLiquidity,
-    isCreatingPool,
-    poolInfo,
-    positionInfo,
+    // Authorization functions
+    authorizeTokenForTrading,
+    
+    // State
+    isAuthorizing,
     error,
-    poolExists,
-    tokenStats,
-    isAuthorized,
-    refetchPoolInfo,
-    refetchTokenStats,
-    setPoolInfo,
-    setPositionInfo,
+    isAuthorized: isAuthorized as boolean,
+    
+    // Utilities
+    refetchAuthorization,
   };
 };
 

@@ -1,6 +1,5 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 import GovernanceModule from "./ChainCraftGovernance";
-import GovernanceAirdropModule from "./ChainCraftGovernanceAirdrop";
 
 // Core Testnet2 Configuration
 const CORE_TESTNET2_CONFIG = {
@@ -42,7 +41,6 @@ const DeployOnCoreTestnet2 = buildModule("DeployOnCoreTestnet2", (m) => {
 
   // Deploy governance infrastructure
   const { governance } = m.useModule(GovernanceModule);
-  const { airdrop } = m.useModule(GovernanceAirdropModule);
 
   console.log("Core Testnet2 deployment configuration:");
   console.log("- Factory: ChainCraftFactoryLite");
@@ -56,8 +54,7 @@ const DeployOnCoreTestnet2 = buildModule("DeployOnCoreTestnet2", (m) => {
     factory, 
     dexManager,
     // Governance infrastructure 
-    governance,
-    airdrop
+    governance
   };
 });
 

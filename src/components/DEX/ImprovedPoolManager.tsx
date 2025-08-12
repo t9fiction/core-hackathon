@@ -118,7 +118,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     address: sushiV2Addresses?.factory as Address,
     abi: SUSHISWAP_V2_FACTORY_ABI,
     functionName: "getPair",
-    args: [tokenAddress, contractAddresses.WETH],
+    args: tokenAddress && contractAddresses.WETH ? [tokenAddress, contractAddresses.WETH as Address] : undefined,
     query: {
       enabled: !!(tokenAddress && contractAddresses.WETH && sushiV2Addresses?.factory),
     },
@@ -129,7 +129,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     address: tokenAddress,
     abi: CHAINCRAFT_TOKEN_ABI,
     functionName: "allowance",
-    args: address && tokenAddress ? [address, sushiV2Addresses?.router] : undefined,
+    args: address && tokenAddress && sushiV2Addresses?.router ? [address, sushiV2Addresses.router as Address] : undefined,
     query: {
       enabled: !!(address && tokenAddress && sushiV2Addresses?.router),
     },
@@ -203,7 +203,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
         setCurrentStep("Approving token spending...");
         const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
         await writeApproval({
-          address: tokenAddress,
+          address: tokenAddress as Address,
           abi: CHAINCRAFT_TOKEN_ABI,
           functionName: "approve",
           args: [sushiV2Addresses.router as Address, tokenAmountWei],
@@ -316,7 +316,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
         if (needsTokenApproval()) {
           const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
           await writeApproval({
-            address: tokenAddress,
+            address: tokenAddress as Address,
             abi: CHAINCRAFT_TOKEN_ABI,
             functionName: "approve",
             args: [sushiV2Addresses.router as Address, tokenAmountWei],
@@ -324,7 +324,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
         }
       }, 1000);
     }
-  }, [isAuthSuccess]);
+  }, [isAuthSuccess, tokenAddress, formData.tokenAmount, sushiV2Addresses?.router, writeApproval]);
 
   useEffect(() => {
     if (isApprovalSuccess) {
@@ -338,7 +338,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
         setTimeout(() => createPairOnly(), 1000);
       }
     }
-  }, [isApprovalSuccess, pairExists]);
+  }, [isApprovalSuccess, pairExists, refetchAllowance]);
 
   useEffect(() => {
     if (isCreateSuccess) {
@@ -365,7 +365,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
         });
       }
     }
-  }, [isLiquiditySuccess, liquidityHash, onPoolCreated, tokenAddress, formData]);
+  }, [isLiquiditySuccess, liquidityHash, onPoolCreated, tokenAddress, formData.tokenAmount, formData.coreAmount]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });

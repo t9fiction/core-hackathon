@@ -112,7 +112,7 @@ const SmartPoolManager: React.FC<SmartPoolManagerProps> = ({
     address: sushiV2Addresses?.factory as Address,
     abi: SUSHISWAP_V2_FACTORY_ABI,
     functionName: "getPair",
-    args: [tokenAddress, contractAddresses.WETH],
+    args: tokenAddress && contractAddresses.WETH ? [tokenAddress, contractAddresses.WETH as Address] : undefined,
     query: {
       enabled: !!(tokenAddress && contractAddresses.WETH && sushiV2Addresses?.factory),
     },
@@ -123,7 +123,7 @@ const SmartPoolManager: React.FC<SmartPoolManagerProps> = ({
     address: tokenAddress,
     abi: CHAINCRAFT_TOKEN_ABI,
     functionName: "allowance",
-    args: address && tokenAddress ? [address, sushiV2Addresses?.router] : undefined,
+    args: address && tokenAddress && sushiV2Addresses?.router ? [address, sushiV2Addresses.router as Address] : undefined,
     query: {
       enabled: !!(address && tokenAddress && sushiV2Addresses?.router),
     },

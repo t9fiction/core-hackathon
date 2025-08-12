@@ -35,39 +35,20 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
   // Get selected token info
   const selectedTokenInfo = { symbol: 'TOKEN' }; // Simplified for now
 
-  // Get pool info for different fee tiers - same as PoolInformation component
-  const { data: poolInfo500 } = useReadContract({
+  // Check if token is authorized for DEX trading
+  const { data: isTokenAuthorized } = useReadContract({
     address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
     abi: CHAINCRAFT_DEX_MANAGER_ABI,
-    functionName: "getPoolInfo",
-    args: [tokenAddress, WETH_ADDRESS as Address, 500],
+    functionName: "authorizedTokens",
+    args: [tokenAddress],
     query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
   });
 
-  const { data: poolInfo3000 } = useReadContract({
-    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
-    abi: CHAINCRAFT_DEX_MANAGER_ABI,
-    functionName: "getPoolInfo",
-    args: [tokenAddress, WETH_ADDRESS as Address, 3000],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
-  });
-
-  const { data: poolInfo10000 } = useReadContract({
-    address: contractAddresses?.CHAINCRAFT_DEX_MANAGER as Address,
-    abi: CHAINCRAFT_DEX_MANAGER_ABI,
-    functionName: "getPoolInfo",
-    args: [tokenAddress, WETH_ADDRESS as Address, 10000],
-    query: { enabled: !!tokenAddress && !!contractAddresses?.CHAINCRAFT_DEX_MANAGER }
-  });
-
-  // Check if there are any active pools
+  // For now, we assume there are no active pools since the system is simplified
+  // Pool creation is handled by separate SushiSwap components
   useEffect(() => {
-    const pools = [poolInfo500, poolInfo3000, poolInfo10000];
-    const activePoolsExist = pools.some(data => 
-      data && Array.isArray(data) && data.length >= 5 && data[3] // isActive is at index 3
-    );
-    setHasActivePools(activePoolsExist);
-  }, [poolInfo500, poolInfo3000, poolInfo10000]);
+    setHasActivePools(false); // Always false since we removed pool management from DEX Manager
+  }, []);
 
   // Use useTokenDEX for pool creation functionality
   const dex = useTokenDEX(tokenAddress);
@@ -75,25 +56,21 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
   // Debug logging for pool state
   console.log('DEX Pool Status:', {
     hasActivePools,
-    poolExists: dex.poolExists,
-    poolInfo: dex.poolInfo,
-    poolInfo500,
-    poolInfo3000,
-    poolInfo10000
+    isAuthorized: dex.isAuthorized,
+    isAuthorizing: dex.isAuthorizing,
+    isTokenAuthorized
   });
 
   const dexHash = async () => {
     try {
       if (poolTokenAmount && poolEthAmount) {
-        const result = await dex.createFactoryDEXPool(
-          poolTokenAmount,
-          poolEthAmount,
-          poolFee
-        );
-        console.log('DEX Pool created successfully:', result);
+        // Since DEX manager only handles authorization now,
+        // we'll just authorize the token and inform user to use SushiSwap components
+        const result = await dex.authorizeTokenForTrading();
+        console.log('Token authorized for DEX trading:', result);
       }
     } catch (error) {
-      console.error('Error creating DEX pool:', error);
+      console.error('Error authorizing token:', error);
     }
   };
 
@@ -187,11 +164,11 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
               !isConnected ||
               !poolTokenAmount ||
               !poolEthAmount ||
-              dex.isCreatingPool
+              dex.isAuthorizing
             }
             className="w-full mt-4 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-700 hover:to-purple-700 disabled:opacity-50 text-white py-3 px-4 rounded-lg transition-colors font-medium"
           >
-            {dex.isCreatingPool ? (
+            {dex.isAuthorizing ? (
               <span className="flex items-center justify-center">
                 <svg
                   className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
@@ -210,13 +187,13 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
                   <path
                     className="opacity-75"
                     fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 814 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Creating DEX Pool...
+                Authorizing Token...
               </span>
             ) : (
-              "Create DEX Pool on Uniswap"
+              "Authorize Token for DEX Trading"
             )}
           </button>
         </div>
@@ -284,13 +261,10 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
                 }
                 onClick={async () => {
                   try {
-                    await dex.addLiquidity(
-                      liquidityAmount,
-                      ethAmount,
-                      poolFee
-                    );
+                    // Since DEX manager is simplified, just show message that user should use SushiSwap components
+                    alert('Please use the SushiSwap pool creation components in the Create Pool tab to add liquidity.');
                   } catch (error) {
-                    console.error("Error adding liquidity:", error);
+                    console.error("Error:", error);
                   }
                 }}
                 className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white py-2 px-4 rounded-lg transition-colors"

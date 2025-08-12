@@ -276,16 +276,32 @@ const DEXPoolCreator: React.FC<DEXPoolCreatorProps> = ({
         contractAddress: contractAddresses.CHAINCRAFT_DEX_MANAGER,
       });
 
-      // Call DEX Manager to create initial liquidity by swapping ETH for tokens
+      // Import route calculation for SushiSwap
+      const { generateETHToTokenRoute } = await import('../../lib/dex/routeCalculation');
+      
+      // Generate route bytes for SushiSwap RouteProcessor
+      const routeBytes = generateETHToTokenRoute(
+        tokenAddress,
+        ethAmountWei,
+        BigInt(0), // minAmountOut - accept any amount
+        address as `0x${string}`,
+        contractAddresses.WETH as `0x${string}`
+      );
+      
+      console.log('Generated route:', {
+        tokenOut: tokenAddress,
+        route: routeBytes,
+        ethAmount: ethAmountWei.toString()
+      });
+      
+      // Call DEX Manager to swap ETH for tokens
       await writePoolCreation({
         address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
         abi: CHAINCRAFT_DEX_MANAGER_ABI,
         functionName: "swapETHForTokens",
         args: [
-          0, // amountOutMin - accept any amount of tokens
-          path, // swap path
-          address, // recipient
-          Math.floor(Date.now() / 1000) + 300 // deadline - 5 minutes from now
+          tokenAddress as `0x${string}`, // tokenOut
+          routeBytes as `0x${string}` // route bytes
         ],
         value: ethAmountWei,
       });

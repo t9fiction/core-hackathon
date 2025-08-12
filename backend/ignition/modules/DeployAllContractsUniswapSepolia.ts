@@ -1,6 +1,5 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 import GovernanceModule from "./ChainCraftGovernance";
-import GovernanceAirdropModule from "./ChainCraftGovernanceAirdrop";
 
 // DEX Configuration - Environment variables with fallbacks
 const SWAP_ROUTER = process.env.SUSHI_SWAP_ROUTER || "0x93c31c9C729A249b2877F7699e178F4720407733";
@@ -28,7 +27,7 @@ const WETH = process.env.WETH_ADDRESS || "0xfff9976782d46cc05630d1f6ebab18b2324d
 const DeployAllContracts = buildModule("DeployAllContracts", (m: any) => {
   // Deploy core token infrastructure
   const factory = m.contract("ChainCraftFactoryLite");
-  const dexManager = m.contract("ChainCraftDEXManager", [SWAP_ROUTER, POSITION_MANAGER, SUSHI_FACTORY, _quoter, WETH]);
+  const dexManager = m.contract("ChainCraftDEXManager"); // Simplified - no parameters needed
 
   // Set up factory and DEX manager relationship
   m.call(dexManager, "setFactory", [factory], { after: [factory, dexManager] });
@@ -36,7 +35,6 @@ const DeployAllContracts = buildModule("DeployAllContracts", (m: any) => {
 
   // Deploy governance infrastructure
   const { governance } = m.useModule(GovernanceModule);
-  const { airdrop } = m.useModule(GovernanceAirdropModule);
 
   // Example token deployment (commented out by default)
   // const requiredFee = m.staticCall(factory, "getRequiredFee", [TOTAL_SUPPLY]);
@@ -51,8 +49,7 @@ const DeployAllContracts = buildModule("DeployAllContracts", (m: any) => {
     factory, 
     dexManager,
     // Governance infrastructure 
-    governance,
-    airdrop
+    governance
   };
 });
 
