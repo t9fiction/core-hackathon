@@ -67,12 +67,6 @@ const Navbar = () => {
               DEX
             </Link>
             <Link 
-              href='/create-pool' 
-              className='text-gray-300 hover:text-cyan-400 transition-colors duration-200 font-medium'
-            >
-              CREATE POOL
-            </Link>
-            <Link 
               href='/governance' 
               className='text-gray-300 hover:text-cyan-400 transition-colors duration-200 font-medium'
             >
@@ -145,13 +139,6 @@ const Navbar = () => {
             onClick={() => setIsMobileMenuOpen(false)}
           >
             DEX
-          </Link>
-          <Link 
-            href='/create-pool' 
-            className='block px-3 py-2 text-gray-300 hover:text-cyan-400 hover:bg-gray-800/50 rounded-md transition-colors duration-200 font-medium'
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            CREATE POOL
           </Link>
           <Link 
             href='/governance' 

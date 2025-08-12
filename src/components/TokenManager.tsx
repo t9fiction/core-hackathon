@@ -15,6 +15,7 @@ import { CHAINCRAFT_DEX_MANAGER_ABI } from '../lib/contracts/abis';
 import { parseEther } from "viem";
 import Link from "next/link";
 import { showErrorAlert } from '../lib/swal-config';
+import { useTokenApproval } from '../lib/hooks/useTokenApproval';
 
 interface TokenInfo {
   tokenAddress: string;
@@ -245,8 +246,6 @@ const TokenManager = () => {
     const [lockEthAmount, setLockEthAmount] = useState("");
     const [lockDuration, setLockDuration] = useState(30);
     const [lockDescription, setLockDescription] = useState("Team tokens locked to build community trust");
-    const [isApproving, setIsApproving] = useState(false);
-    const [needsApproval, setNeedsApproval] = useState(false);
     const [isLocking, setIsLocking] = useState(false);
     const [liquidityAmount, setLiquidityAmount] = useState("");
     const [ethAmount, setEthAmount] = useState("");
@@ -305,60 +304,24 @@ const TokenManager = () => {
       },
     });
 
-    // Check current allowance for token locking
-    const { data: currentAllowance, refetch: refetchAllowance } = useReadContract({
-      address: tokenAddress as Address,
-      abi: CHAINCRAFT_TOKEN_ABI,
-      functionName: 'allowance',
-      args: [address as Address, contractAddresses.CHAINCRAFT_FACTORY as Address],
-      query: {
-        enabled: !!tokenAddress && !!address && !!contractAddresses.CHAINCRAFT_FACTORY && isConnected,
-      },
+    // Universal approval hook for token locking
+    const {
+      needsApproval,
+      approve: approveTokensForLocking,
+      approvalPending: isApproving,
+      approvalSuccess,
+      approvalError,
+      spenderName: lockSpenderName,
+    } = useTokenApproval({
+      tokenAddress: tokenAddress as Address,
+      spenderAddress: contractAddresses.CHAINCRAFT_FACTORY,
+      userAddress: address,
+      amount: lockAmount || '0',
+      decimals: 18,
+      enableMaxApproval: true, // Better UX - approve max amount for token locking
     });
 
-    // Check if approval is needed
-    useEffect(() => {
-      if (lockAmount && currentAllowance !== undefined) {
-        const requestedAmount = parseUnits(lockAmount, 18);
-        const allowance = currentAllowance as bigint;
-        setNeedsApproval(requestedAmount > allowance);
-      } else {
-        setNeedsApproval(false);
-      }
-    }, [lockAmount, currentAllowance]);
-
-    // Handle token approval for locking
-    const handleApproveTokens = async () => {
-      if (!lockAmount || !tokenAddress) return;
-      
-      try {
-        setIsApproving(true);
-        const tokenAmountWei = parseUnits(lockAmount, 18);
-        
-        await writeContract({
-          address: tokenAddress as Address,
-          abi: CHAINCRAFT_TOKEN_ABI,
-          functionName: 'approve',
-          args: [contractAddresses.CHAINCRAFT_FACTORY as Address, tokenAmountWei],
-        });
-
-        // Wait for approval and refetch allowance
-        setTimeout(() => {
-          refetchAllowance();
-          setIsApproving(false);
-        }, 3000);
-
-      } catch (error) {
-        console.error('Error approving tokens:', error);
-        showErrorAlert(
-          'Approval Failed',
-          (error as any)?.message || 'Failed to approve tokens'
-        );
-        setIsApproving(false);
-      }
-    };
-
-    // Handle token locking
+    // Handle token locking with universal approval
     const handleLockTokens = async () => {
       try {
         setIsLocking(true);
@@ -389,6 +352,13 @@ const TokenManager = () => {
           }
         }
 
+        // Check if approval is needed first
+        if (needsApproval) {
+          await approveTokensForLocking();
+          return; // Wait for approval success
+        }
+
+        // If approval complete, proceed with locking
         const tokenAmountWei = parseUnits(lockAmount, 18);
         const ethAmountWei = parseEther(lockEthAmount);
         const lockDurationSeconds = lockDuration * 24 * 60 * 60;
@@ -414,9 +384,6 @@ const TokenManager = () => {
         setLockDescription('Team tokens locked to build community trust');
         setIsLocking(false);
         
-        // Refetch data
-        refetchAllowance();
-        
       } catch (error) {
         console.error('Error locking tokens:', error);
         showErrorAlert(
@@ -426,6 +393,14 @@ const TokenManager = () => {
         setIsLocking(false);
       }
     };
+    
+    // Auto-proceed to lock after approval success
+    useEffect(() => {
+      if (approvalSuccess && lockAmount && lockEthAmount) {
+        // Re-trigger lock after approval
+        setTimeout(() => handleLockTokens(), 1000);
+      }
+    }, [approvalSuccess, lockAmount, lockEthAmount]);
 
     const tabs = [
       { id: "dex", label: "💱 DEX Trading", icon: "💱" },
@@ -1085,68 +1060,49 @@ const TokenManager = () => {
                         </div>
                       </div>
                     </div>
-                    {/* Approval Status Display */}
-                    {lockAmount && currentAllowance !== undefined && (
-                      <div className="p-3 bg-gray-600 rounded mb-3">
-                        <div className="text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-300">Current Allowance:</span>
-                            <span className="text-white">{parseFloat(formatUnits(currentAllowance as bigint, 18)).toFixed(2)} {selectedTokenInfo?.symbol}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-300">Requested Amount:</span>
-                            <span className="text-white">{lockAmount} {selectedTokenInfo?.symbol}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-300">Approval Status:</span>
-                            <span className={`${needsApproval ? 'text-orange-400' : 'text-green-400'}`}>
-                              {needsApproval ? '⚠️ Approval Required' : '✅ Approved'}
-                            </span>
-                          </div>
+                    {/* Universal approval status display */}
+                    {(isApproving || approvalError) && (
+                      <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg mb-3">
+                        <div className="flex items-center gap-2">
+                          {isApproving ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                          ) : (
+                            <div className="text-red-400">❌</div>
+                          )}
+                          <p className="text-blue-300 text-sm">
+                            {isApproving ? `Approving tokens with ${lockSpenderName}...` : 
+                             approvalError ? `Approval failed: ${approvalError}` :
+                             'Processing approval...'}
+                          </p>
                         </div>
                       </div>
                     )}
 
-                    {/* Approve/Lock Button Flow */}
-                    {needsApproval ? (
-                      <button
-                        disabled={!isConnected || !lockAmount || !lockEthAmount || !lockDuration || isApproving || (isCurrentlyLocked === true)}
-                        onClick={handleApproveTokens}
-                        className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors font-medium mb-2"
-                      >
-                        {isApproving ? (
-                          <span className="flex items-center justify-center">
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Approving Tokens...
-                          </span>
-                        ) : (
-                          `📝 Step 1: Approve ${lockAmount} ${selectedTokenInfo?.symbol}`
-                        )}
-                      </button>
-                    ) : (
-                      <button
-                        disabled={!isConnected || !lockAmount || !lockEthAmount || !lockDuration || isLocking || (isCurrentlyLocked === true)}
-                        onClick={handleLockTokens}
-                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors font-medium"
-                      >
-                        {isLocking ? (
-                          <span className="flex items-center justify-center">
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Locking Tokens...
-                          </span>
-                        ) : isCurrentlyLocked ? (
-                          'Token Already Locked'
-                        ) : (
-                          '🔐 Step 2: Lock Tokens'
-                        )}
-                      </button>
-                    )}
+                    {/* Universal Lock Button */}
+                    <button
+                      disabled={!isConnected || !lockAmount || !lockEthAmount || !lockDuration || isApproving || isLocking || (isCurrentlyLocked === true)}
+                      onClick={handleLockTokens}
+                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors font-medium"
+                    >
+                      {isApproving || isLocking ? (
+                        <span className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          {isApproving ? 'Approving...' : 'Locking...'}
+                        </span>
+                      ) : isCurrentlyLocked ? (
+                        'Token Already Locked'
+                      ) : (
+                        `🔐 Lock ${lockAmount} ${selectedTokenInfo?.symbol}`
+                      )}
+                    </button>
+                    
+                    {/* Help text */}
+                    <div className="text-xs text-slate-400 text-center mt-2">
+                      {needsApproval ? 
+                        'Token approval will be handled automatically when you lock.' :
+                        'Ready to lock - no approval needed.'
+                      }
+                    </div>
                   </div>
                 </div>
 

@@ -3,7 +3,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { Address, formatEther } from 'viem';
 import { TokenDeploymentForm } from '../../components/TokenDeployment';
-import { DEXPoolCreator } from '../../components/DEX';
+import EnhancedPoolCreator from '../../components/DEX/EnhancedPoolCreator';
 import { PoolInformation } from '../../components/PoolInfo';
 import { LiquidityManager } from '../../components/LiquidityManagement';
 import { CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
@@ -262,21 +262,11 @@ const Token = () => {
                 
                 {activeTab === 'pool' && (
                   <div>
-                    {selectedTokenAddress ? (
-                      <DEXPoolCreator 
-                        tokenAddress={selectedTokenAddress}
-                        tokenSymbol={selectedTokenSymbol}
-                        onPoolCreated={handlePoolCreated}
-                      />
-                    ) : (
-                      <div className="text-center py-12">
-                        <div className="text-6xl mb-4">💧</div>
-                        <h3 className="text-xl font-bold mb-2">No Token Selected</h3>
-                        <p className="text-gray-400">
-                          Please select a token above to create DEX pools
-                        </p>
-                      </div>
-                    )}
+                    <EnhancedPoolCreator 
+                      selectedTokenAddress={selectedTokenAddress}
+                      onPoolCreated={handlePoolCreated}
+                      showTokenSelection={false}
+                    />
                   </div>
                 )}
                 

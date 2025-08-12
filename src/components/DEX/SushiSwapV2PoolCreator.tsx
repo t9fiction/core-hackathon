@@ -74,7 +74,7 @@ const SUSHISWAP_V2_ADDRESSES = {
 };
 
 const SushiSwapV2PoolCreator: React.FC<SushiSwapV2PoolCreatorProps> = ({
-  tokenAddress = "0xe2f50e3fb3946fc890cbf98f5fb404d57c07a949",
+  tokenAddress,
   tokenSymbol = "TOKEN",
   onPoolCreated,
 }) => {
@@ -279,6 +279,17 @@ const SushiSwapV2PoolCreator: React.FC<SushiSwapV2PoolCreatorProps> = ({
     }
   }, [pairExists, currentStep, needsTokenApproval]);
 
+  // Auto-start at liquidity step if pair already exists
+  useEffect(() => {
+    if (pairExists && currentStep === 'authorize') {
+      if (needsTokenApproval()) {
+        setCurrentStep('approve-tokens');
+      } else {
+        setCurrentStep('add-liquidity');
+      }
+    }
+  }, [pairExists, needsTokenApproval]);
+
   useEffect(() => {
     if (isPairSuccess) {
       setCurrentStep('add-liquidity');
@@ -316,11 +327,23 @@ const SushiSwapV2PoolCreator: React.FC<SushiSwapV2PoolCreatorProps> = ({
     );
   }
 
+  if (!tokenAddress) {
+    return (
+      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 text-center">
+        <div className="text-6xl mb-4">🏗️</div>
+        <h3 className="text-xl font-bold text-white mb-2">No Token Selected</h3>
+        <p className="text-gray-400">
+          Please select a token to create or manage liquidity pools
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
       <h2 className="text-2xl font-bold mb-6 flex items-center">
         <span className="text-blue-400 mr-2">🍣</span>
-        Create SushiSwap V2 Pool
+        {pairExists ? `Manage ${tokenSymbol}/CORE Pool` : `Create ${tokenSymbol}/CORE Pool`}
       </h2>
 
       {/* Token Address Display */}

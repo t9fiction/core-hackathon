@@ -6,6 +6,7 @@ import { CHAINCRAFT_DEX_MANAGER_ABI, CHAINCRAFT_TOKEN_ABI } from '../../lib/cont
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { showSuccessAlert, showErrorAlert } from '../../lib/swal-config';
 import { useSmartContractRead, useIsFallbackMode } from '../../lib/hooks/useSmartContract';
+import { useTokenApproval } from '../../lib/hooks/useTokenApproval';
 
 interface BuySellTokensProps {
   tokenAddress: Address;
@@ -81,13 +82,21 @@ export const BuySellTokens = ({
     enabled: !!address,
   });
 
-  // Get token allowance for DEX Manager
-  const { data: tokenAllowance } = useSmartContractRead({
-    address: tokenAddress,
-    abi: CHAINCRAFT_TOKEN_ABI,
-    functionName: 'allowance',
-    args: [address!, contractAddresses.CHAINCRAFT_DEX_MANAGER],
-    enabled: !!address,
+  // Universal approval hook for selling tokens
+  const {
+    needsApproval,
+    approve: approveTokens,
+    approvalPending,
+    approvalSuccess,
+    approvalError,
+    spenderName,
+  } = useTokenApproval({
+    tokenAddress,
+    spenderAddress: contractAddresses.CHAINCRAFT_DEX_MANAGER as Address,
+    userAddress: address,
+    amount: sellAmount || '0',
+    decimals: 18,
+    enableMaxApproval: true, // Better UX - approve max amount
   });
 
   // Debounced buy amount for estimates to prevent excessive calls  
@@ -174,49 +183,29 @@ export const BuySellTokens = ({
     }
   };
 
-  const handleApproveToken = async (_amount: string) => {
-    if (!tokenAddress || !address) return;
-    setIsLoading(true);
-    
-    try {
-      await writeContract({
-        address: tokenAddress,
-        abi: CHAINCRAFT_TOKEN_ABI,
-        functionName: 'approve',
-        args: [contractAddresses.CHAINCRAFT_DEX_MANAGER, parseEther(_amount)], // Approve large amount
-      });
-    } catch (error: any) {
-      console.error('Error approving tokens:', error);
-      showErrorAlert(
-        'Approval Failed',
-        error.shortMessage || error.message || 'Unknown error occurred while approving tokens'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleSellTokens = async () => {
     if (!tokenAddress || !sellAmount || !address) return;
     setIsLoading(true);
     
     try {
-        // First approve tokens if needed
-        await handleApproveToken(sellAmount);
-        // Wait a bit for the approval to be processed
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        const amountIn = parseEther(sellAmount);
-        // Generate route data (empty for now, RouteProcessor7 can handle simple swaps)
-        const routeData = '0x' as `0x${string}`;
-        
-        await writeContract({
-          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-          abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: 'swapTokensForETH',
-          args: [tokenAddress, amountIn, routeData],
-        });
+      // Check if approval is needed first
+      if (needsApproval) {
+        await approveTokens(); // Use universal approval
+        return; // Wait for approval success
+      }
       
+      // If approval complete, proceed with selling
+      const amountIn = parseEther(sellAmount);
+      // Generate route data (empty for now, RouteProcessor7 can handle simple swaps)
+      const routeData = '0x' as `0x${string}`;
+      
+      await writeContract({
+        address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
+        abi: CHAINCRAFT_DEX_MANAGER_ABI,
+        functionName: 'swapTokensForETH',
+        args: [tokenAddress, amountIn, routeData],
+      });
+    
       setSellAmount('');
     } catch (error: any) {
       console.error('Error selling tokens:', error);
@@ -228,6 +217,14 @@ export const BuySellTokens = ({
       setIsLoading(false);
     }
   };
+  
+  // Auto-proceed to sell after approval success
+  useEffect(() => {
+    if (approvalSuccess && activeTab === 'sell' && sellAmount) {
+      // Re-trigger sell after approval
+      setTimeout(() => handleSellTokens(), 1000);
+    }
+  }, [approvalSuccess, activeTab, sellAmount]);
 
   // Calculate values using useMemo (must be before conditional returns)
   const calculateBuyOutput = useMemo(() => {
@@ -254,14 +251,13 @@ export const BuySellTokens = ({
     return '0';
   }, [debouncedSellAmount, tokenPriceData]);
 
-  const needsApproval = useMemo(() => {
-    if (!sellAmount || !tokenAllowance) return false;
-    try {
-      return parseEther(sellAmount) > (tokenAllowance as bigint);
-    } catch {
-      return false;
-    }
-  }, [sellAmount, tokenAllowance]);
+  // Processing state combining local loading and approval states
+  const isProcessingOverall = isLoading || approvalPending || isConfirming;
+  
+  // Status message for sell transactions
+  const sellStatusMessage = approvalPending ? `Approving tokens with ${spenderName}...` : 
+                           approvalError ? `Approval failed: ${approvalError}` :
+                           isLoading ? 'Processing transaction...' : '';
 
   if (!isConnected) {
     return (
@@ -391,30 +387,53 @@ export const BuySellTokens = ({
                 placeholder="0.0"
                 value={sellAmount}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSellAmount(e.target.value)}
-                className="w-full p-3 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent text-white placeholder-slate-400"
+                disabled={isProcessingOverall}
+                className="w-full p-3 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent text-white placeholder-slate-400 disabled:opacity-50"
               />
               <div className="text-sm text-slate-400 mt-1">
                 You will receive: ~{parseFloat(calculateSellOutput).toFixed(6)} ETH
               </div>
             </div>
             
-            {needsApproval ? (
-              <button
-                onClick={() => handleApproveToken(sellAmount)}
-                disabled={isLoading || isConfirming}
-                className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors mb-2"
-              >
-                {isLoading || isConfirming ? 'Approving...' : `Approve ${tokenSymbol as string || 'Tokens'}`}
-              </button>
-            ) : null}
+            {/* Universal approval status */}
+            {sellStatusMessage && (
+              <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                  <p className="text-blue-300 text-sm">{sellStatusMessage}</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Approval error display */}
+            {approvalError && (
+              <div className="p-3 bg-red-900/30 border border-red-500/50 rounded-lg">
+                <p className="text-red-300 text-sm">❌ {approvalError}</p>
+              </div>
+            )}
             
             <button
               onClick={handleSellTokens}
-              disabled={isLoading || isConfirming || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n)) || needsApproval}
+              disabled={isProcessingOverall || !sellAmount || parseFloat(sellAmount) > parseFloat(formatEther(tokenBalance as bigint || 0n))}
               className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
             >
-              {isLoading || isConfirming ? 'Processing...' : `Sell ${tokenSymbol as string || 'Tokens'}`}
+              {isProcessingOverall ? (
+                <span className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  {approvalPending ? 'Approving...' : 'Processing...'}
+                </span>
+              ) : (
+                `Sell ${tokenSymbol as string || 'Tokens'}`
+              )}
             </button>
+            
+            {/* Help text */}
+            <div className="text-xs text-slate-400 text-center">
+              {needsApproval ? 
+                'Token approval will be handled automatically when you sell.' :
+                'Ready to sell - no approval needed.'
+              }
+            </div>
           </div>
         )}
       </div>

@@ -5,7 +5,7 @@ import { Address, formatEther } from 'viem';
 import { CHAINCRAFT_DEX_MANAGER_ABI, CHAINCRAFT_FACTORY_ABI, CHAINCRAFT_TOKEN_ABI } from '../lib/contracts/abis';
 import { getContractAddresses } from '../lib/contracts/addresses';
 import { useTokenDEX } from '../lib/hooks/useTokenContracts';
-import DEXPoolCreator from '../components/DEX/DEXPoolCreator';
+import EnhancedPoolCreator from '../components/DEX/EnhancedPoolCreator';
 import PoolInformation from '../components/PoolInfo/PoolInformation';
 import BuySellTokens from '../components/BuySellTokens/BuySellTokens';
 import PublicTokenListing from '../components/PublicTokenListing/PublicTokenListing';
@@ -710,16 +710,15 @@ const DEXPage = () => {
               )}
             </div>
             
-            {/* DEX Pool Creator Component */}
-            {selectedToken && (
-              <DEXPoolCreator 
-                tokenAddress={selectedToken as Address}
-                tokenSymbol={userTokens.find(token => token.address === selectedToken)?.symbol}
-                onPoolCreated={(poolInfo) => {
-                  setActiveTab('manage');
-                }} 
-              />
-            )}
+            {/* Enhanced Pool Creator Component */}
+            <EnhancedPoolCreator 
+              selectedTokenAddress={selectedToken as Address}
+              onPoolCreated={(poolInfo) => {
+                console.log('Pool created:', poolInfo);
+                setActiveTab('manage');
+              }} 
+              showTokenSelection={false}
+            />
           </div>
         );
 
