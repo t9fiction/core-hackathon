@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Address } from 'viem';
 import { BuySellTokens } from '../BuySellTokens/BuySellTokens';
 import SushiSwapDebugger from './SushiSwapDebugger';
+import SellDebugger from './SellDebugger';
 
 interface TradingTestSuiteProps {
   tokenAddress: Address;
@@ -89,6 +90,11 @@ export const TradingTestSuite: React.FC<TradingTestSuiteProps> = ({
           </div>
           
           <SushiSwapDebugger
+            tokenAddress={tokenAddress}
+            tokenSymbol={tokenSymbol}
+          />
+          
+          <SellDebugger
             tokenAddress={tokenAddress}
             tokenSymbol={tokenSymbol}
           />

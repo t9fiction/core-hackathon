@@ -73,8 +73,8 @@ export const useTokenApproval = (options: UseTokenApprovalOptions): UseTokenAppr
     return checkApprovalStatus(currentAllowance, amount, decimals);
   }, [currentAllowance, amount, decimals]);
 
-  // Approval transaction
-  const approvalAmount = enableMaxApproval ? APPROVAL_AMOUNTS.MAX_UINT256 : amount;
+  // Approval transaction - use safe max to avoid overflow
+  const approvalAmount = enableMaxApproval ? APPROVAL_AMOUNTS.SAFE_MAX : amount;
   const approvalParams: ApprovalParams = {
     tokenAddress,
     spenderAddress,

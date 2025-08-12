@@ -178,9 +178,9 @@ export const BuySellTokens = ({
     tokenAddress,
     spenderAddress: sushiV2Addresses?.router as Address,
     userAddress: address,
-    amount: sellAmount || '0',
+    amount: sellAmount || '0', // Use actual sell amount for approval check
     decimals: 18,
-    enableMaxApproval: true, // Better UX - approve max amount
+    enableMaxApproval: false, // Approve only exact amount being sold
   });
 
   // Debounced buy amount for estimates to prevent excessive calls  
@@ -343,6 +343,8 @@ export const BuySellTokens = ({
     }
   };
 
+  const [isApprovingForSell, setIsApprovingForSell] = useState(false);
+
   const handleSellTokens = async () => {
     if (!tokenAddress || !sellAmount || !address || !sushiV2Addresses) return;
     
@@ -357,36 +359,65 @@ export const BuySellTokens = ({
     setIsLoading(true);
     
     try {
-      // Check if approval is needed first
-      if (needsApproval) {
-        await approveTokens(); // Use universal approval
+      // ALWAYS approve tokens before selling - force approval
+      if (!isApprovingForSell) {
+        console.log('🟡 Forcing approval before selling...', {
+          tokenAddress,
+          spenderAddress: sushiV2Addresses.router,
+          sellAmount,
+          contractAddresses: {
+            WETH: contractAddresses.WETH,
+            router: sushiV2Addresses.router,
+            factory: sushiV2Addresses.factory
+          },
+          timestamp: new Date().toISOString()
+        });
+        setIsApprovingForSell(true);
+        await approveTokens(); // Always approve before selling
         return; // Wait for approval success
       }
+      
+      // Reset approval flag and proceed with selling
+      setIsApprovingForSell(false);
       
       // If approval complete, proceed with selling
       const amountIn = parseUnits(sellAmount, 18);
       const path = [tokenAddress, contractAddresses.WETH];
       
-      // Calculate minimum amount out with 10% slippage for safety
+      // Calculate minimum amount out with 20% slippage for safety
       let minAmountOut = 1n; // Start with minimal amount
       
       if (sellQuote && Array.isArray(sellQuote) && sellQuote.length > 1) {
-        // Scale the quote to the actual input amount
-        const quoteInput = parseUnits('1', 18);
+        // Use the quote directly since it's already calculated for the sell amount
         const quoteOutput = sellQuote[1] as bigint;
-        const scaledOutput = (quoteOutput * amountIn) / quoteInput;
-        minAmountOut = (scaledOutput * 90n) / 100n; // 10% slippage
+        minAmountOut = (quoteOutput * 80n) / 100n; // 20% slippage for more tolerance
+        
+        console.log('🔍 Sell slippage calculation:', {
+          quoteOutput: quoteOutput.toString(),
+          minAmountOut: minAmountOut.toString(),
+          slippagePercent: '20%'
+        });
       }
       
       // Deadline: 20 minutes from now
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
       
-      console.log('Selling tokens with SushiSwap:', {
+      console.log('🟢 Attempting to sell tokens with SushiSwap:', {
+        chainId,
         amountIn: amountIn.toString(),
+        amountInFormatted: sellAmount + ' ' + tokenSymbol,
         minAmountOut: minAmountOut.toString(),
+        minAmountOutFormatted: formatEther(minAmountOut) + ' CORE',
         path,
+        pathFormatted: [tokenSymbol, 'WCORE'],
         deadline: deadline.toString(),
-        router: sushiV2Addresses.router
+        router: sushiV2Addresses.router,
+        factory: sushiV2Addresses.factory,
+        pairExists,
+        sellQuoteAvailable: !!(sellQuote && Array.isArray(sellQuote) && sellQuote.length > 1),
+        userAddress: address,
+        gas: '300000', // Add explicit gas limit
+        timestamp: new Date().toISOString()
       });
       
       await writeContract({
@@ -394,14 +425,24 @@ export const BuySellTokens = ({
         abi: SUSHISWAP_V2_ROUTER_ABI,
         functionName: 'swapExactTokensForETH',
         args: [amountIn, minAmountOut, path, address, deadline],
+        gas: 300000n, // Add explicit gas limit for the transaction
       });
     
       setSellAmount('');
     } catch (error: any) {
-      console.error('Error selling tokens:', error);
+      console.error('🔴 Error selling tokens:', {
+        error,
+        chainId,
+        tokenAddress,
+        sellAmount,
+        pairExists,
+        sushiV2Addresses,
+        contractAddresses,
+        timestamp: new Date().toISOString()
+      });
       showErrorAlert(
         'Transaction Failed',
-        error.shortMessage || error.message || 'Failed to sell tokens via SushiSwap'
+        `Sell transaction failed: ${error.shortMessage || error.message || 'Unknown error'}\n\nCheck console for detailed error information.`
       );
     } finally {
       setIsLoading(false);
@@ -446,14 +487,9 @@ export const BuySellTokens = ({
     
     try {
       if (Array.isArray(sellQuote) && sellQuote.length > 1) {
-        const inputAmount = parseUnits(debouncedSellAmount, 18);
+        // Direct use of the quote since it's already calculated for the actual sell amount
         const outputAmount = sellQuote[1] as bigint;
-        
-        // Scale the output based on actual input vs quote input  
-        const quoteInput = parseUnits('1', 18);
-        const scaledOutput = (outputAmount * inputAmount) / quoteInput;
-        
-        return formatEther(scaledOutput);
+        return formatEther(outputAmount);
       }
     } catch (error) {
       console.error('Error calculating sell output:', error);
@@ -539,9 +575,9 @@ export const BuySellTokens = ({
         {/* Balance Display */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           <div className="text-center bg-slate-800 rounded-lg p-3">
-            <p className="text-sm text-slate-400 mb-1">Your ETH Balance</p>
+            <p className="text-sm text-slate-400 mb-1">Your CORE Balance</p>
             <p className="text-base font-medium text-white">
-              {ethBalance ? parseFloat(formatEther(ethBalance.value)).toFixed(4) : '0.0000'} ETH
+              {ethBalance ? parseFloat(formatEther(ethBalance.value)).toFixed(4) : '0.0000'} CORE
             </p>
           </div>
           <div className="text-center bg-slate-800 rounded-lg p-3">
@@ -589,7 +625,7 @@ export const BuySellTokens = ({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                ETH Amount to Spend
+                CORE Amount to Spend
               </label>
               <input
                 type="number"
@@ -636,7 +672,7 @@ export const BuySellTokens = ({
               />
               <div className="text-sm text-slate-400 mt-1">
                 {pairExists ? (
-                  `You will receive: ~${parseFloat(calculateSellOutput).toFixed(6)} ETH`
+                  `You will receive: ~${parseFloat(calculateSellOutput).toFixed(6)} CORE`
                 ) : (
                   <span className="text-yellow-400">⚠️ No pool available - cannot estimate output</span>
                 )}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAccount, useChainId, useReadContract, useBalance } from 'wagmi';
 import { Address, formatEther, parseEther, parseUnits } from 'viem';
 import { getContractAddresses } from '../../lib/contracts/addresses';
+import { CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
 
 // SushiSwap V2 Router ABI (for debugging)
 const SUSHISWAP_V2_ROUTER_ABI = [
@@ -104,6 +105,28 @@ export const SushiSwapDebugger: React.FC<SushiSwapDebuggerProps> = ({
       enabled: !!(pairExists && sushiV2Addresses?.router && contractAddresses.WETH && tokenAddress),
       refetchOnWindowFocus: false,
       retry: false,
+    },
+  });
+
+  // Check token balance
+  const { data: tokenBalance } = useReadContract({
+    address: tokenAddress,
+    abi: CHAINCRAFT_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: [address!],
+    query: {
+      enabled: !!address,
+    },
+  });
+
+  // Check token allowance for SushiSwap router
+  const { data: tokenAllowance } = useReadContract({
+    address: tokenAddress,
+    abi: CHAINCRAFT_TOKEN_ABI,
+    functionName: 'allowance',
+    args: address && sushiV2Addresses?.router ? [address, sushiV2Addresses.router as Address] : undefined,
+    query: {
+      enabled: !!(address && sushiV2Addresses?.router),
     },
   });
 
@@ -245,6 +268,57 @@ export const SushiSwapDebugger: React.FC<SushiSwapDebuggerProps> = ({
             ⚠️ No liquidity pool found for {tokenSymbol}/CORE pair
           </div>
         )}
+      </div>
+
+      {/* Token Balance & Approval Status */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="bg-blue-800/30 p-4 rounded">
+          <h4 className="text-blue-300 font-medium mb-3">💰 Token Balance</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-blue-400">Your Balance:</span>
+              <span className="text-blue-200">
+                {tokenBalance ? parseFloat(formatEther(tokenBalance as bigint)).toFixed(4) : '0.0000'} {tokenSymbol}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-blue-400">Sell-able:</span>
+              <span className="text-blue-200">
+                {tokenBalance && parseFloat(formatEther(tokenBalance as bigint)) > 0 ? '✅ Yes' : '❌ No tokens'}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-orange-800/30 p-4 rounded">
+          <h4 className="text-orange-300 font-medium mb-3">🔐 Token Approval</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-orange-400">Router Allowance:</span>
+              <span className="text-orange-200 font-mono text-xs">
+                {tokenAllowance ? formatEther(tokenAllowance as bigint).slice(0, 10) + '...' : '0.0000'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-orange-400">Status:</span>
+              <span className={`text-sm ${
+                tokenAllowance && (tokenAllowance as bigint) > 0n ? 'text-green-300' : 'text-red-300'
+              }`}>
+                {tokenAllowance && (tokenAllowance as bigint) > 0n ? '✅ Approved' : '❌ Not Approved'}
+              </span>
+            </div>
+            {tokenAllowance && (tokenAllowance as bigint) > 0n && (
+              <div className="text-xs text-green-400 mt-1">
+                Ready to sell tokens without additional approval
+              </div>
+            )}
+            {(!tokenAllowance || (tokenAllowance as bigint) === 0n) && (
+              <div className="text-xs text-yellow-400 mt-1">
+                Approval will be requested when you sell tokens
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Trading Quotes */}

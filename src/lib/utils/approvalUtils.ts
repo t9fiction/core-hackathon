@@ -29,7 +29,13 @@ export const checkApprovalStatus = (
   requiredAmount: string,
   decimals: number = 18
 ): ApprovalStatus => {
-  if (!currentAllowance || !requiredAmount) {
+  // If no amount is specified or amount is 0, no approval needed
+  if (!requiredAmount || requiredAmount === '0' || parseFloat(requiredAmount) <= 0) {
+    return { needsApproval: false, currentAllowance };
+  }
+
+  // If allowance is not loaded yet, assume approval needed
+  if (currentAllowance === undefined) {
     return { needsApproval: true };
   }
 
@@ -140,6 +146,7 @@ export const getSpenderName = (spenderAddress: string): string => {
  */
 export const APPROVAL_AMOUNTS = {
   MAX_UINT256: '115792089237316195423570985008687907853269984665640564039457584007913129639935',
+  SAFE_MAX: '1000000000000000000000000000000', // 1 trillion tokens with 18 decimals - safe amount
   ZERO: '0',
 } as const;
 
