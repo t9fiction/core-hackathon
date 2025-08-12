@@ -56,19 +56,20 @@ const SimplePoolCreator: React.FC<SimplePoolCreatorProps> = ({
 
   const { isSuccess: isAuthSuccess } = useWaitForTransactionReceipt({ hash: authHash });
 
-  // Step 1: Authorize token
+  // Step 1: Authorize token (simulation since direct integration is used)
   const authorizeToken = async () => {
     if (!tokenAddress) return;
     
     try {
-      await writeAuthorization({
-        address: contractAddresses.CHAINCRAFT_FACTORY,
-        abi: CHAINCRAFT_FACTORY_ABI,
-        functionName: "authorizeDEXTrading",
-        args: [tokenAddress],
-      });
+      console.log("Note: DEX authorization not required with SushiSwap V2 direct integration");
+      
+      // Since we're using direct SushiSwap V2 integration, no authorization is needed
+      // Just simulate successful "authorization" for UI purposes
+      setTimeout(() => {
+        setStep('manual');
+      }, 1000);
     } catch (err: any) {
-      setError(err?.message || "Failed to authorize token");
+      setError(err?.message || "Failed to complete DEX setup");
     }
   };
 

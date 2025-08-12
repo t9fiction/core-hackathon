@@ -31,8 +31,13 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
     const [needsApproval, setNeedsApproval] = useState(false);
 
   const contractAddresses = getContractAddresses(chainId);
-  const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  
+  // Separate hooks for approval and locking
+  const { writeContract: writeApproval, data: approvalHash, error: approvalError, isPending: isApprovePending } = useWriteContract();
+  const { writeContract: writeLock, data: lockHash, error: lockError, isPending: isLockPending } = useWriteContract();
+  
+  const { isLoading: isApprovalConfirming, isSuccess: isApprovalSuccess } = useWaitForTransactionReceipt({ hash: approvalHash });
+  const { isLoading: isLockConfirming, isSuccess: isLockSuccess } = useWaitForTransactionReceipt({ hash: lockHash });
 
   // Read token balance of the user
   const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
@@ -108,18 +113,12 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
       setError(null);
       const tokenAmountWei = parseUnits(formData.tokenAmount, 18);
       
-      await writeContract({
+      await writeApproval({
         address: tokenAddress as Address,
         abi: CHAINCRAFT_TOKEN_ABI,
         functionName: 'approve',
         args: [contractAddresses?.CHAINCRAFT_FACTORY as Address, tokenAmountWei],
       });
-
-      // Wait for approval and refetch allowance
-      setTimeout(() => {
-        refetchAllowance();
-        setIsApproving(false);
-      }, 3000);
 
     } catch (error: any) {
       console.error('Error approving tokens:', error);
@@ -189,7 +188,7 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
       });
 
       // Use the lockTokens function from the factory contract
-      writeContract({
+      writeLock({
         address: contractAddresses?.CHAINCRAFT_FACTORY as Address,
         abi: CHAINCRAFT_FACTORY_ABI,
         functionName: 'lockTokens',
@@ -209,25 +208,48 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
     }
   };
 
+  // Handle successful token approval
+  useEffect(() => {
+    if (isApprovalSuccess && approvalHash) {
+      console.log('Approval successful, refreshing allowance...');
+      refetchAllowance();
+      setIsApproving(false);
+      setError(null);
+    }
+  }, [isApprovalSuccess, approvalHash, refetchAllowance]);
+
   // Handle successful token locking
   useEffect(() => {
-    if (isSuccess && hash) {
+    if (isLockSuccess && lockHash) {
+      console.log('Tokens locked successfully!');
       if (onLiquidityAdded) {
-        onLiquidityAdded(hash);
+        onLiquidityAdded(lockHash);
       }
       // Reset form and refresh balance
       setFormData({ tokenAmount: '', ethAmount: '', lockDuration: '30', description: '' });
       refetchBalance();
       setIsAdding(false);
+      setError(null);
     }
-  }, [isSuccess, hash, onLiquidityAdded, refetchBalance]);
+  }, [isLockSuccess, lockHash, onLiquidityAdded, refetchBalance]);
 
-  // Handle transaction errors
+  // Handle approval transaction errors
   useEffect(() => {
-    if (writeError) {
+    if (approvalError) {
+      console.error('Approval error:', approvalError);
+      setError(approvalError?.message || 'Failed to approve tokens');
+      setIsApproving(false);
+    }
+  }, [approvalError]);
+
+  // Handle lock transaction errors
+  useEffect(() => {
+    if (lockError) {
+      console.error('Lock error:', lockError);
+      setError(lockError?.message || 'Failed to lock tokens');
       setIsAdding(false);
     }
-  }, [writeError]);
+  }, [lockError]);
 
   const lockDurationSeconds = calculateLockDurationInSeconds();
 
@@ -383,9 +405,12 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
           </div>
         )}
 
-        {writeError && (
+        {/* Display approval or lock errors */}
+        {(approvalError || lockError) && (
           <div className="p-3 bg-red-900/50 border border-red-500 rounded-lg">
-            <p className="text-red-300 text-sm">{writeError.message}</p>
+            <p className="text-red-300 text-sm">
+              {approvalError?.message || lockError?.message}
+            </p>
           </div>
         )}
 
@@ -448,13 +473,13 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
               !formData.ethAmount ||
               !formData.lockDuration ||
               isAdding ||
-              isPending ||
-              isConfirming ||
+              isLockPending ||
+              isLockConfirming ||
               (isCurrentlyLocked === true)
             }
             className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:opacity-50 text-white py-3 px-4 rounded font-medium transition-colors"
           >
-            {isAdding || isPending || isConfirming ? (
+            {isAdding || isLockPending || isLockConfirming ? (
               <span className="flex items-center justify-center">
                 <svg
                   className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
@@ -473,10 +498,10 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
                   <path
                     className="opacity-75"
                     fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                {isAdding ? 'Processing...' : isPending ? 'Confirming...' : 'Locking Tokens...'}
+                {isAdding ? 'Processing...' : isLockPending ? 'Confirming...' : 'Locking Tokens...'}
               </span>
             ) : (
               isCurrentlyLocked ? 'Token Already Locked' : '🔐 Step 2: Lock Tokens'
@@ -484,13 +509,26 @@ const LiquidityManager: React.FC<LiquidityManagerProps> = ({
           </button>
         )}
 
-        {isSuccess && (
+        {isLockSuccess && (
           <div className="p-3 bg-green-900/50 border border-green-500 rounded-lg">
             <p className="text-green-300 text-sm">✅ Tokens locked successfully!</p>
             <p className="text-green-200 text-xs mt-1">Your tokens are now locked to build community trust</p>
-            {hash && (
+            {lockHash && (
               <p className="text-xs text-gray-400 mt-1 break-all">
-                Transaction: {hash}
+                Transaction: {lockHash}
+              </p>
+            )}
+          </div>
+        )}
+        
+        {/* Show approval success message separately */}
+        {isApprovalSuccess && !isLockSuccess && (
+          <div className="p-3 bg-blue-900/50 border border-blue-500 rounded-lg">
+            <p className="text-blue-300 text-sm">✅ Token approval completed!</p>
+            <p className="text-blue-200 text-xs mt-1">You can now proceed to lock your tokens</p>
+            {approvalHash && (
+              <p className="text-xs text-gray-400 mt-1 break-all">
+                Transaction: {approvalHash}
               </p>
             )}
           </div>

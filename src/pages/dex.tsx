@@ -10,6 +10,7 @@ import PoolInformation from '../components/PoolInfo/PoolInformation';
 import BuySellTokens from '../components/BuySellTokens/BuySellTokens';
 import PublicTokenListing from '../components/PublicTokenListing/PublicTokenListing';
 import TokenTradeModal from '../components/PublicTokenListing/TokenTradeModal';
+import ImprovedPoolManager from '../components/DEX/ImprovedPoolManager';
 
 interface TokenInfo {
   address: string;
@@ -1079,7 +1080,14 @@ const DEXPage = () => {
             
             {/* Liquidity Management Component */}
             {selectedToken && (
-              <LiquidityManagerComponent tokenAddress={selectedToken as Address} />
+              <ImprovedPoolManager 
+                tokenAddress={selectedToken as Address}
+                tokenSymbol={filteredUserTokensManage.find(t => t.address === selectedToken)?.symbol || 'TOKEN'}
+                onPoolCreated={(poolInfo) => {
+                  console.log('Pool created:', poolInfo);
+                  // Could show success message or refresh data
+                }}
+              />
             )}
           </div>
         );

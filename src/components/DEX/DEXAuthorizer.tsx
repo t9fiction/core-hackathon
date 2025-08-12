@@ -65,23 +65,19 @@ const DEXAuthorizer: React.FC<DEXAuthorizerProps> = ({
     setError(null);
 
     try {
-      console.log("Authorizing DEX trading for:", {
-        tokenAddress,
-        contractAddress: contractAddresses.CHAINCRAFT_FACTORY,
-      });
-
-      // Authorize token for trading via factory
-      await writeContract({
-        address: contractAddresses.CHAINCRAFT_FACTORY,
-        abi: CHAINCRAFT_FACTORY_ABI,
-        functionName: "authorizeDEXTrading",
-        args: [tokenAddress],
-      });
+      console.log("Note: DEX authorization not required with SushiSwap V2 direct integration");
+      
+      // Since we're using direct SushiSwap V2 integration, no authorization is needed
+      // Just simulate successful "authorization" for UI purposes
+      setTimeout(() => {
+        setIsAuthorizing(false);
+        if (onAuthorized && tokenAddress) {
+          onAuthorized(tokenAddress);
+        }
+      }, 1000);
     } catch (error: any) {
-      console.error("Error authorizing DEX trading:", error);
-      setError(error?.message || error?.reason || "Failed to authorize DEX trading");
-    } finally {
-      setIsAuthorizing(false);
+      console.error("Error in DEX authorization flow:", error);
+      setError(error?.message || error?.reason || "Failed to complete DEX setup");
     }
   };
 
