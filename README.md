@@ -136,19 +136,8 @@ npm run test:coverage
 ## 🌐 Deployment
 
 ### Supported Networks
-- Ethereum Mainnet
-- Ethereum Sepolia (Testnet)
-- Base Mainnet
-- Base Sepolia (Testnet)
+- Core Dao
 
-### Environment Variables
-```bash
-PRIVATE_KEY=your_private_key_here
-API_URL_sepolia=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
-API_URL_base=https://base-mainnet.g.alchemy.com/v2/YOUR_KEY
-ETHERSCAN_API_KEY=your_etherscan_api_key
-BASESCAN_API_KEY=your_basescan_api_key
-```
 
 ## 🔐 Security Features
 
