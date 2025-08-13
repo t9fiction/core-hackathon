@@ -5,9 +5,9 @@ const Footer = () => {
   return (
     <footer className="bg-gray-900 border-t border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           {/* Brand Section */}
-          <div className="md:col-span-1">
+          <div className="col-span-1 sm:col-span-2 md:col-span-1">
             <div className="flex items-center mb-4">
               <div className='bg-blue-600 w-8 h-8 rounded-lg flex items-center justify-center mr-3 shadow-lg'>
                 <svg className='w-5 h-5 text-white' viewBox='0 0 24 24' fill='none'>
@@ -27,10 +27,10 @@ const Footer = () => {
                 ChainCraft
               </h3>
             </div>
-            <p className="text-gray-400 text-sm mb-4">
+            <p className="text-gray-400 text-xs sm:text-sm mb-4">
               The most secure and user-friendly DeFi platform for creating tokens with built-in anti-rug protection, DEX trading, and governance features.
             </p>
-            <div className="flex space-x-4">
+            <div className="flex flex-wrap gap-3 sm:space-x-4">
               <a href="https://twitter.com/chaincraft" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
@@ -91,13 +91,13 @@ const Footer = () => {
         </div>
 
         {/* Bottom Section */}
-        <div className="mt-12 pt-8 border-t border-gray-800">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
+        <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-gray-800">
+          <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 md:space-x-6">
               <p className="text-gray-400 text-sm">
                 © 2024 ChainCraft. All rights reserved.
               </p>
-              <div className="flex space-x-4">
+              <div className="flex flex-wrap gap-2 sm:gap-0 sm:space-x-4 justify-center sm:justify-start">
                 <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
                   Privacy Policy
                 </a>
@@ -110,7 +110,7 @@ const Footer = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4 mt-4 md:mt-0">
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 mt-4 sm:mt-0">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-sm text-gray-400">All Systems Operational</span>
@@ -124,7 +124,7 @@ const Footer = () => {
         </div>
 
         {/* Security Notice */}
-        <div className="mt-8 bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+        <div className="mt-6 sm:mt-8 bg-gray-800/50 rounded-lg p-3 sm:p-4 border border-gray-700">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
               <svg className="w-5 h-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -133,7 +133,7 @@ const Footer = () => {
             </div>
             <div className="flex-1">
               <h5 className="text-sm font-medium text-yellow-400 mb-1">Security Notice</h5>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs sm:text-sm text-gray-400">
                 Always verify contract addresses before interacting with any token. ChainCraft contracts are audited and verified. 
                 Never share your private keys or seed phrases with anyone.
               </p>

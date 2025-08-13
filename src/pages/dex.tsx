@@ -586,17 +586,17 @@ const DEXPage = () => {
         return (
           <div className="space-y-6">
 
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-xl font-semibold text-white mb-1">Create DEX Pool</h2>
-                  <p className="text-slate-400 text-sm">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-6 sm:mb-8 space-y-4 lg:space-y-0">
+              <div className="flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mb-1">Create DEX Pool</h2>
+                  <p className="text-slate-400 text-xs sm:text-sm">
                   Create a new liquidity pool for your token. Set up trading pairs and enable trading.
                   {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
                 </p>
               </div>
               
               {/* Search Bar */}
-              <div className="relative w-80">
+              <div className="relative w-full lg:w-80">
                 <input
                   type="text"
                   placeholder="Search tokens..."
@@ -715,17 +715,17 @@ const DEXPage = () => {
       case 'buysell':
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-xl font-semibold text-white mb-1">Direct Trading</h2>
-                  <p className="text-slate-400 text-sm">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-6 sm:mb-8 space-y-4 lg:space-y-0">
+              <div className="flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mb-1">Direct Trading</h2>
+                  <p className="text-slate-400 text-xs sm:text-sm">
                   Trade tokens you own directly with instant execution and competitive pricing.
                   {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
                 </p>
               </div>
               
               {/* Search Bar */}
-              <div className="relative w-80">
+              <div className="relative w-full lg:w-80">
                 <input
                   type="text"
                   placeholder="Search tokens..."
@@ -825,17 +825,17 @@ const DEXPage = () => {
         return (
           <div className="space-y-6">
             
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-xl font-semibold text-white mb-1">My Dashboard</h2>
-                  <p className="text-slate-400 text-sm">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-6 sm:mb-8 space-y-4 lg:space-y-0">
+              <div className="flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mb-1">My Dashboard</h2>
+                  <p className="text-slate-400 text-xs sm:text-sm">
                   Manage your tokens, pools, and liquidity positions all in one place.
                   {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
                 </p>
               </div>
               
               {/* Search Bar */}
-              <div className="relative w-80">
+              <div className="relative w-full lg:w-80">
                 <input
                   type="text"
                   placeholder="Search tokens..."
@@ -979,17 +979,17 @@ const DEXPage = () => {
         return (
           <div className="space-y-6">
             
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-xl font-semibold text-white mb-1">Manage Liquidity</h2>
-                  <p className="text-slate-400 text-sm">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-6 sm:mb-8 space-y-4 lg:space-y-0">
+              <div className="flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mb-1">Manage Liquidity</h2>
+                  <p className="text-slate-400 text-xs sm:text-sm">
                   Add liquidity to existing pools to earn fees and support token trading. Liquidity is permanently locked.
                   {isConnected ? ' Select from your deployed tokens below.' : ' Connect your wallet to see your tokens.'}
                 </p>
               </div>
               
               {/* Search Bar */}
-              <div className="relative w-80">
+              <div className="relative w-full lg:w-80">
                 <input
                   type="text"
                   placeholder="Search tokens..."
@@ -1107,21 +1107,21 @@ const DEXPage = () => {
             onDataFetched={handleTokenDataFetched}
           />
         ))}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-cyan-400 to-purple-600 bg-clip-text text-transparent mb-4">
+          <div className="text-center mb-6 sm:mb-8 md:mb-12">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-purple-600 bg-clip-text text-transparent mb-3 sm:mb-4">
               ChainCraft DEX
             </h1>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-3xl mx-auto px-4">
               Your decentralized exchange for token trading, pool creation, and liquidity management
             </p>
           </div>
 
           {/* Switch-style Tab Navigation */}
-          <div className="flex justify-center mb-8">
-            <div className="relative bg-gray-800/50 backdrop-blur-md rounded-2xl p-1 border border-gray-700 shadow-xl">
-              <div className="flex relative">
+          <div className="flex justify-center mb-6 sm:mb-8">
+            <div className="relative bg-gray-800/50 backdrop-blur-md rounded-2xl p-1 border border-gray-700 shadow-xl w-full max-w-4xl mx-auto overflow-x-auto">
+              <div className="flex relative min-w-fit">
                 {/* Active tab background slider */}
                 <div 
                   className="absolute top-1 bottom-1 bg-gradient-to-r from-cyan-600 to-purple-600 rounded-xl transition-all duration-300 ease-in-out shadow-lg shadow-cyan-500/25"
@@ -1137,8 +1137,8 @@ const DEXPage = () => {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`
-                      relative z-10 flex items-center justify-center space-x-2 px-8 py-4 font-semibold transition-all duration-300
-                      rounded-xl min-w-[160px] flex-1
+                      relative z-10 flex items-center justify-center space-x-1 sm:space-x-2 px-3 sm:px-6 md:px-8 py-3 sm:py-4 font-semibold transition-all duration-300
+                      rounded-xl min-w-[120px] sm:min-w-[140px] md:min-w-[160px] flex-1
                       ${activeTab === tab.id
                         ? 'text-white'
                         : 'text-gray-300 hover:text-white'
@@ -1146,8 +1146,8 @@ const DEXPage = () => {
                     `}
                     style={{ width: `${100 / tabs.length}%` }}
                   >
-                    <span className="text-lg">{tab.icon}</span>
-                    <span className="whitespace-nowrap">{tab.label}</span>
+                    <span className="text-base sm:text-lg">{tab.icon}</span>
+                    <span className="whitespace-nowrap text-xs sm:text-sm md:text-base">{tab.label}</span>
                   </button>
                 ))}
               </div>
@@ -1160,42 +1160,42 @@ const DEXPage = () => {
           </div>
 
           {/* Features Grid */}
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-gray-800/30 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
-              <div className="text-3xl mb-4">⚡</div>
-              <h3 className="text-xl font-bold text-white mb-2">Fast Trading</h3>
-              <p className="text-gray-300">
+          <div className="mt-8 sm:mt-12 md:mt-16 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+            <div className="bg-gray-800/30 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-gray-700">
+              <div className="text-2xl sm:text-3xl mb-3 sm:mb-4">⚡</div>
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Fast Trading</h3>
+              <p className="text-sm sm:text-base text-gray-300">
                 Lightning-fast token swaps with minimal slippage and competitive fees
               </p>
             </div>
             
-            <div className="bg-gray-800/30 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
-              <div className="text-3xl mb-4">🔒</div>
-              <h3 className="text-xl font-bold text-white mb-2">Anti-Rug Pull Protection</h3>
-              <p className="text-gray-300">
+            <div className="bg-gray-800/30 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-gray-700">
+              <div className="text-2xl sm:text-3xl mb-3 sm:mb-4">🔒</div>
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Anti-Rug Pull Protection</h3>
+              <p className="text-sm sm:text-base text-gray-300">
                 Lock tokens and ETH in the factory contract to prevent immediate dumps and build community trust
               </p>
             </div>
             
-            <div className="bg-gray-800/30 backdrop-blur-md rounded-2xl p-6 border border-gray-700">
-              <div className="text-3xl mb-4">📈</div>
-              <h3 className="text-xl font-bold text-white mb-2">Real-time Data</h3>
-              <p className="text-gray-300">
+            <div className="bg-gray-800/30 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-gray-700">
+              <div className="text-2xl sm:text-3xl mb-3 sm:mb-4">📈</div>
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-2">Real-time Data</h3>
+              <p className="text-sm sm:text-base text-gray-300">
                 Live pool statistics, price feeds, and trading analytics at your fingertips
               </p>
             </div>
           </div>
 
           {/* Call to Action */}
-          <div className="mt-16 text-center">
-            <div className="bg-gradient-to-r from-cyan-600/20 to-purple-600/20 backdrop-blur-md rounded-2xl p-8 border border-cyan-500/30">
-              <h3 className="text-2xl font-bold text-white mb-4">Ready to Launch Your Token?</h3>
-              <p className="text-gray-300 mb-6">
+          <div className="mt-8 sm:mt-12 md:mt-16 text-center">
+            <div className="bg-gradient-to-r from-cyan-600/20 to-purple-600/20 backdrop-blur-md rounded-2xl p-4 sm:p-6 md:p-8 border border-cyan-500/30">
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Ready to Launch Your Token?</h3>
+              <p className="text-sm sm:text-base text-gray-300 mb-4 sm:mb-6 px-2">
                 Create your token first, then return here to set up trading pools and lock tokens for trust building
               </p>
               <Link
                 href="/token"
-                className="inline-flex items-center px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300"
+                className="inline-flex items-center px-6 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-cyan-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300 text-sm sm:text-base"
               >
                 Deploy Token
                 <span className="ml-2">🚀</span>
