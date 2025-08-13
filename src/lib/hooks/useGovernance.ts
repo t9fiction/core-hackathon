@@ -52,13 +52,13 @@ export const PROPOSAL_TYPES: ProposalTypeConfig[] = [
     requiresValue: false,
     requiresRecipients: false,
   },
-  {
-    id: 4,
-    name: "Execute Airdrop",
-    description: "Distribute tokens to specified addresses",
-    requiresValue: false,
-    requiresRecipients: true,
-  },
+  // {
+  //   id: 4,
+  //   name: "Execute Airdrop",
+  //   description: "Distribute tokens to specified addresses",
+  //   requiresValue: false,
+  //   requiresRecipients: true,
+  // },
 ];
 
 export function useGovernance() {
