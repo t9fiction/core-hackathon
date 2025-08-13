@@ -57,7 +57,7 @@ const Footer = () => {
           {/* Right Side - Links organized in columns */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Platform Links */}
-            <div>
+            <div className="text-center sm:text-left">
               <h4 className="text-white font-semibold mb-4">Platform</h4>
               <ul className="space-y-2">
                 <li><Link href="/deploy" className="text-gray-400 hover:text-white transition-colors text-sm">Token Creation</Link></li>
@@ -69,7 +69,7 @@ const Footer = () => {
             </div>
 
             {/* Resources */}
-            <div>
+            <div className="text-center sm:text-left">
               <h4 className="text-white font-semibold mb-4">Resources</h4>
               <ul className="space-y-2">
                 <li><Link href="/docs" className="text-gray-400 hover:text-white transition-colors text-sm">Documentation</Link></li>
@@ -81,7 +81,7 @@ const Footer = () => {
             </div>
 
             {/* Community */}
-            <div>
+            <div className="text-center sm:text-left">
               <h4 className="text-white font-semibold mb-4">Community</h4>
               <ul className="space-y-2">
                 <li><a href="https://discord.gg/chaincraft" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm">Discord</a></li>
