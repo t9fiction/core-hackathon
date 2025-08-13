@@ -1118,38 +1118,62 @@ const DEXPage = () => {
             </p>
           </div>
 
-          {/* Switch-style Tab Navigation */}
-          <div className="flex justify-center mb-6 sm:mb-8">
-            <div className="relative bg-gray-800/50 backdrop-blur-md rounded-2xl p-1 border border-gray-700 shadow-xl w-full max-w-4xl mx-auto overflow-x-auto">
-              <div className="flex relative min-w-fit">
-                {/* Active tab background slider */}
-                <div 
-                  className="absolute top-1 bottom-1 bg-gradient-to-r from-cyan-600 to-purple-600 rounded-xl transition-all duration-300 ease-in-out shadow-lg shadow-cyan-500/25"
-                  style={{
-                    width: `${100 / tabs.length}%`,
-                    left: `${(tabs.findIndex(tab => tab.id === activeTab) * 100) / tabs.length}%`
-                  }}
-                />
-                
-                {/* Tab buttons */}
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      relative z-10 flex items-center justify-center space-x-1 sm:space-x-2 px-3 sm:px-6 md:px-8 py-3 sm:py-4 font-semibold transition-all duration-300
-                      rounded-xl min-w-[120px] sm:min-w-[140px] md:min-w-[160px] flex-1
-                      ${activeTab === tab.id
-                        ? 'text-white'
-                        : 'text-gray-300 hover:text-white'
-                      }
-                    `}
-                    style={{ width: `${100 / tabs.length}%` }}
-                  >
-                    <span className="text-base sm:text-lg">{tab.icon}</span>
-                    <span className="whitespace-nowrap text-xs sm:text-sm md:text-base">{tab.label}</span>
-                  </button>
-                ))}
+          {/* Tab Navigation */}
+          <div className="mb-6 sm:mb-8">
+            {/* Mobile Dropdown for smaller screens */}
+            <div className="block sm:hidden">
+              <div className="relative">
+                <select
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value as typeof activeTab)}
+                  className="w-full bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-2xl px-4 py-3 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500 appearance-none cursor-pointer"
+                >
+                  {tabs.map((tab) => (
+                    <option key={tab.id} value={tab.id} className="bg-gray-800 text-white">
+                      {tab.icon} {tab.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Tab Navigation */}
+            <div className="hidden sm:flex justify-center">
+              <div className="relative bg-gray-800/50 backdrop-blur-md rounded-2xl p-1 border border-gray-700 shadow-xl">
+                <div className="flex relative">
+                  {/* Active tab background slider */}
+                  <div 
+                    className="absolute top-1 bottom-1 bg-gradient-to-r from-cyan-600 to-purple-600 rounded-xl transition-all duration-300 ease-in-out shadow-lg shadow-cyan-500/25"
+                    style={{
+                      width: `${100 / tabs.length}%`,
+                      left: `${(tabs.findIndex(tab => tab.id === activeTab) * 100) / tabs.length}%`
+                    }}
+                  />
+                  
+                  {/* Tab buttons */}
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`
+                        relative z-10 flex items-center justify-center space-x-2 px-4 md:px-6 lg:px-8 py-3 md:py-4 font-semibold transition-all duration-300
+                        rounded-xl min-w-[140px] md:min-w-[160px] lg:min-w-[180px]
+                        ${activeTab === tab.id
+                          ? 'text-white'
+                          : 'text-gray-300 hover:text-white'
+                        }
+                      `}
+                    >
+                      <span className="text-lg">{tab.icon}</span>
+                      <span className="whitespace-nowrap text-sm md:text-base">{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
