@@ -11,6 +11,7 @@ import BuySellTokens from '../components/BuySellTokens/BuySellTokens';
 import PublicTokenListing from '../components/PublicTokenListing/PublicTokenListing';
 import TokenTradeModal from '../components/PublicTokenListing/TokenTradeModal';
 import ImprovedPoolManager from '../components/DEX/ImprovedPoolManager';
+import { useSmartContractRead } from '../lib/hooks/useSmartContract';
 
 interface TokenInfo {
   address: string;
@@ -367,14 +368,12 @@ const DEXPage = () => {
     },
   });
 
-  // Fetch all deployed tokens (always available)
-  const { data: allTokenAddresses } = useReadContract({
+  // Fetch all deployed tokens (always available with fallback support)
+  const { data: allTokenAddresses } = useSmartContractRead({
     address: contractAddresses?.CHAINCRAFT_FACTORY as `0x${string}`,
     abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getAllDeployedTokens',
-    query: {
-      enabled: !!contractAddresses?.CHAINCRAFT_FACTORY,
-    },
+    enabled: !!contractAddresses?.CHAINCRAFT_FACTORY,
   });
 
   // Use user tokens if connected, otherwise show all tokens
@@ -531,23 +530,26 @@ const DEXPage = () => {
     }
   }, [tokenAddresses, userTokens.length]);
 
-  // TokenDataFetcher component for each token
+  // TokenDataFetcher component for each token (with fallback support)
   const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
-    // Fetch name, symbol, totalSupply from token contract
-    const { data: name } = useReadContract({
+    // Fetch name, symbol, totalSupply from token contract (with fallback support)
+    const { data: name } = useSmartContractRead({
       address: tokenAddress as Address,
       abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "name",
+      enabled: !!tokenAddress,
     });
-    const { data: symbol } = useReadContract({
+    const { data: symbol } = useSmartContractRead({
       address: tokenAddress as Address,
       abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "symbol",
+      enabled: !!tokenAddress,
     });
-    const { data: totalSupply } = useReadContract({
+    const { data: totalSupply } = useSmartContractRead({
       address: tokenAddress as Address,
       abi: CHAINCRAFT_TOKEN_ABI,
       functionName: "totalSupply",
+      enabled: !!tokenAddress,
     });
 
     useEffect(() => {

@@ -5,6 +5,8 @@ import { CHAINCRAFT_TOKEN_ABI } from '../../lib/contracts/abis';
 import { getContractAddresses } from '../../lib/contracts/addresses';
 import { showSuccessAlert, showErrorAlert } from '../../lib/swal-config';
 import { useTokenApproval } from '../../lib/hooks/useTokenApproval';
+import { useSmartContractRead, useIsFallbackMode } from '../../lib/hooks/useSmartContract';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 // SushiSwap V2 Router ABI (essential functions)
 const SUSHISWAP_V2_ROUTER_ABI = [
@@ -103,6 +105,7 @@ export const BuySellTokens = ({
   
   const { address, isConnected } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
+  const isFallbackMode = useIsFallbackMode();
   
   const chainId = useChainId();
 
@@ -119,49 +122,43 @@ export const BuySellTokens = ({
     address: address,
   });
 
-  // Get token info from contract
-  const { data: contractTokenName } = useReadContract({
+  // Get token info from contract (with fallback support)
+  const { data: contractTokenName } = useSmartContractRead({
     address: tokenAddress,
     abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'name',
-    query: {
-      enabled: !!tokenAddress,
-    },
+    enabled: !!tokenAddress,
   });
 
-  const { data: contractTokenSymbol } = useReadContract({
+  const { data: contractTokenSymbol } = useSmartContractRead({
     address: tokenAddress,
     abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'symbol',
-    query: {
-      enabled: !!tokenAddress,
-    },
+    enabled: !!tokenAddress,
   });
 
   // Use props if provided, otherwise use contract data
   const tokenName = propTokenName || (contractTokenName as string);
   const tokenSymbol = propTokenSymbol || (contractTokenSymbol as string);
 
-  // Get token balance
+  // Get token balance (only when wallet is connected)
   const { data: tokenBalance } = useReadContract({
     address: tokenAddress,
     abi: CHAINCRAFT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [address!],
     query: {
-      enabled: !!address,
+      enabled: !!address && isConnected,
     },
   });
 
-  // Check if pair exists on SushiSwap
-  const { data: existingPair } = useReadContract({
+  // Check if pair exists on SushiSwap (with fallback support)
+  const { data: existingPair } = useSmartContractRead({
     address: sushiV2Addresses?.factory as Address,
     abi: SUSHISWAP_V2_FACTORY_ABI,
     functionName: "getPair",
     args: [tokenAddress, contractAddresses.WETH],
-    query: {
-      enabled: !!(tokenAddress && contractAddresses.WETH && sushiV2Addresses?.factory),
-    },
+    enabled: !!(tokenAddress && contractAddresses.WETH && sushiV2Addresses?.factory),
   });
 
   const pairExists = existingPair && existingPair !== "0x0000000000000000000000000000000000000000";
@@ -517,15 +514,108 @@ export const BuySellTokens = ({
     );
   }
 
+  // Show browse mode when wallet is not connected
   if (!isConnected) {
+    const containerClasses = embedded ? "space-y-4" : "space-y-6";
+    const cardClasses = embedded ? "bg-transparent p-6" : "bg-slate-700 rounded-lg p-6 border border-slate-600";
+
     return (
-      <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
-        <div className="text-center">
-          <h3 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h3>
-          <p className="text-slate-400 mb-4">Please connect your wallet to trade tokens on SushiSwap.</p>
-          <div className="text-xs text-amber-300 bg-amber-400/10 rounded-lg p-3 border border-amber-400/20">
-            <p className="mb-1">📊 You can view token information without connecting a wallet.</p>
-            <p>🔒 Connect your wallet to enable SushiSwap trading functionality.</p>
+      <div className={containerClasses}>
+        <div className={cardClasses}>
+          {!embedded && (
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center">
+                <span className="text-blue-400 mr-2">🍣</span>
+                {tokenSymbol || 'Token'} Information
+              </h3>
+              <div className="bg-blue-600 px-3 py-1 rounded-lg">
+                <span className="text-sm text-white">Browse Mode</span>
+              </div>
+            </div>
+          )}
+
+          {/* Token Information Display */}
+          <div className="space-y-4">
+            {/* Token Details */}
+            <div className="bg-slate-800 rounded-lg p-4">
+              <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <span className="mr-2">📊</span>
+                Token Details
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-slate-400 mb-1">Name</p>
+                  <p className="text-base font-medium text-white">
+                    {tokenName || 'Loading...'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-400 mb-1">Symbol</p>
+                  <p className="text-base font-medium text-white">
+                    {tokenSymbol || 'Loading...'}
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <p className="text-sm text-slate-400 mb-1">Contract Address</p>
+                  <p className="text-xs font-mono text-slate-300 break-all bg-slate-700 p-2 rounded">
+                    {tokenAddress}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pool Status */}
+            <div className="bg-slate-800 rounded-lg p-4">
+              <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <span className="mr-2">🏊</span>
+                Pool Status
+              </h4>
+              {pairExists ? (
+                <div className="p-3 bg-green-900/30 border border-green-500/50 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="text-green-400 mr-2">✅</span>
+                    <div>
+                      <p className="text-green-300 text-sm font-medium">SushiSwap Pool Available</p>
+                      <p className="text-green-200 text-xs mt-1">
+                        Trading is enabled for this token on SushiSwap V2
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-yellow-900/30 border border-yellow-500/50 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="text-yellow-400 mr-2">⚠️</span>
+                    <div>
+                      <p className="text-yellow-300 text-sm font-medium">No SushiSwap Pool</p>
+                      <p className="text-yellow-200 text-xs mt-1">
+                        A liquidity pool needs to be created before trading
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Connection Prompt */}
+            <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4">
+              <h4 className="text-blue-300 font-semibold mb-3 flex items-center">
+                <span className="mr-2">🔗</span>
+                Connect to Trade
+              </h4>
+              <p className="text-blue-200 text-sm mb-4">
+                Connect your wallet to buy and sell {tokenSymbol || 'tokens'} on SushiSwap with real-time pricing.
+              </p>
+              <div className="flex justify-center">
+                <ConnectButton />
+              </div>
+            </div>
+
+            {/* Browse Mode Info */}
+            <div className="text-center text-xs text-slate-400 bg-slate-800/50 rounded-lg p-3">
+              <p className="mb-1">🌐 <strong>Browse Mode:</strong> You can view token information without connecting a wallet.</p>
+              <p>🔒 Connect your wallet to access full trading functionality on SushiSwap V2.</p>
+            </div>
           </div>
         </div>
       </div>

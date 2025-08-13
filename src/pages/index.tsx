@@ -5,11 +5,13 @@ import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import PublicTokenListing from '../components/PublicTokenListing/PublicTokenListing';
 import TokenTradeModal from '../components/PublicTokenListing/TokenTradeModal';
+import { useIsFallbackMode } from '../lib/hooks/useSmartContract';
 
 const ChainCraftApp = () => {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
+  const isFallbackMode = useIsFallbackMode();
 
   const [selectedToken, setSelectedToken] = useState<{
     address: string;
@@ -106,6 +108,21 @@ const ChainCraftApp = () => {
           </div>
         </div>
 
+
+        {/* Connection Status Banner */}
+        {isFallbackMode && (
+          <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+              <div>
+                <p className="text-blue-200 font-medium">Browse Mode Active</p>
+                <p className="text-blue-300 text-sm">
+                  You can browse all tokens and pools without connecting a wallet. Connect your wallet to trade.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Token Listings Section */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 p-4 sm:p-6">
