@@ -182,7 +182,7 @@ const Footer = () => {
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 md:space-x-6">
               <p className="text-gray-400 text-sm">
-                © 2024 ChainCraft. All rights reserved.
+                © 2025 ChainCraft. All rights reserved.
               </p>
               <div className="flex flex-wrap gap-2 sm:gap-0 sm:space-x-4 justify-center sm:justify-start">
                 <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
