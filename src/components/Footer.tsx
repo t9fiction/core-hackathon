@@ -120,7 +120,7 @@ const Footer = () => {
               </div>
               <div className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-1">
                 <span className="text-xs text-gray-400">Network:</span>
-                <span className="text-xs text-blue-400 font-semibold">Ethereum</span>
+                <span className="text-xs text-[#f57724] font-semibold">Core Dao</span>
               </div>
             </div>
           </div>

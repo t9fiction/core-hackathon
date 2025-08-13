@@ -31,7 +31,7 @@ const LiquidityManagerComponent = ({ tokenAddress }: { tokenAddress: Address }) 
   const chainId = useChainId();
   const contractAddresses = getContractAddresses(chainId);
   const { address, isConnected } = useAccount();
-  const WETH_ADDRESS = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14"; // fallback to Sepolia WETH
+  // WCORE address is automatically retrieved from contract addresses for Core DAO
 
   // Get selected token info
   const selectedTokenInfo = { symbol: 'TOKEN' }; // Simplified for now

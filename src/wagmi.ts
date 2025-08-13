@@ -1,28 +1,15 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import {
-  arbitrum,
-  base,
   coreTestnet2,
   coreDao,
-  mainnet,
-  optimism,
-  polygon,
-  sepolia,
 } from 'wagmi/chains';
 
 export const config = getDefaultConfig({
-  appName: 'RainbowKit App',
+  appName: 'ChainCraft - Core DAO Token Management',
   projectId: 'b733907b13ef59931a5ab9c55db6f28c',
   chains: [
-    mainnet,
-    coreDao,
-    coreTestnet2,
-    sepolia,
-    polygon,
-    optimism,
-    arbitrum,
-    base,
-    ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [sepolia] : []),
+    coreDao, // Core DAO Mainnet (Chain ID: 1116)
+    ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === 'true' ? [coreTestnet2] : []), // Core DAO Testnet (Chain ID: 1114)
   ],
   ssr: true,
 });
