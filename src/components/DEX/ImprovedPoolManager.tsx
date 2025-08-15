@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from 'react';
 import {
   useAccount,
   useWriteContract,
@@ -161,6 +161,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     setError(null);
     setSuccess(null);
     setLiquidityExecuted(false); // Reset execution flag
+    callbackExecutedRef.current = false; // Reset callback flag
     
     try {
       // Check if we need token approval first
@@ -199,6 +200,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     setError(null);
     setSuccess(null);
     setLiquidityExecuted(false); // Reset execution flag
+    callbackExecutedRef.current = false; // Reset callback flag
     
     try {
       // Check if we need approval first
@@ -355,8 +357,12 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
     }
   }, [isCreateSuccess, refetchPairInfo, liquidityExecuted]);
 
+  // Use ref to track if callback has been called to prevent multiple calls
+  const callbackExecutedRef = useRef(false);
+  
   useEffect(() => {
-    if (isLiquiditySuccess) {
+    if (isLiquiditySuccess && !callbackExecutedRef.current) {
+      callbackExecutedRef.current = true;
       setSuccess("🎉 Success! Liquidity added to the pool!");
       setCurrentStep("");
       setIsProcessing(false);
@@ -370,7 +376,7 @@ const ImprovedPoolManager: React.FC<ImprovedPoolManagerProps> = ({
         });
       }
     }
-  }, [isLiquiditySuccess, liquidityHash, onPoolCreated, tokenAddress, formData.tokenAmount, formData.coreAmount]);
+  }, [isLiquiditySuccess, liquidityHash, tokenAddress]); // Removed formData and onPoolCreated from dependencies
 
   const handleInputChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });

@@ -83,8 +83,8 @@ const Token = () => {
     }
   }, [tokenAddresses, userTokens.length]);
 
-  // TokenDataFetcher component for each token
-  const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
+  // TokenDataFetcher component for each token - Memoized to prevent infinite re-renders
+  const TokenDataFetcher = React.memo(({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
     // Fetch name, symbol, totalSupply from token contract
     const { data: name } = useReadContract({
       address: tokenAddress as Address,
@@ -102,8 +102,12 @@ const Token = () => {
       functionName: "totalSupply",
     });
 
+    // Use ref to track if data has been fetched to prevent multiple calls
+    const dataFetchedRef = React.useRef(false);
+
     useEffect(() => {
-      if (name && symbol && totalSupply !== undefined) {
+      if (name && symbol && totalSupply !== undefined && !dataFetchedRef.current) {
+        dataFetchedRef.current = true;
         onDataFetched({
           address: tokenAddress,
           name: name as string,
@@ -111,10 +115,10 @@ const Token = () => {
           totalSupply: formatEther(totalSupply),
         })
       }
-    }, [name, symbol, totalSupply, onDataFetched, tokenAddress]);
+    }, [name, symbol, totalSupply, tokenAddress]); // Remove onDataFetched from dependencies
 
     return null; // Component doesn't render anything
-  };
+  });
 
   // Callback functions for component interactions
   const handleTokenDeploymentSuccess = useCallback((hash: string) => {

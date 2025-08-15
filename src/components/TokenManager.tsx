@@ -16,6 +16,7 @@ import { parseEther } from "viem";
 import Link from "next/link";
 import { showErrorAlert } from '../lib/swal-config';
 import { useTokenApproval } from '../lib/hooks/useTokenApproval';
+import BuySellTokens from './BuySellTokens/BuySellTokens';
 
 interface TokenInfo {
   tokenAddress: string;
@@ -252,8 +253,6 @@ const TokenManager = () => {
     const [poolTokenAmount, setPoolTokenAmount] = useState("");
     const [poolEthAmount, setPoolEthAmount] = useState("");
     const [poolFee, setPoolFee] = useState(3000);
-    const [buyAmount, setBuyAmount] = useState("");
-    const [sellAmount, setSellAmount] = useState("");
 
     const chainId = useChainId();
     const contractAddresses = getContractAddresses(chainId);
@@ -403,129 +402,17 @@ const TokenManager = () => {
     }, [approvalSuccess, lockAmount, lockEthAmount]);
 
     const tabs = [
-      { id: "dex", label: "💱 DEX Trading", icon: "💱" },
+      { id: "dex", label: "💱 Trading", icon: "💱" },
       { id: "trust-lock", label: "🔒 Trust Lock", icon: "🔒" },
     ];
 
-    // Authorization for DEX trading
+    // Authorization for DEX trading (if needed in the future)
     const handleAuthorizeForDEX = async () => {
       try {
         await dex.authorizeTokenForTrading();
         console.log("Token authorized for DEX trading successfully");
       } catch (error) {
         console.error("Error authorizing token for DEX:", error);
-      }
-    };
-
-    const handleBuyTokens = async () => {
-      if (!buyAmount || !tokenAddress) return;
-      
-      try {
-        const ethAmount = parseEther(buyAmount);
-        
-        // Import route calculation at the top of file if not already done
-        const { generateETHToTokenRoute, getEstimatedOutput, calculateMinOutput } = await import('../lib/dex/routeCalculation');
-        
-        // Calculate estimated output and minimum with 5% slippage
-        const estimatedOutput = getEstimatedOutput(
-          contractAddresses.WETH as Address,
-          tokenAddress as Address, 
-          ethAmount
-        );
-        const minOutput = calculateMinOutput(estimatedOutput, 5); // 5% slippage
-        
-        // Generate route for ETH to Token swap
-        const route = generateETHToTokenRoute(
-          tokenAddress as Address,
-          ethAmount,
-          minOutput,
-          address as Address,
-          contractAddresses.WETH as Address
-        );
-        
-        console.log('Buy tokens with route:', {
-          tokenOut: tokenAddress,
-          amountIn: ethAmount.toString(),
-          estimatedOutput: estimatedOutput.toString(),
-          minOutput: minOutput.toString(),
-          route
-        });
-        
-        await writeContract({
-          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-          abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: 'swapETHForTokens',
-          args: [tokenAddress as Address, route as Address],
-          value: ethAmount,
-        });
-        setBuyAmount('');
-      } catch (error) {
-        console.error('Error buying tokens:', error);
-        showErrorAlert(
-          'Swap Failed',
-          (error as any)?.message || 'Failed to execute token purchase. Please try again.'
-        );
-      }
-    };
-
-    const handleSellTokens = async () => {
-      if (!sellAmount || !tokenAddress) return;
-      
-      try {
-        const amountIn = parseUnits(sellAmount, 18);
-        
-        // Approve tokens to DEX Manager
-        await writeContract({
-          address: tokenAddress as Address,
-          abi: CHAINCRAFT_TOKEN_ABI,
-          functionName: 'approve',
-          args: [contractAddresses.CHAINCRAFT_DEX_MANAGER, amountIn],
-        });
-
-        // Wait a bit for approval
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Import route calculation
-        const { generateTokenToETHRoute, getEstimatedOutput, calculateMinOutput } = await import('../lib/dex/routeCalculation');
-        
-        // Calculate estimated output and minimum with 5% slippage
-        const estimatedOutput = getEstimatedOutput(
-          tokenAddress as Address,
-          contractAddresses.WETH as Address,
-          amountIn
-        );
-        const minOutput = calculateMinOutput(estimatedOutput, 5); // 5% slippage
-        
-        // Generate route for Token to ETH swap
-        const route = generateTokenToETHRoute(
-          tokenAddress as Address,
-          amountIn,
-          minOutput,
-          address as Address,
-          contractAddresses.WETH as Address
-        );
-        
-        console.log('Sell tokens with route:', {
-          tokenIn: tokenAddress,
-          amountIn: amountIn.toString(),
-          estimatedOutput: estimatedOutput.toString(),
-          minOutput: minOutput.toString(),
-          route
-        });
-        
-        await writeContract({
-          address: contractAddresses.CHAINCRAFT_DEX_MANAGER,
-          abi: CHAINCRAFT_DEX_MANAGER_ABI,
-          functionName: 'swapTokensForETH',
-          args: [tokenAddress as Address, amountIn, route as Address],
-        });
-        setSellAmount('');
-      } catch (error) {
-        console.error('Error selling tokens:', error);
-        showErrorAlert(
-          'Swap Failed',
-          (error as any)?.message || 'Failed to execute token sale. Please try again.'
-        );
       }
     };
 
@@ -571,117 +458,16 @@ const TokenManager = () => {
         <div className="space-y-6">
           {activeTab === "dex" && (
             <div className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Buy Tokens */}
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">
-                    💰 Buy Tokens
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-gray-300 text-sm mb-1">
-                        ETH Amount
-                      </label>
-                      <input
-                        type="number"
-                        step="0.001"
-                        value={buyAmount}
-                        onChange={(e) => setBuyAmount(e.target.value)}
-                        className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                        placeholder="0.1"
-                      />
-                    </div>
-                    <div className="bg-gray-600 rounded p-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-300">
-                          You&apos;ll receive:
-                        </span>
-                        <span className="text-white font-medium">
-                          Price calculation disabled
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Note:</span>
-                        <span>Route calculation needed for accurate pricing</span>
-                      </div>
-                    </div>
-                    <button
-                      disabled={!isConnected || !buyAmount}
-                      onClick={handleBuyTokens}
-                      className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
-                    >
-                      Buy Tokens
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sell Tokens */}
-                <div className="bg-gray-700 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">
-                    💸 Sell Tokens
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-gray-300 text-sm mb-1">
-                        Token Amount
-                      </label>
-                      <input
-                        type="number"
-                        value={sellAmount}
-                        onChange={(e) => setSellAmount(e.target.value)}
-                        className="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white"
-                        placeholder="1000"
-                      />
-                    </div>
-                    <div className="bg-gray-600 rounded p-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-300">
-                          You&apos;ll receive:
-                        </span>
-                        <span className="text-white font-medium">
-                          Price calculation disabled
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Note:</span>
-                        <span>Route calculation needed for accurate pricing</span>
-                      </div>
-                    </div>
-                    <button
-                      disabled={!isConnected || !sellAmount}
-                      onClick={handleSellTokens}
-                      className="w-full bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-2 px-4 rounded transition-colors"
-                    >
-                      Sell Tokens
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Trading Stats */}
-              <div className="bg-gray-700 rounded-lg p-4">
-                <h4 className="text-lg font-semibold text-white mb-3">
-                  📊 Trading Statistics
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <p className="text-gray-400 text-sm">Price</p>
-                    <p className="text-white font-bold">$0.00081</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-gray-400 text-sm">24h Volume</p>
-                    <p className="text-white font-bold">$12,450</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-gray-400 text-sm">Market Cap</p>
-                    <p className="text-white font-bold">$405K</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-gray-400 text-sm">Liquidity</p>
-                    <p className="text-white font-bold">$89K</p>
-                  </div>
-                </div>
-              </div>
+              {/* Modern BuySellTokens Component */}
+              <BuySellTokens 
+                tokenAddress={tokenAddress as Address}
+                tokenName={selectedTokenInfo?.name}
+                tokenSymbol={selectedTokenInfo?.symbol}
+                embedded={true}
+                onTransactionComplete={() => {
+                  console.log('Token trade completed successfully');
+                }}
+              />
             </div>
           )}
 

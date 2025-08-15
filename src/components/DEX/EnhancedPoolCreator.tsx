@@ -33,27 +33,27 @@ const EnhancedPoolCreator: React.FC<EnhancedPoolCreatorProps> = ({
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch user's deployed tokens
+  // Fetch user's deployed tokens - only when token selection is shown
   const { data: tokenAddresses } = useReadContract({
     address: contractAddresses?.CHAINCRAFT_FACTORY as `0x${string}`,
     abi: CHAINCRAFT_FACTORY_ABI,
     functionName: 'getTokensByCreator',
     args: [address!],
     query: {
-      enabled: isConnected && !!address && !!contractAddresses?.CHAINCRAFT_FACTORY,
+      enabled: showTokenSelection && isConnected && !!address && !!contractAddresses?.CHAINCRAFT_FACTORY,
     },
   });
 
-  // Fetch token data directly using hooks
+  // Fetch token data directly using hooks - only when token selection is shown
   useEffect(() => {
-    if (tokenAddresses && tokenAddresses.length > 0) {
+    if (showTokenSelection && tokenAddresses && tokenAddresses.length > 0) {
       setIsLoadingTokens(true);
       setUserTokens([]); // Reset token array
     } else {
       setUserTokens([]);
       setIsLoadingTokens(false);
     }
-  }, [tokenAddresses, chainId]);
+  }, [showTokenSelection, tokenAddresses, chainId]);
 
   const handleTokenDataFetched = useCallback((data: TokenInfo) => {
     setUserTokens(prevTokens => {
@@ -79,8 +79,8 @@ const EnhancedPoolCreator: React.FC<EnhancedPoolCreatorProps> = ({
     });
   }, []);
 
-  // TokenDataFetcher component for each token
-  const TokenDataFetcher = ({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
+  // TokenDataFetcher component for each token - Memoized to prevent infinite re-renders
+  const TokenDataFetcher = React.memo(({ tokenAddress, onDataFetched }: { tokenAddress: string, onDataFetched: (data: TokenInfo) => void }) => {
     // Fetch name, symbol, totalSupply from token contract
     const { data: name } = useReadContract({
       address: tokenAddress as Address,
@@ -98,8 +98,12 @@ const EnhancedPoolCreator: React.FC<EnhancedPoolCreatorProps> = ({
       functionName: "totalSupply",
     });
 
+    // Use ref to track if data has been fetched to prevent multiple calls
+    const dataFetchedRef = React.useRef(false);
+
     useEffect(() => {
-      if (name && symbol && totalSupply !== undefined) {
+      if (name && symbol && totalSupply !== undefined && !dataFetchedRef.current) {
+        dataFetchedRef.current = true;
         onDataFetched({
           address: tokenAddress,
           name: name as string,
@@ -107,10 +111,10 @@ const EnhancedPoolCreator: React.FC<EnhancedPoolCreatorProps> = ({
           totalSupply: formatEther(totalSupply),
         })
       }
-    }, [name, symbol, totalSupply, onDataFetched, tokenAddress]);
+    }, [name, symbol, totalSupply, tokenAddress]); // Remove onDataFetched from dependencies
 
     return null; // Component doesn't render anything
-  };
+  });
 
   // Separate useEffect to handle loading state management
   useEffect(() => {
@@ -155,8 +159,8 @@ const EnhancedPoolCreator: React.FC<EnhancedPoolCreatorProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Hidden TokenDataFetcher components for each token */}
-      {tokenAddresses && tokenAddresses.map((tokenAddress) => (
+      {/* Hidden TokenDataFetcher components for each token - only when showing token selection */}
+      {showTokenSelection && tokenAddresses && tokenAddresses.map((tokenAddress) => (
         <TokenDataFetcher
           key={tokenAddress}
           tokenAddress={tokenAddress as string}
